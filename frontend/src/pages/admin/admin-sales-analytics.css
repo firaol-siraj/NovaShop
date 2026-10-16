@@ -1,0 +1,727 @@
+/* =========================================================
+   PAGE — same shell rhythm as Inventory / Analytics Overview
+========================================================= */
+
+.sales-page {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 18px;
+  padding-bottom: 86px;
+}
+
+.sales-page-heading {
+  align-items: flex-end;
+}
+
+.sales-page-heading .admin-page-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.sales-kpi-label {
+  margin: 0 0 -8px 1px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.sales-stat-grid .admin-stat-card {
+  min-height: 105px;
+}
+
+.sales-stat-grid .admin-stat-value {
+  margin-top: 16px;
+  font-size: 28px;
+}
+
+.admin-trend-pill.is-warning {
+  background: var(--admin-amber-soft);
+  color: var(--admin-amber);
+}
+
+/* =========================================================
+   DATE RANGE DROPDOWN
+========================================================= */
+
+.sales-range-dropdown {
+  position: relative;
+}
+
+.sales-range-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #E4DDD4;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #3D372F;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.sales-range-button svg:first-child {
+  color: #847D74;
+}
+
+.sales-range-button svg:last-child {
+  color: #928A81;
+}
+
+.sales-range-button:hover {
+  border-color: #D8CFC3;
+}
+
+.sales-range-menu {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(28, 25, 23, .04), 0 14px 32px rgba(28, 25, 23, .13);
+  animation: sales-menu-pop 140ms cubic-bezier(.2, .9, .3, 1.2);
+}
+
+.sales-range-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #3D372F;
+  font-size: 9px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sales-range-menu button:hover {
+  background: #F5F2ED;
+}
+
+.sales-range-menu button.is-selected {
+  color: var(--admin-primary);
+}
+
+.sales-range-menu button svg {
+  color: var(--admin-primary);
+}
+
+@keyframes sales-menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* =========================================================
+   CARD SHELL — shared look across all sales modules
+========================================================= */
+
+.sales-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(28, 25, 23, .025);
+}
+
+.sales-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.sales-card-heading h2 {
+  margin: 0;
+  color: #2B2723;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.sales-card-heading p {
+  margin: 4px 0 0;
+  color: #928A81;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.sales-timezone-label {
+  flex: 0 0 auto;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .09em;
+  white-space: nowrap;
+}
+
+.sales-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #EEE9E2;
+  color: #928A81;
+  font-size: 9px;
+}
+
+.sales-card-footer strong {
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.sales-text-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #5F574F;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.sales-text-link:hover {
+  color: var(--admin-primary);
+}
+
+/* =========================================================
+   MAIN TWO-COLUMN GRID (reused for both module rows)
+========================================================= */
+
+.sales-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+/* =========================================================
+   SALES OVER TIME CHART
+========================================================= */
+
+.sales-chart-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+.sales-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sales-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5F574F;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.sales-legend-item i,
+.sales-chart-tooltip-row i {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.sales-legend-item i.is-gross,
+.sales-chart-tooltip-row i.is-gross {
+  background: #2B2723;
+}
+
+.sales-legend-item i.is-net,
+.sales-chart-tooltip-row i.is-net {
+  background: #C9C2B8;
+}
+
+.sales-segmented-control {
+  display: flex;
+  padding: 3px;
+  border-radius: 7px;
+  background: #F5F2ED;
+}
+
+.sales-segmented-control button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #797067;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.sales-segmented-control button.is-selected {
+  background: #FFFFFF;
+  color: #2B2723;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, .1);
+}
+
+.sales-chart-wrap {
+  position: relative;
+}
+
+.sales-chart-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.sales-chart-grid {
+  stroke: #F0ECE6;
+  stroke-width: 1;
+}
+
+.sales-chart-axis-label {
+  fill: #AFA89E;
+  font-family: var(--font-sans);
+  font-size: 9px;
+}
+
+.sales-chart-axis-label-x {
+  text-anchor: middle;
+}
+
+.sales-chart-axis-label-x.is-active {
+  fill: #2B2723;
+  font-weight: 700;
+}
+
+.sales-chart-line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sales-chart-line-gross {
+  stroke: #2B2723;
+}
+
+.sales-chart-line-net {
+  stroke: #C9C2B8;
+}
+
+.sales-chart-guide {
+  stroke: #C9C2B8;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.sales-chart-dot {
+  stroke: #FFFFFF;
+  stroke-width: 2;
+}
+
+.sales-chart-dot-gross {
+  fill: #2B2723;
+}
+
+.sales-chart-dot-net {
+  fill: #C9C2B8;
+}
+
+.sales-chart-tooltip {
+  position: absolute;
+  top: 2%;
+  left: 60%;
+  transform: translate(-50%, 0);
+  min-width: 150px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #221E19;
+  color: #FFFFFF;
+  font-size: 9px;
+  box-shadow: 0 10px 24px rgba(28, 25, 23, .2);
+}
+
+.sales-chart-tooltip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, .12);
+}
+
+.sales-chart-tooltip-head strong {
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.sales-chart-tooltip-head span {
+  color: #C9C2B8;
+}
+
+.sales-chart-tooltip-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 3px 0;
+  color: #E5E1DA;
+}
+
+.sales-chart-tooltip-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sales-chart-tooltip-row strong {
+  font-weight: 700;
+}
+
+/* =========================================================
+   ORDERS BY STATUS
+========================================================= */
+
+.sales-status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sales-status-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+  color: #3D372F;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sales-status-top strong {
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.sales-status-bar {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EEE9E2;
+}
+
+.sales-status-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--admin-primary);
+}
+
+/* =========================================================
+   SALES BY DAY/TIME HEATMAP
+========================================================= */
+
+.sales-heatmap {
+  display: grid;
+  gap: 6px;
+}
+
+.sales-heatmap-head,
+.sales-heatmap-row {
+  display: grid;
+  grid-template-columns: 34px repeat(6, 1fr);
+  align-items: center;
+  gap: 6px;
+}
+
+.sales-heatmap-head span {
+  color: #AFA89E;
+  font-size: 8px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sales-heatmap-day {
+  color: #928A81;
+  font-size: 9px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.sales-heatmap-cell {
+  height: 26px;
+  border-radius: 5px;
+  background: #F0ECE6;
+}
+
+.sales-heatmap-cell.is-level-0 { background: #F3F0EB; }
+.sales-heatmap-cell.is-level-1 { background: #DCD4C7; }
+.sales-heatmap-cell.is-level-2 { background: #B2A692; }
+.sales-heatmap-cell.is-level-3 { background: #6B5D4C; }
+.sales-heatmap-cell.is-level-4 { background: #2B2723; }
+
+.sales-heatmap-cell.is-selected {
+  box-shadow: 0 0 0 2px var(--admin-primary);
+}
+
+.sales-heatmap-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #EEE9E2;
+  color: #928A81;
+  font-size: 9px;
+}
+
+.sales-heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.sales-heatmap-legend i {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.sales-heatmap-legend i.is-level-0 { background: #F3F0EB; }
+.sales-heatmap-legend i.is-level-1 { background: #DCD4C7; }
+.sales-heatmap-legend i.is-level-2 { background: #B2A692; }
+.sales-heatmap-legend i.is-level-3 { background: #6B5D4C; }
+.sales-heatmap-legend i.is-level-4 { background: #2B2723; }
+
+/* =========================================================
+   BAR LISTS — payment methods / countries
+========================================================= */
+
+.sales-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.sales-bar-list-compact {
+  gap: 13px;
+}
+
+.sales-bar-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: #3D372F;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.sales-bar-top strong {
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.sales-bar-track {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EEE9E2;
+}
+
+.sales-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--admin-primary);
+}
+
+.sales-bar-track-thin {
+  height: 3px;
+}
+
+/* =========================================================
+   BOTTOM TRIO / SPLIT GRID
+========================================================= */
+
+.sales-trio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* =========================================================
+   DISCOUNT PERFORMANCE TABLE
+========================================================= */
+
+.sales-discount-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.sales-discount-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 100px 130px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid #F0ECE6;
+}
+
+.sales-discount-row:last-child {
+  border-bottom: 0;
+}
+
+.sales-discount-head {
+  padding-top: 0;
+  padding-bottom: 10px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.sales-discount-head span:not(:first-child) {
+  text-align: right;
+}
+
+.sales-discount-identity strong {
+  display: block;
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.sales-discount-identity small {
+  display: block;
+  margin-top: 2px;
+  color: #928A81;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 8px;
+}
+
+.sales-discount-redemptions {
+  color: #3D372F;
+  font-size: 9px;
+  text-align: right;
+}
+
+.sales-discount-revenue {
+  color: #2B2723;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .sales-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sales-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-trio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .sales-page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .sales-page-heading .admin-page-actions {
+    width: 100%;
+  }
+
+  .sales-card-heading {
+    flex-direction: column;
+  }
+
+  .sales-chart-controls {
+    width: 100%;
+    align-items: flex-start;
+  }
+
+  .sales-heatmap-head,
+  .sales-heatmap-row {
+    grid-template-columns: 28px repeat(6, 1fr);
+  }
+
+  .sales-heatmap-cell {
+    height: 20px;
+  }
+
+  .sales-chart-tooltip {
+    left: 50%;
+    top: 6px;
+  }
+
+  .sales-discount-row {
+    grid-template-columns: minmax(0, 1fr) 64px 90px;
+  }
+}
+
+@media (max-width: 480px) {
+  .sales-stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sales-heatmap-head span,
+  .sales-heatmap-day {
+    font-size: 7px;
+  }
+}

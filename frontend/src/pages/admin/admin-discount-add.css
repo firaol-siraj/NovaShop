@@ -1,0 +1,1004 @@
+/* =========================================================
+   ADMIN ADD DISCOUNT
+   Same visual system as Admin Discounts / Edit Discount
+========================================================= */
+
+.discounts-add-page {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 18px;
+  padding-bottom: 86px;
+}
+
+
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+.discounts-add-heading {
+  align-items: center;
+}
+
+.discounts-add-heading-copy {
+  min-width: 0;
+}
+
+.discounts-add-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #8A837A;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.discounts-add-back:hover {
+  color: var(--admin-primary);
+}
+
+.discounts-add-back span {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.discounts-add-actions {
+  flex-wrap: nowrap;
+}
+
+.discounts-add-actions .admin-action-button {
+  min-height: 36px;
+}
+
+
+/* =========================================================
+   MAIN LAYOUT
+========================================================= */
+
+.discounts-add-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 255px;
+  align-items: start;
+  gap: 18px;
+  min-width: 0;
+}
+
+.discounts-add-form-column {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.discounts-add-summary-column {
+  position: sticky;
+  top: 18px;
+  min-width: 0;
+}
+
+
+/* =========================================================
+   CARDS
+========================================================= */
+
+.discount-add-card,
+.discount-add-summary-card {
+  min-width: 0;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(28, 25, 23, .025);
+}
+
+.discount-add-card {
+  padding: 18px;
+}
+
+.discount-add-summary-card {
+  padding: 17px;
+}
+
+
+/* =========================================================
+   CARD HEADINGS
+========================================================= */
+
+.discount-add-card-heading {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.discount-add-card-heading h2 {
+  margin: 0;
+  color: #38332E;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+  line-height: 1.3;
+}
+
+.discount-add-heading-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.discount-add-heading-inline > span {
+  color: #928A81;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  font-weight: 500;
+  letter-spacing: .08em;
+  text-transform: none;
+}
+
+
+/* =========================================================
+   SEGMENTED CONTROL
+========================================================= */
+
+.discount-add-segmented {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  margin-bottom: 18px;
+  padding: 3px;
+  border-radius: 7px;
+  background: #F5F2ED;
+}
+
+.discount-add-segmented button {
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #777067;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: .02em;
+  cursor: pointer;
+}
+
+.discount-add-segmented button:hover {
+  color: #403A34;
+}
+
+.discount-add-segmented button.is-selected {
+  background: #FFFFFF;
+  color: #403A34;
+  box-shadow: 0 1px 4px rgba(28, 25, 23, .045);
+}
+
+
+/* =========================================================
+   FORM FIELDS
+========================================================= */
+
+.discount-add-field {
+  margin-top: 16px;
+}
+
+.discount-add-field:first-child {
+  margin-top: 0;
+}
+
+.discount-add-field label {
+  display: block;
+  margin-bottom: 6px;
+  color: #625B53;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.discount-add-field input {
+  width: 100%;
+  height: 36px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0;
+  outline: 0;
+  background: #F8F6F2;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 500;
+  transition:
+    background 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.discount-add-field input:hover {
+  background: #F6F3EE;
+}
+
+.discount-add-field input:focus {
+  background: #F5F2ED;
+  box-shadow: inset 0 0 0 1px #DDD5CB;
+}
+
+.discount-add-field input::placeholder {
+  color: #989188;
+}
+
+.discount-add-helper {
+  display: block;
+  margin-top: 5px;
+  color: #777067;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  letter-spacing: .05em;
+  line-height: 1.35;
+}
+
+.discount-add-field-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.discount-add-generate {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  font-weight: 600;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.discount-add-generate:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+
+/* =========================================================
+   CODE FIELD
+========================================================= */
+
+.discount-add-code-input {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.discount-add-code-input input {
+  padding-right: 88px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: .03em;
+}
+
+.discount-add-code-input button {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 36px;
+  padding: 0 11px;
+  border: 0;
+  background: transparent;
+  color: #171411;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  font-weight: 700;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.discount-add-code-input button:hover {
+  color: var(--admin-primary);
+}
+
+
+/* =========================================================
+   TYPE AND VALUE
+========================================================= */
+
+.discount-add-type-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.discount-add-type-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-height: 67px;
+  box-sizing: border-box;
+  padding: 11px;
+  border: 0;
+  border-radius: 0;
+  background: #FBF9F6;
+  color: #403A34;
+  text-align: left;
+  cursor: pointer;
+}
+
+.discount-add-type-option:hover {
+  background: #F8F5F0;
+}
+
+.discount-add-type-option.is-selected {
+  background: #F8F5F0;
+}
+
+.discount-add-option-radio {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  display: grid;
+  box-sizing: border-box;
+  place-items: center;
+  margin-top: 1px;
+  border: 1px solid #817970;
+  border-radius: 50%;
+}
+
+.discount-add-option-radio i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.discount-add-type-option.is-selected
+  .discount-add-option-radio {
+  border-color: #171411;
+}
+
+.discount-add-type-option.is-selected
+  .discount-add-option-radio i {
+  background: #171411;
+}
+
+.discount-add-type-copy {
+  min-width: 0;
+}
+
+.discount-add-type-copy strong {
+  display: block;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 550;
+  line-height: 1.25;
+}
+
+.discount-add-type-copy small {
+  display: block;
+  margin-top: 3px;
+  max-width: 90px;
+  color: #625B53;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  line-height: 1.3;
+}
+
+.discount-add-value-field {
+  width: 258px;
+  max-width: 100%;
+}
+
+.discount-add-suffix-input {
+  position: relative;
+}
+
+.discount-add-suffix-input input {
+  padding-right: 30px;
+}
+
+.discount-add-suffix-input span {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  color: #777067;
+  font-family: var(--font-sans);
+  font-size: 9px;
+}
+
+
+/* =========================================================
+   RADIO LIST
+========================================================= */
+
+.discount-add-radio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.discount-add-radio-row {
+  width: 100%;
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-sizing: border-box;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 0;
+  background: #FBF9F6;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.discount-add-radio-row:hover {
+  background: #F8F5F0;
+}
+
+.discount-add-radio-row.is-selected {
+  background: #F8F5F0;
+}
+
+.discount-add-radio {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px solid #9A9289;
+  border-radius: 50%;
+}
+
+.discount-add-radio i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.discount-add-radio-row.is-selected
+  .discount-add-radio {
+  border-color: #171411;
+}
+
+.discount-add-radio-row.is-selected
+  .discount-add-radio i {
+  background: #171411;
+}
+
+.discount-add-radio-copy {
+  min-width: 0;
+  flex: 1;
+}
+
+.discount-add-radio-copy strong {
+  display: block;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 550;
+  line-height: 1.25;
+}
+
+.discount-add-radio-copy small {
+  display: block;
+  margin-top: 3px;
+  color: #625B53;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  line-height: 1.3;
+}
+
+
+/* =========================================================
+   RADIO ROW WITH INPUT
+========================================================= */
+
+.discount-add-input-row {
+  flex-wrap: wrap;
+}
+
+.discount-add-radio-main {
+  min-width: 230px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.discount-add-inline-input {
+  display: flex;
+  align-items: center;
+  width: 125px;
+  height: 30px;
+  margin-left: 22px;
+  overflow: hidden;
+  border: 1px solid #E4DDD4;
+  border-radius: 5px;
+  background: #FFFFFF;
+}
+
+.discount-add-inline-input input {
+  min-width: 0;
+  flex: 1;
+  width: auto;
+  height: 100%;
+  padding: 0 7px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 8px;
+}
+
+.discount-add-inline-input input:focus {
+  box-shadow: none;
+}
+
+.discount-add-inline-input span {
+  padding: 0 7px;
+  color: #898178;
+  font-family: var(--font-sans);
+  font-size: 7px;
+}
+
+
+/* =========================================================
+   USAGE SETTINGS
+========================================================= */
+
+.discount-add-setting {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 54px;
+  padding: 9px 10px;
+  background: #FBF9F6;
+}
+
+.discount-add-setting + .discount-add-setting {
+  margin-top: 7px;
+}
+
+.discount-add-setting > div:first-child {
+  min-width: 0;
+}
+
+.discount-add-setting strong {
+  display: block;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 550;
+  line-height: 1.3;
+}
+
+.discount-add-setting small {
+  display: block;
+  margin-top: 3px;
+  color: #625B53;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+.discount-add-toggle {
+  position: relative;
+  width: 32px;
+  height: 18px;
+  flex: 0 0 auto;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: #E7E2DA;
+  cursor: pointer;
+  transition: background 120ms ease;
+}
+
+.discount-add-toggle span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .12);
+  transition: transform 120ms ease;
+}
+
+.discount-add-toggle.is-on {
+  background: #171411;
+}
+
+.discount-add-toggle.is-on span {
+  transform: translateX(14px);
+}
+
+.discount-add-limit-field {
+  max-width: 250px;
+  margin: 9px 0 0;
+}
+
+
+/* =========================================================
+   ACTIVE DATES
+========================================================= */
+
+.discount-add-date-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.discount-add-date-grid .discount-add-field {
+  margin-top: 0;
+}
+
+.discount-add-date-input,
+.discount-add-time-input {
+  position: relative;
+}
+
+.discount-add-date-input input,
+.discount-add-time-input input {
+  padding-right: 32px;
+}
+
+.discount-add-date-input svg,
+.discount-add-time-input svg {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  transform: translateY(-50%);
+  color: #777067;
+  pointer-events: none;
+}
+
+.discount-add-end-setting {
+  margin-top: 15px;
+}
+
+
+/* =========================================================
+   SUMMARY
+========================================================= */
+
+.discount-add-summary-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.discount-add-summary-heading h2 {
+  margin: 0;
+  color: #38332E;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.discount-add-summary-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 17px;
+  padding: 0 7px;
+  border-radius: 4px;
+  background: #F5E5D4;
+  color: #76604C;
+  font-family: var(--font-sans);
+  font-size: 6px;
+  font-weight: 700;
+  letter-spacing: .06em;
+}
+
+.discount-add-summary-status i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #806D59;
+}
+
+.discount-add-summary-name {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  margin-top: 12px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  background: #F8F6F2;
+  color: #403A34;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 550;
+}
+
+.discount-add-summary-name em {
+  color: #989188;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 17px;
+  font-weight: 400;
+}
+
+.discount-add-summary-code {
+  margin-top: 5px;
+  color: #8E877F;
+  font-family: ui-monospace,
+    SFMono-Regular,
+    Menlo,
+    Monaco,
+    Consolas,
+    monospace;
+  font-size: 7px;
+  letter-spacing: .04em;
+}
+
+.discount-add-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin: 17px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.discount-add-summary-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  color: #625B53;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  line-height: 1.4;
+}
+
+.discount-add-summary-list li > span {
+  flex: 0 0 auto;
+  color: #625B53;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.discount-add-summary-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  margin-top: 22px;
+  padding: 12px 10px;
+  background: #F8F6F2;
+}
+
+.discount-add-info-icon {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  border: 1px solid #777067;
+  border-radius: 50%;
+  color: #625B53;
+  font-family: Georgia, serif;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.discount-add-summary-info p {
+  margin: 0;
+  color: #625B53;
+  font-family: var(--font-sans);
+  font-size: 7px;
+  line-height: 1.35;
+}
+
+
+/* =========================================================
+   TOAST
+========================================================= */
+
+.discounts-add-page .admin-toast {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.discount-add-toast-dot {
+  width: 5px;
+  height: 5px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #62A477;
+}
+
+
+/* =========================================================
+   RESPONSIVE — 1100px
+========================================================= */
+
+@media (max-width: 1100px) {
+  .discounts-add-layout {
+    grid-template-columns: minmax(0, 1fr) 245px;
+    gap: 14px;
+  }
+
+  .discount-add-card {
+    padding: 16px;
+  }
+
+  .discount-add-summary-card {
+    padding: 15px;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — 900px
+========================================================= */
+
+@media (max-width: 900px) {
+  .discounts-add-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .discounts-add-summary-column {
+    position: static;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — 760px
+========================================================= */
+
+@media (max-width: 760px) {
+  .discounts-add-page {
+    gap: 15px;
+  }
+
+  .discounts-add-heading {
+    align-items: flex-start;
+  }
+
+  .discounts-add-heading .admin-page-actions {
+    display: flex;
+    width: 100%;
+  }
+
+  .discounts-add-heading
+    .admin-page-actions
+    .admin-action-button {
+    flex: 1;
+  }
+
+  .discounts-add-layout {
+    gap: 12px;
+  }
+
+  .discount-add-type-options {
+    grid-template-columns: 1fr;
+  }
+
+  .discount-add-type-option {
+    min-height: 55px;
+  }
+
+  .discount-add-date-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .discount-add-heading-inline {
+    align-items: flex-start;
+  }
+
+  .discount-add-heading-inline > span {
+    max-width: 48%;
+    text-align: right;
+  }
+
+  .discount-add-input-row {
+    align-items: flex-start;
+  }
+
+  .discount-add-inline-input {
+    margin-left: 22px;
+    margin-bottom: 5px;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — 480px
+========================================================= */
+
+@media (max-width: 480px) {
+  .discounts-add-heading .admin-page-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .discounts-add-heading
+    .admin-page-actions
+    .admin-action-button {
+    min-height: 34px;
+    padding: 0 8px;
+    font-size: 8px;
+  }
+
+  .discount-add-card,
+  .discount-add-summary-card {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .discount-add-segmented {
+    grid-template-columns: 1fr;
+  }
+
+  .discount-add-type-options {
+    gap: 5px;
+  }
+
+  .discount-add-radio-row {
+    min-height: 52px;
+  }
+
+  .discount-add-radio-main {
+    min-width: 180px;
+  }
+
+  .discount-add-inline-input {
+    width: 115px;
+  }
+
+  .discount-add-setting {
+    gap: 10px;
+  }
+
+  .discount-add-setting strong {
+    font-size: 8px;
+  }
+
+  .discount-add-setting small {
+    font-size: 6px;
+  }
+}
+
+
+/* =========================================================
+   RESPONSIVE — 360px
+========================================================= */
+
+@media (max-width: 360px) {
+  .discounts-add-heading .admin-page-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .discount-add-radio-main {
+    min-width: 150px;
+  }
+
+  .discount-add-inline-input {
+    width: 105px;
+  }
+}

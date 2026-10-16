@@ -1,0 +1,711 @@
+/* =========================================================
+   PAGE — same shell rhythm as Inventory / Discounts
+========================================================= */
+
+.analytics-page {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 18px;
+  padding-bottom: 86px;
+}
+
+.analytics-page-heading {
+  align-items: flex-end;
+}
+
+.analytics-page-heading .admin-page-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.analytics-kpi-label {
+  margin: 0 0 -8px 1px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.analytics-stat-grid .admin-stat-card {
+  min-height: 105px;
+}
+
+.analytics-stat-grid .admin-stat-value {
+  margin-top: 16px;
+  font-size: 28px;
+}
+
+.admin-trend-pill.is-negative {
+  background: var(--admin-red-soft);
+  color: var(--admin-red);
+}
+
+/* =========================================================
+   DATE RANGE DROPDOWN
+========================================================= */
+
+.analytics-range-dropdown {
+  position: relative;
+}
+
+.analytics-range-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #E4DDD4;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #3D372F;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.analytics-range-button svg:first-child {
+  color: #847D74;
+}
+
+.analytics-range-button svg:last-child {
+  color: #928A81;
+}
+
+.analytics-range-button:hover {
+  border-color: #D8CFC3;
+}
+
+.analytics-range-menu {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(28, 25, 23, .04), 0 14px 32px rgba(28, 25, 23, .13);
+  animation: analytics-menu-pop 140ms cubic-bezier(.2, .9, .3, 1.2);
+}
+
+.analytics-range-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #3D372F;
+  font-size: 9px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.analytics-range-menu button:hover {
+  background: #F5F2ED;
+}
+
+.analytics-range-menu button.is-selected {
+  color: var(--admin-primary);
+}
+
+.analytics-range-menu button svg {
+  color: var(--admin-primary);
+}
+
+@keyframes analytics-menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* =========================================================
+   CARD SHELL — shared look across all analytics modules
+========================================================= */
+
+.analytics-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(28, 25, 23, .025);
+}
+
+.analytics-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.analytics-card-heading h2 {
+  margin: 0;
+  color: #2B2723;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.analytics-card-heading p {
+  margin: 4px 0 0;
+  color: #928A81;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.analytics-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #EEE9E2;
+  color: #928A81;
+  font-size: 9px;
+}
+
+.analytics-card-footer strong {
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.analytics-note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #EEE9E2;
+  color: #928A81;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.analytics-text-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #5F574F;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.analytics-text-link:hover {
+  color: var(--admin-primary);
+}
+
+.analytics-icon-link {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #E9E3DB;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #847D74;
+  font-size: 11px;
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.analytics-icon-link:hover {
+  border-color: #D8CFC3;
+  color: var(--admin-primary);
+}
+
+/* =========================================================
+   MAIN TWO-COLUMN GRID (chart / funnel, products / category)
+========================================================= */
+
+.analytics-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+/* =========================================================
+   REVENUE CHART
+========================================================= */
+
+.analytics-chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.analytics-segmented-control {
+  display: flex;
+  padding: 3px;
+  border-radius: 7px;
+  background: #F5F2ED;
+}
+
+.analytics-segmented-control button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #797067;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.analytics-segmented-control button.is-selected {
+  background: #FFFFFF;
+  color: #2B2723;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, .1);
+}
+
+.analytics-chart-wrap {
+  position: relative;
+}
+
+.analytics-chart-svg {
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.analytics-chart-grid {
+  stroke: #F0ECE6;
+  stroke-width: 1;
+}
+
+.analytics-chart-axis-label {
+  fill: #AFA89E;
+  font-family: var(--font-sans);
+  font-size: 9px;
+}
+
+.analytics-chart-axis-label-x {
+  text-anchor: middle;
+}
+
+.analytics-chart-area {
+  fill: rgba(23, 20, 17, .05);
+  stroke: none;
+}
+
+.analytics-chart-line {
+  fill: none;
+  stroke: var(--admin-primary);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.analytics-chart-guide {
+  stroke: #C9C2B8;
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.analytics-chart-dot {
+  fill: var(--admin-primary);
+  stroke: #FFFFFF;
+  stroke-width: 2;
+}
+
+.analytics-chart-tooltip {
+  position: absolute;
+  top: 18%;
+  left: 54%;
+  transform: translate(-50%, -100%);
+  padding: 8px 11px;
+  border-radius: 7px;
+  background: #221E19;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 10px 24px rgba(28, 25, 23, .2);
+}
+
+.analytics-chart-tooltip strong {
+  font-weight: 700;
+}
+
+/* =========================================================
+   CONVERSION FUNNEL
+========================================================= */
+
+.analytics-funnel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.analytics-funnel-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 7px;
+  color: #3D372F;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.analytics-funnel-values {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.analytics-funnel-percent {
+  color: #928A81;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.analytics-funnel-bar {
+  width: 100%;
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EEE9E2;
+}
+
+.analytics-funnel-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--admin-primary);
+}
+
+/* =========================================================
+   TOP PRODUCTS TABLE
+========================================================= */
+
+.analytics-products-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.analytics-products-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px 90px 90px;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 0;
+  border-bottom: 1px solid #F0ECE6;
+}
+
+.analytics-products-row:last-child {
+  border-bottom: 0;
+}
+
+.analytics-products-head {
+  padding-top: 0;
+  padding-bottom: 10px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .08em;
+}
+
+.analytics-products-head span:not(:first-child) {
+  text-align: right;
+}
+
+.analytics-product-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.analytics-product-thumb {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border-radius: 7px;
+}
+
+.analytics-product-identity strong {
+  display: block;
+  overflow: hidden;
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analytics-product-identity small {
+  display: block;
+  margin-top: 2px;
+  color: #928A81;
+  font-size: 8px;
+}
+
+.analytics-products-units {
+  color: #3D372F;
+  font-size: 9px;
+  text-align: right;
+}
+
+.analytics-products-revenue {
+  color: #2B2723;
+  font-size: 9px;
+  font-weight: 700;
+  text-align: right;
+}
+
+.analytics-products-share {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  color: #3D372F;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.analytics-products-share i {
+  display: block;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--admin-primary);
+}
+
+/* =========================================================
+   BAR LISTS — categories / countries / traffic
+========================================================= */
+
+.analytics-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.analytics-bar-list-compact {
+  gap: 13px;
+}
+
+.analytics-bar-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: #3D372F;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.analytics-bar-top strong {
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.analytics-bar-track {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EEE9E2;
+}
+
+.analytics-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--admin-primary);
+}
+
+.analytics-bar-track-thin {
+  height: 3px;
+}
+
+/* =========================================================
+   BOTTOM TRIO GRID
+========================================================= */
+
+.analytics-trio-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+/* =========================================================
+   CUSTOMER LOYALTY DONUT
+========================================================= */
+
+.analytics-loyalty-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.analytics-loyalty-card .analytics-card-heading {
+  align-self: stretch;
+}
+
+.analytics-donut {
+  width: 128px;
+  height: 128px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  margin: 6px 0 18px;
+}
+
+.analytics-donut-hole {
+  display: grid;
+  width: 94px;
+  height: 94px;
+  place-items: center;
+  border-radius: 50%;
+  background: #FFFFFF;
+  text-align: center;
+}
+
+.analytics-donut-hole strong {
+  color: #2B2723;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.analytics-donut-hole span {
+  margin-top: 2px;
+  color: #928A81;
+  font-size: 7px;
+  font-weight: 700;
+  letter-spacing: .09em;
+}
+
+.analytics-loyalty-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.analytics-loyalty-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3D372F;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.analytics-loyalty-legend-row strong {
+  margin-left: auto;
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.analytics-legend-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.analytics-legend-dot.is-returning {
+  background: var(--admin-primary);
+}
+
+.analytics-legend-dot.is-new {
+  background: #EEE9E2;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .analytics-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .analytics-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analytics-trio-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .analytics-page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .analytics-page-heading .admin-page-actions {
+    width: 100%;
+  }
+
+  .analytics-card-heading {
+    flex-direction: column;
+  }
+
+  .analytics-chart-controls {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .analytics-products-row {
+    grid-template-columns: minmax(0, 1fr) 60px 72px 64px;
+  }
+
+  .analytics-chart-tooltip {
+    left: 50%;
+  }
+}
+
+@media (max-width: 480px) {
+  .analytics-stat-grid,
+  .analytics-trio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .analytics-products-row {
+    grid-template-columns: minmax(0, 1fr) 50px 64px;
+  }
+
+  .analytics-products-share {
+    display: none;
+  }
+}

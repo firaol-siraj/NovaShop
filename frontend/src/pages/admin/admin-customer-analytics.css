@@ -1,0 +1,790 @@
+/* =========================================================
+   PAGE — same shell rhythm as Inventory / Analytics / Sales / Products
+========================================================= */
+
+.ca-page {
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  gap: 18px;
+  padding-bottom: 86px;
+}
+
+.ca-page-heading {
+  align-items: flex-end;
+}
+
+.ca-page-heading .admin-page-actions {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.ca-kpi-label {
+  margin: 0 0 -8px 1px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .13em;
+}
+
+.ca-stat-grid .admin-stat-card {
+  min-height: 105px;
+}
+
+.ca-stat-grid .admin-stat-value {
+  margin-top: 16px;
+  font-size: 28px;
+}
+
+.admin-trend-pill.is-negative {
+  background: var(--admin-red-soft);
+  color: var(--admin-red);
+}
+
+/* =========================================================
+   DATE RANGE DROPDOWN
+========================================================= */
+
+.ca-range-dropdown {
+  position: relative;
+}
+
+.ca-range-button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 12px;
+  border: 1px solid #E4DDD4;
+  border-radius: 7px;
+  background: #FFFFFF;
+  color: #3D372F;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color 120ms ease;
+}
+
+.ca-range-button svg:first-child {
+  color: #847D74;
+}
+
+.ca-range-button svg:last-child {
+  color: #928A81;
+}
+
+.ca-range-button:hover {
+  border-color: #D8CFC3;
+}
+
+.ca-range-menu {
+  position: absolute;
+  z-index: 25;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 150px;
+  padding: 5px;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(28, 25, 23, .04), 0 14px 32px rgba(28, 25, 23, .13);
+  animation: ca-menu-pop 140ms cubic-bezier(.2, .9, .3, 1.2);
+}
+
+.ca-range-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #3D372F;
+  font-size: 9px;
+  font-weight: 600;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ca-range-menu button:hover {
+  background: #F5F2ED;
+}
+
+.ca-range-menu button.is-selected {
+  color: var(--admin-primary);
+}
+
+.ca-range-menu button svg {
+  color: var(--admin-primary);
+}
+
+@keyframes ca-menu-pop {
+  from {
+    opacity: 0;
+    transform: scale(.96) translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* =========================================================
+   CARD SHELL
+========================================================= */
+
+.ca-card {
+  min-width: 0;
+  padding: 20px;
+  border: 1px solid #E9E3DB;
+  border-radius: 10px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 16px rgba(28, 25, 23, .025);
+}
+
+.ca-card-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.ca-card-heading h2 {
+  margin: 0;
+  color: #2B2723;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: -.01em;
+}
+
+.ca-card-heading p {
+  margin: 4px 0 0;
+  color: #928A81;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.ca-text-link {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #5F574F;
+  font-family: var(--font-sans);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.ca-text-link:hover {
+  color: var(--admin-primary);
+}
+
+.ca-note {
+  margin: 16px 0 0;
+  padding-top: 14px;
+  border-top: 1px solid #EEE9E2;
+  color: #928A81;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+/* =========================================================
+   MAIN TWO-COLUMN GRID (reused for all three module rows)
+========================================================= */
+
+.ca-main-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.ca-split-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.ca-split-card .ca-card-heading {
+  align-self: stretch;
+}
+
+/* =========================================================
+   SEGMENTED CONTROL (shared: growth chart granularity)
+========================================================= */
+
+.ca-segmented-control {
+  display: flex;
+  flex: 0 0 auto;
+  padding: 3px;
+  border-radius: 7px;
+  background: #F5F2ED;
+}
+
+.ca-segmented-control button {
+  min-height: 26px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #797067;
+  font-family: var(--font-sans);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .03em;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.ca-segmented-control button.is-selected {
+  background: #2B2723;
+  color: #FFFFFF;
+  box-shadow: 0 1px 2px rgba(28, 25, 23, .14);
+}
+
+/* =========================================================
+   CUSTOMER GROWTH CHART
+========================================================= */
+
+.ca-growth-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 14px;
+}
+
+.ca-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #5F574F;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.ca-legend-item i {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+
+.ca-legend-item i.is-returning {
+  background: #2B2723;
+}
+
+.ca-legend-item i.is-new {
+  background: #B2A692;
+}
+
+.ca-growth-chart {
+  position: relative;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  gap: 8px;
+  height: 230px;
+}
+
+.ca-growth-grid {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding-bottom: 22px;
+}
+
+.ca-growth-gridline span {
+  color: #AFA89E;
+  font-size: 9px;
+}
+
+.ca-growth-bars {
+  position: relative;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  align-items: end;
+  gap: 10px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid #F0ECE6;
+}
+
+.ca-growth-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+}
+
+.ca-growth-stack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  width: 60%;
+  max-width: 34px;
+  border-radius: 3px 3px 0 0;
+  overflow: hidden;
+  transition: box-shadow 120ms ease;
+}
+
+.ca-growth-stack.is-active {
+  box-shadow: 0 0 0 2px var(--admin-primary);
+}
+
+.ca-growth-stack span.is-new {
+  display: block;
+  background: #B2A692;
+}
+
+.ca-growth-stack span.is-returning {
+  display: block;
+  background: #2B2723;
+}
+
+.ca-growth-column small {
+  margin-top: 8px;
+  color: #928A81;
+  font-size: 8px;
+  white-space: nowrap;
+}
+
+.ca-growth-column small.is-active {
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.ca-growth-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border: 1px solid #E9E3DB;
+  border-radius: 7px;
+  background: #FFFFFF;
+  box-shadow: 0 10px 24px rgba(28, 25, 23, .12);
+  white-space: nowrap;
+}
+
+.ca-growth-tooltip strong {
+  color: #2B2723;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ca-growth-tooltip span {
+  color: #928A81;
+  font-size: 8px;
+}
+
+/* =========================================================
+   NEW VS RETURNING DONUT
+========================================================= */
+
+.ca-donut {
+  width: 128px;
+  height: 128px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  margin: 10px 0 18px;
+}
+
+.ca-donut-hole {
+  display: grid;
+  width: 94px;
+  height: 94px;
+  place-items: center;
+  border-radius: 50%;
+  background: #FFFFFF;
+  text-align: center;
+}
+
+.ca-donut-hole strong {
+  color: #2B2723;
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.ca-donut-hole span {
+  margin-top: 2px;
+  color: #928A81;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.ca-split-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ca-split-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #3D372F;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.ca-split-legend-row strong {
+  margin-left: auto;
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ca-legend-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+}
+
+.ca-legend-dot.is-returning {
+  background: var(--admin-primary);
+}
+
+.ca-legend-dot.is-new {
+  background: #EEE9E2;
+}
+
+/* =========================================================
+   CUSTOMER RETENTION COHORT TABLE
+========================================================= */
+
+.ca-cohort-table {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.ca-cohort-row {
+  display: grid;
+  grid-template-columns: 90px repeat(6, 1fr);
+  align-items: center;
+  gap: 8px;
+  padding: 7px 0;
+  min-width: 540px;
+}
+
+.ca-cohort-head {
+  padding-bottom: 10px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .07em;
+}
+
+.ca-cohort-head span:first-child {
+  text-transform: uppercase;
+}
+
+.ca-cohort-label {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.ca-cohort-label strong {
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.ca-cohort-label small {
+  color: #928A81;
+  font-size: 8px;
+}
+
+.ca-cohort-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  border-radius: 6px;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ca-cohort-cell.is-selected {
+  box-shadow: 0 0 0 2px var(--admin-primary);
+}
+
+.ca-cohort-cell.is-empty {
+  background: #F5F2ED;
+  color: #C4BCB1;
+  font-weight: 600;
+}
+
+.ca-cohort-cell.is-level-0 {
+  background: #E6DFD4;
+  color: #6B5D4C;
+}
+
+.ca-cohort-cell.is-level-1 {
+  background: #CBBFA9;
+  color: #3D372F;
+}
+
+.ca-cohort-cell.is-level-2 {
+  background: #A9987D;
+  color: #FFFFFF;
+}
+
+.ca-cohort-cell.is-level-3 {
+  background: #6B5D4C;
+}
+
+.ca-cohort-cell.is-level-4 {
+  background: #2B2723;
+}
+
+.ca-cohort-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #EEE9E2;
+  color: #928A81;
+  font-size: 9px;
+}
+
+.ca-cohort-legend {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ca-cohort-legend i {
+  display: inline-block;
+  width: 16px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.ca-cohort-legend i.is-level-0 { background: #E6DFD4; }
+.ca-cohort-legend i.is-level-1 { background: #CBBFA9; }
+.ca-cohort-legend i.is-level-2 { background: #A9987D; }
+.ca-cohort-legend i.is-level-3 { background: #6B5D4C; }
+.ca-cohort-legend i.is-level-4 { background: #2B2723; }
+
+/* =========================================================
+   BAR LISTS — orders per customer / customers by country
+========================================================= */
+
+.ca-bar-list {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
+}
+
+.ca-bar-list-compact {
+  gap: 13px;
+}
+
+.ca-bar-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: #3D372F;
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.ca-bar-top strong {
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.ca-bar-track {
+  width: 100%;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EEE9E2;
+}
+
+.ca-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--admin-primary);
+}
+
+.ca-bar-track-thin {
+  height: 3px;
+}
+
+/* =========================================================
+   TOP CUSTOMERS TABLE
+========================================================= */
+
+.ca-customers-table {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-x: auto;
+}
+
+.ca-customers-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) 80px 120px 160px;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #F0ECE6;
+  min-width: 600px;
+}
+
+.ca-customers-row:last-child {
+  border-bottom: 0;
+}
+
+.ca-customers-head {
+  padding-top: 0;
+  padding-bottom: 10px;
+  color: #928A81;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+
+.ca-customers-head span:not(:first-child) {
+  text-align: right;
+}
+
+.ca-customer-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ca-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  color: #FFFFFF;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.ca-customer-identity strong {
+  display: block;
+  overflow: hidden;
+  color: #2B2723;
+  font-size: 10px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ca-customer-identity small {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: #928A81;
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ca-customers-cell {
+  color: #3D372F;
+  font-size: 9px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.ca-customers-spent {
+  color: #2B2723;
+  font-weight: 700;
+}
+
+.ca-customers-last-order {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.ca-customers-last-order small {
+  color: #928A81;
+  font-size: 8px;
+}
+
+/* =========================================================
+   RESPONSIVE
+========================================================= */
+
+@media (max-width: 1100px) {
+  .ca-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ca-main-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .ca-page-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .ca-page-heading .admin-page-actions {
+    width: 100%;
+  }
+
+  .ca-card-heading {
+    flex-direction: column;
+  }
+
+  .ca-growth-chart {
+    height: 190px;
+  }
+
+  .ca-customers-row {
+    grid-template-columns: minmax(0, 1fr) 50px 90px 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ca-stat-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
