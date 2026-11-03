@@ -76,14 +76,54 @@ export const createReviewSchema = Joi.object({
 });
 
 export const getProductsQuerySchema = Joi.object({
-  pageNumber: Joi.number().integer().min(1).default(1),
-  pageSize: Joi.number().integer().min(1).max(100).default(8),
+  pageNumber: Joi.number().integer().min(1).empty('').default(1),
+  pageSize: Joi.number().integer().min(1).max(100).empty('').default(12),
   keyword: Joi.string().trim().allow('').default(''),
+  q: Joi.string().trim().allow('').default(''),
+  search: Joi.string().trim().allow('').default(''),
   category: Joi.string().trim().allow('').default(''),
   categoryId: Joi.string().trim().allow('').default(''),
+  collection: Joi.string().trim().allow('').default(''),
   gender: Joi.string().valid('men', 'women', 'kids', 'unisex', '').default(''),
-  size: Joi.string().trim().uppercase().allow('').default(''),
-  color: Joi.string().trim().allow('').default(''),
-  minPrice: Joi.number().min(0).optional(),
-  maxPrice: Joi.number().min(0).optional(),
+  size: Joi.alternatives().try(Joi.string().trim().allow(''), Joi.array().items(Joi.string().trim())).default(''),
+  sizes: Joi.alternatives().try(Joi.string().trim().allow(''), Joi.array().items(Joi.string().trim())).default(''),
+  color: Joi.alternatives().try(Joi.string().trim().allow(''), Joi.array().items(Joi.string().trim())).default(''),
+  colors: Joi.alternatives().try(Joi.string().trim().allow(''), Joi.array().items(Joi.string().trim())).default(''),
+  minPrice: Joi.number().min(0).empty('').optional(),
+  maxPrice: Joi.number().min(0).empty('').optional(),
+  rating: Joi.number().min(0).max(5).empty('').optional(),
+  hasDiscount: Joi.alternatives().try(Joi.boolean(), Joi.string().valid('true', 'false', '').empty('')).optional(),
+  sort: Joi.string()
+    .trim()
+    .valid(
+      'recommended',
+      'featured',
+      'newest',
+      'low-high',
+      'high-low',
+      'best-selling',
+      'bestselling',
+      'popular',
+      'rating',
+      'price-asc',
+      'price-desc',
+      'price-low',
+      'price-high',
+      'date-desc',
+      'top-rated',
+      ''
+    )
+    .empty('')
+    .default('recommended'),
+  inStock: Joi.alternatives()
+    .try(Joi.boolean(), Joi.string().valid('true', 'false', '').empty(''))
+    .optional(),
+});
+
+export const getProductFiltersQuerySchema = Joi.object({
+  category: Joi.string().trim().allow('').default(''),
+  categoryId: Joi.string().trim().allow('').default(''),
+  collection: Joi.string().trim().allow('').default(''),
+  keyword: Joi.string().trim().allow('').default(''),
+  q: Joi.string().trim().allow('').default(''),
 });

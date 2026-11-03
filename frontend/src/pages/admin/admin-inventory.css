@@ -815,3 +815,86 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* ==========================================================================
+   DARK THEME OVERRIDES (WCAG AA Compliant >= 4.5:1)
+   ========================================================================== */
+[data-theme="dark"] .inventory-filter-row > select {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-quick-filter {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-history-link {
+  color: var(--color-accent) !important;
+}
+
+[data-theme="dark"] .inventory-table th {
+  background-color: var(--bg-surface-sunken) !important;
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .inventory-table td {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-checkbox-cell input {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-expand-button,
+[data-theme="dark"] .inventory-tree-spacer {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-product-copy > strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .inventory-stock-value {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-stock-value.healthy {
+  background-color: var(--bg-surface-sunken) !important;
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .inventory-reorder {
+  color: var(--color-warning) !important;
+}
+
+[data-theme="dark"] .inventory-updated-cell > strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .inventory-empty-state strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .inventory-empty-state button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-pagination-controls select {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .inventory-pagination-controls > button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}

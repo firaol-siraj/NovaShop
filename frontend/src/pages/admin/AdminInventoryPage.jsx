@@ -1,142 +1,16 @@
-import { useMemo, useState } from 'react';
-import { PRODUCT_DATA } from '../../data/products';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { adminApi } from '../../lib/api/adminApi';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import AdminCustomSelect from '../../components/admin/AdminCustomSelect';
+import AdminAdjustStockModal from '../../components/admin/AdminAdjustStockModal';
+import AdminReorderLevelModal from '../../components/admin/AdminReorderLevelModal';
+import AdminStockHistoryModal from '../../components/admin/AdminStockHistoryModal';
+import AdminRowActionMenu from '../../components/admin/AdminRowActionMenu';
 import './admin-inventory.css';
-
-const initialInventory = [
-  {
-    id: 'inv-1',
-    name: 'Cashmere Overcoat',
-    category: 'Outerwear',
-    sku: 'NS-OC-0142',
-    image: PRODUCT_DATA[1].primaryImage,
-    stock: 84,
-    reorder: 10,
-    updated: '2 days ago',
-    date: 'Sep 29, 2026',
-    status: 'In stock',
-    hasVariants: true,
-    expanded: true,
-    variants: [
-      { id: 'inv-1-cml-s', name: 'Camel / S', sku: 'NS-OC-0142-CML-S', stock: 14, reorder: 10, updated: '2 days ago', date: 'Sep 29, 2026', status: 'In stock' },
-      { id: 'inv-1-cml-m', name: 'Camel / M', sku: 'NS-OC-0142-CML-M', stock: 18, reorder: 10, updated: '2 days ago', date: 'Sep 29, 2026', status: 'In stock' },
-      { id: 'inv-1-cml-l', name: 'Camel / L', sku: 'NS-OC-0142-CML-L', stock: 12, reorder: 10, updated: '2 days ago', date: 'Sep 29, 2026', status: 'In stock' },
-      { id: 'inv-1-blk-s', name: 'Black / S', sku: 'NS-OC-0142-BLK-S', stock: 16, reorder: 10, updated: '3 days ago', date: 'Sep 28, 2026', status: 'In stock' },
-    ],
-  },
-  {
-    id: 'inv-2',
-    name: 'Silk Slip Dress',
-    category: 'Dresses',
-    sku: 'NS-DR-0087',
-    image: PRODUCT_DATA[6].primaryImage,
-    stock: 12,
-    reorder: 15,
-    updated: '5 days ago',
-    date: 'Sep 26, 2026',
-    status: 'Low stock',
-  },
-  {
-    id: 'inv-3',
-    name: 'Leather Tote Bag',
-    category: 'Accessories',
-    sku: 'NS-BG-0061',
-    image: PRODUCT_DATA[3].primaryImage,
-    stock: 0,
-    reorder: 5,
-    updated: '1 week ago',
-    date: 'Sep 22, 2026',
-    status: 'Out of stock',
-  },
-  {
-    id: 'inv-4',
-    name: 'Merino Wool Sweater',
-    category: 'Knitwear',
-    sku: 'NS-KN-0124',
-    image: PRODUCT_DATA[7].primaryImage,
-    stock: 210,
-    reorder: 20,
-    updated: '3 days ago',
-    date: 'Sep 28, 2026',
-    status: 'In stock',
-  },
-  {
-    id: 'inv-5',
-    name: 'Tailored Wool Trousers',
-    category: 'Trousers',
-    sku: 'NS-TR-0208',
-    image: PRODUCT_DATA[4].primaryImage,
-    stock: 63,
-    reorder: 10,
-    updated: '2 weeks ago',
-    date: 'Sep 20, 2026',
-    status: 'In stock',
-  },
-  {
-    id: 'inv-6',
-    name: 'Suede Chelsea Boots',
-    category: 'Footwear',
-    sku: 'NS-FT-0094',
-    image: PRODUCT_DATA[5].primaryImage,
-    stock: 9,
-    reorder: 10,
-    updated: '1 day ago',
-    date: 'Sep 30, 2026',
-    status: 'Low stock',
-  },
-  {
-    id: 'inv-7',
-    name: 'Silk Scarf',
-    category: 'Accessories',
-    sku: 'NS-SC-0039',
-    image: PRODUCT_DATA[10].primaryImage,
-    stock: 150,
-    reorder: 20,
-    updated: '1 week ago',
-    date: 'Sep 22, 2026',
-    status: 'In stock',
-  },
-  {
-    id: 'inv-8',
-    name: 'Ribbed Mockneck Knit',
-    category: 'Knitwear',
-    sku: 'NS-KN-0108',
-    image: PRODUCT_DATA[2].primaryImage,
-    stock: 8,
-    reorder: 12,
-    updated: '4 days ago',
-    date: 'Sep 27, 2026',
-    status: 'Low stock',
-  },
-  {
-    id: 'inv-9',
-    name: 'Linen Trench Coat',
-    category: 'Outerwear',
-    sku: 'NS-OC-0183',
-    image: PRODUCT_DATA[1].primaryImage,
-    stock: 41,
-    reorder: 10,
-    updated: '6 days ago',
-    date: 'Sep 25, 2026',
-    status: 'In stock',
-  },
-  {
-    id: 'inv-10',
-    name: 'Structured Leather Belt',
-    category: 'Accessories',
-    sku: 'NS-AC-0017',
-    image: PRODUCT_DATA[3].primaryImage,
-    stock: 0,
-    reorder: 5,
-    updated: '3 days ago',
-    date: 'Sep 28, 2026',
-    status: 'Out of stock',
-  },
-];
 
 const statusClass = (status) => {
   if (status === 'Out of stock') return 'out';
-  if (status === 'Low stock') return 'low';
+  if (status === 'Low stock' || status === 'Critical') return 'low';
   return 'in';
 };
 
@@ -159,7 +33,7 @@ function StockValue({ stock, status }) {
     );
   }
 
-  if (status === 'Low stock') {
+  if (status === 'Low stock' || status === 'Critical') {
     return (
       <span className="inventory-stock-value low">
         <i />
@@ -171,31 +45,333 @@ function StockValue({ stock, status }) {
   return <span className="inventory-stock-value healthy">{stock}</span>;
 }
 
+const formatDate = (value) => {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? ''
+    : date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      });
+};
+
+const formatRelative = (value) => {
+  if (!value) return 'Recently';
+  const diffMs = Date.now() - new Date(value).getTime();
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffHours < 1) return 'Just now';
+  if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays < 7) return `${diffDays} days ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  return `${diffWeeks} week${diffWeeks > 1 ? 's' : ''} ago`;
+};
+
 export default function AdminInventoryPage({ go }) {
-  const [inventory, setInventory] = useState(initialInventory);
+  const [inventory, setInventory] = useState([]);
+  const [backendCategories, setBackendCategories] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('All categories');
-  const [collection, setCollection] = useState('All collections');
   const [stockFilter, setStockFilter] = useState('All Stock');
-  const [expandedIds, setExpandedIds] = useState(['inv-1']);
-  const [selectedIds, setSelectedIds] = useState([
-    'inv-1',
-    'inv-2',
-    'inv-3',
-  ]);
-  const [openMenu, setOpenMenu] = useState(null);
+  const [expandedIds, setExpandedIds] = useState([]);
+  const [selectedIds, setSelectedIds] = useState([]);
   const [pageSize, setPageSize] = useState('10');
+  const [page, setPage] = useState(1);
   const [notice, setNotice] = useState('');
+
+  const [globalThreshold, setGlobalThreshold] = useState(5);
+  const [adjustItem, setAdjustItem] = useState(null);
+  const [adjustModalOpen, setAdjustModalOpen] = useState(false);
+  const [historyModal, setHistoryModal] = useState(null);
+  const [historyMovements, setHistoryMovements] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [reorderItem, setReorderItem] = useState(null);
+  const [reorderModalOpen, setReorderModalOpen] = useState(false);
+
+  // Portal row menu target state
+  const [menuTarget, setMenuTarget] = useState(null);
+  const triggerRefs = useRef({});
 
   const notify = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(''), 2300);
+    window.clearTimeout(window.__novaInventoryToast);
+    window.__novaInventoryToast = window.setTimeout(() => setNotice(''), 2500);
   };
 
-  const categories = useMemo(
-    () => [...new Set(inventory.map((item) => item.category))],
-    [inventory],
-  );
+  const loadInventory = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [inventoryRes, productsRes, settingsRes, categoriesRes] = await Promise.all([
+        adminApi.getInventory({ limit: 100 }).catch((err) => {
+          console.warn('Inventory fetch notice:', err?.message);
+          return null;
+        }),
+        adminApi.getProducts({ page: 1, limit: 100, status: 'all' }).catch((err) => {
+          console.warn('Products fetch notice:', err?.message);
+          return null;
+        }),
+        adminApi.getInventorySettings().catch(() => null),
+        adminApi.getCategories().catch(() => null),
+      ]);
+
+      if (categoriesRes && Array.isArray(categoriesRes.data?.data || categoriesRes.data)) {
+        const catList = categoriesRes.data?.data || categoriesRes.data;
+        setBackendCategories(catList.map((c) => c.name).filter(Boolean));
+      }
+
+      if (!inventoryRes && !productsRes) {
+        setLoadError('Unable to load catalog inventory from server.');
+        setInventory([]);
+        return;
+      }
+
+      const threshold =
+        settingsRes?.data?.lowStockThreshold ??
+        settingsRes?.lowStockThreshold ??
+        inventoryRes?.stats?.globalThreshold ??
+        5;
+      setGlobalThreshold(threshold);
+
+      // Raw variants from inventory endpoint
+      const rawVariants = Array.isArray(inventoryRes?.data)
+        ? inventoryRes.data
+        : Array.isArray(inventoryRes?.inventory)
+        ? inventoryRes.inventory
+        : Array.isArray(inventoryRes)
+        ? inventoryRes
+        : [];
+
+      // Raw products from products endpoint
+      const rawProducts = Array.isArray(productsRes?.data)
+        ? productsRes.data
+        : Array.isArray(productsRes?.data?.products)
+        ? productsRes.data.products
+        : Array.isArray(productsRes?.products)
+        ? productsRes.products
+        : Array.isArray(productsRes)
+        ? productsRes
+        : [];
+
+      const productMap = new Map();
+
+      // 1. Initialize product map from products list
+      for (const prod of rawProducts) {
+        const prodId = String(prod._id || prod.id);
+        const prodVariants = Array.isArray(prod.variants) ? prod.variants : [];
+        const prodStock = Number(prod.countInStock) || 0;
+        const catName = prod.category?.name || prod.category || 'Uncategorized';
+        const prodImg =
+          prod.images?.[0] ||
+          prod.image ||
+          '/placeholder.png';
+
+        productMap.set(prodId, {
+          id: prodId,
+          productId: prodId,
+          name: prod.name,
+          category: catName,
+          sku: prod.slug || '—',
+          image: prodImg,
+          stock: prodStock,
+          reorder: threshold,
+          updated: formatRelative(prod.updatedAt),
+          date: formatDate(prod.updatedAt || prod.createdAt),
+          status:
+            prodStock <= 0
+              ? 'Out of stock'
+              : prodStock <= threshold
+              ? 'Low stock'
+              : 'In stock',
+          hasVariants: prodVariants.length > 0,
+          variants: [],
+          price: prod.price || 0,
+        });
+
+        for (const v of prodVariants) {
+          const vStock = Number(v.stock) || 0;
+          const vReserved = Number(v.reserved) || 0;
+          const vAvail = Math.max(0, vStock - vReserved);
+          const vThresh = Number(v.lowStockThreshold) || threshold;
+          const colorName =
+            typeof v.color === 'string'
+              ? v.color
+              : v.color?.name || 'Standard';
+
+          productMap.get(prodId).variants.push({
+            id: String(v._id || v.id || `${prodId}-${v.sku}`),
+            variantId: String(v._id || v.id),
+            productId: prodId,
+            name: `${colorName} / ${v.size || 'OS'}`,
+            sku: v.sku || 'N/A',
+            stock: vStock,
+            reserved: vReserved,
+            available: vAvail,
+            reorder: vThresh,
+            updated: formatRelative(prod.updatedAt),
+            date: formatDate(prod.updatedAt || prod.createdAt),
+            status:
+              vStock <= 0
+                ? 'Out of stock'
+                : vAvail <= vThresh
+                ? 'Low stock'
+                : 'In stock',
+          });
+        }
+      }
+
+      // 2. Add or enrich from rawVariants (from getAdminInventoryList)
+      for (const v of rawVariants) {
+        const prodId = String(
+          v.product?._id ||
+          v.product?.id ||
+          v.product ||
+          'general'
+        );
+        const prodName = v.product?.name || 'Catalog Item';
+        const prodCategory =
+          v.product?.category?.name ||
+          v.product?.category ||
+          'Uncategorized';
+        const prodImg =
+          v.product?.image ||
+          (v.product?.images && v.product?.images[0]) ||
+          '/placeholder.png';
+        const prodSlug = v.product?.slug || v.sku || '—';
+
+        if (!productMap.has(prodId)) {
+          productMap.set(prodId, {
+            id: prodId,
+            productId: prodId,
+            name: prodName,
+            category: prodCategory,
+            sku: prodSlug,
+            image: prodImg,
+            stock: 0,
+            reorder: threshold,
+            updated: formatRelative(v.updatedAt),
+            date: formatDate(v.updatedAt),
+            status: 'In stock',
+            hasVariants: true,
+            variants: [],
+            price: v.price || 0,
+          });
+        }
+
+        const parent = productMap.get(prodId);
+        const colorName =
+          typeof v.color === 'string'
+            ? v.color
+            : v.color?.name || 'Standard';
+        const vDisplayName = `${colorName} / ${v.size || 'OS'}`;
+        const vId = String(v.id || v._id);
+
+        const existingVarIdx = parent.variants.findIndex(
+          (item) => item.id === vId || (item.sku && item.sku === v.sku)
+        );
+
+        const vStock = Number(v.stock) || 0;
+        const vReserved = Number(v.reserved) || 0;
+        const vAvail =
+          v.available !== undefined
+            ? Number(v.available)
+            : Math.max(0, vStock - vReserved);
+        const vThresh =
+          Number(v.effectiveThreshold || v.lowStockThreshold) || threshold;
+
+        const variantObj = {
+          id: vId,
+          variantId: vId,
+          productId: prodId,
+          name: vDisplayName,
+          sku: v.sku || 'N/A',
+          stock: vStock,
+          reserved: vReserved,
+          available: vAvail,
+          reorder: vThresh,
+          updated: formatRelative(v.updatedAt),
+          date: formatDate(v.updatedAt),
+          status:
+            vStock <= 0
+              ? 'Out of stock'
+              : vAvail <= vThresh
+              ? 'Low stock'
+              : 'In stock',
+        };
+
+        if (existingVarIdx >= 0) {
+          parent.variants[existingVarIdx] = variantObj;
+        } else {
+          parent.variants.push(variantObj);
+        }
+      }
+
+      // 3. Compute parent totals & statuses
+      const mapped = Array.from(productMap.values()).map((prod) => {
+        if (prod.variants.length > 0) {
+          prod.hasVariants = true;
+          prod.stock = prod.variants.reduce((sum, v) => sum + v.stock, 0);
+          if (prod.stock <= 0) {
+            prod.status = 'Out of stock';
+          } else if (
+            prod.variants.some(
+              (v) => v.status === 'Low stock' || v.status === 'Critical'
+            )
+          ) {
+            prod.status = 'Low stock';
+          } else {
+            prod.status = 'In stock';
+          }
+        }
+        return prod;
+      });
+
+      setInventory(mapped);
+      if (mapped.length > 0) {
+        setExpandedIds((current) =>
+          current.length > 0 ? current : [mapped[0].id]
+        );
+      }
+      setLoadError('');
+    } catch (err) {
+      setLoadError(
+        err?.response?.data?.message ||
+          err.message ||
+          'Unable to load catalog inventory.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadInventory();
+  }, [loadInventory]);
+
+  // Merge categories from inventory and backend API
+  const categories = useMemo(() => {
+    const fromInv = inventory.map((item) => item.category).filter(Boolean);
+    const combined = new Set([...fromInv, ...backendCategories]);
+    return [...combined].sort();
+  }, [inventory, backendCategories]);
+
+  const stats = useMemo(() => {
+    const totalUnits = inventory.reduce((sum, p) => sum + (Number(p.stock) || 0), 0);
+    const totalValue = inventory.reduce((sum, p) => sum + (Number(p.stock) || 0) * (Number(p.price) || 0), 0);
+    const lowStockCount = inventory.filter((p) => p.status === 'Low stock' || p.status === 'Critical').length;
+    const outOfStockCount = inventory.filter((p) => p.status === 'Out of stock').length;
+
+    return {
+      totalUnits,
+      totalValue,
+      lowStockCount,
+      outOfStockCount,
+    };
+  }, [inventory]);
 
   const filteredInventory = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -205,14 +381,19 @@ export default function AdminInventoryPage({ go }) {
         !query ||
         `${item.name} ${item.sku} ${item.category}`
           .toLowerCase()
-          .includes(query);
+          .includes(query) ||
+        (item.variants &&
+          item.variants.some((v) =>
+            `${v.name} ${v.sku}`.toLowerCase().includes(query)
+          ));
 
       const matchesCategory =
         category === 'All categories' || item.category === category;
 
       const matchesStock =
         stockFilter === 'All Stock' ||
-        (stockFilter === 'Low Stock' && item.status === 'Low stock') ||
+        (stockFilter === 'Low Stock' &&
+          (item.status === 'Low stock' || item.status === 'Critical')) ||
         (stockFilter === 'Out of Stock' && item.status === 'Out of stock');
 
       return matchesSearch && matchesCategory && matchesStock;
@@ -252,7 +433,7 @@ export default function AdminInventoryPage({ go }) {
     setSelectedIds((current) =>
       current.includes(id)
         ? current.filter((selectedId) => selectedId !== id)
-        : [...current, id],
+        : [...current, id]
     );
   };
 
@@ -260,14 +441,14 @@ export default function AdminInventoryPage({ go }) {
     setSelectedIds((current) =>
       allVisibleSelected
         ? current.filter(
-            (id) => !filteredInventory.some((product) => product.id === id),
+            (id) => !filteredInventory.some((product) => product.id === id)
           )
         : [
             ...new Set([
               ...current,
               ...filteredInventory.map((product) => product.id),
             ]),
-          ],
+          ]
     );
   };
 
@@ -275,7 +456,7 @@ export default function AdminInventoryPage({ go }) {
     setExpandedIds((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
-        : [...current, id],
+        : [...current, id]
     );
   };
 
@@ -290,27 +471,39 @@ export default function AdminInventoryPage({ go }) {
         'Last updated',
         'Status',
       ],
-      ...filteredInventory.map((item) => [
-        item.name,
-        item.sku,
-        item.category,
-        item.stock,
-        item.reorder,
-        item.date,
-        item.status,
-      ]),
+      ...filteredInventory.flatMap((item) => {
+        const parentRow = [
+          item.name,
+          item.sku,
+          item.category,
+          item.stock,
+          item.reorder,
+          item.date,
+          item.status,
+        ];
+        const variantRows = (item.variants || []).map((v) => [
+          `  ${item.name} (${v.name})`,
+          v.sku,
+          item.category,
+          v.stock,
+          v.reorder,
+          v.date,
+          v.status,
+        ]);
+        return [parentRow, ...variantRows];
+      }),
     ];
 
     const csv = rows
       .map((row) =>
         row
           .map((value) => `"${String(value).replaceAll('"', '""')}"`)
-          .join(','),
+          .join(',')
       )
       .join('\n');
 
     const url = URL.createObjectURL(
-      new Blob([csv], { type: 'text/csv;charset=utf-8;' }),
+      new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     );
 
     const anchor = document.createElement('a');
@@ -322,76 +515,82 @@ export default function AdminInventoryPage({ go }) {
     notify('Inventory exported.');
   };
 
-  const updateSelectedStock = (amount) => {
-    setInventory((current) =>
-      current.map((item) => {
-        if (!selectedIds.includes(item.id)) return item;
-
-        const nextStock = Math.max(0, item.stock + amount);
-        const nextStatus =
-          nextStock === 0
-            ? 'Out of stock'
-            : nextStock <= item.reorder
-              ? 'Low stock'
-              : 'In stock';
-
-        return {
-          ...item,
-          stock: nextStock,
-          status: nextStatus,
-          updated: 'Just now',
-          date: 'Oct 4, 2026',
-        };
-      }),
-    );
-
-    notify(
-      amount > 0
-        ? 'Stock increased for selected products.'
-        : 'Stock decreased for selected products.',
-    );
+  const handleAdjustSave = async ({ variantId, mode, value, reason }) => {
+    await adminApi.adjustInventoryStock({
+      variantId,
+      mode,
+      value,
+      reason,
+    });
+    notify('Stock adjustment saved.');
+    await loadInventory();
   };
 
-  const setReorderLevel = () => {
-    setInventory((current) =>
-      current.map((item) =>
-        selectedIds.includes(item.id)
-          ? { ...item, reorder: Math.max(1, item.reorder + 5) }
-          : item,
-      ),
-    );
+  const handleReorderSave = async (newThreshold, targetItem) => {
+    const targetVariantId =
+      targetItem?.variantId ||
+      targetItem?.variants?.[0]?.variantId ||
+      (targetItem?.rowType === 'variant' ? targetItem.id : null);
 
-    notify('Reorder level increased by 5 units.');
+    if (targetVariantId) {
+      await adminApi.updateVariantThreshold(targetVariantId, newThreshold);
+      notify(`Reorder level updated to ${newThreshold} units.`);
+    } else {
+      await adminApi.updateInventorySettings({
+        lowStockThreshold: newThreshold,
+      });
+      setGlobalThreshold(newThreshold);
+      notify(`Catalog low-stock threshold updated to ${newThreshold} units.`);
+    }
+    await loadInventory();
   };
 
-  const runRowAction = (action, item) => {
-    setOpenMenu(null);
+  const openHistory = async (item) => {
+    const targetVariantId =
+      item?.variantId ||
+      item?.variants?.[0]?.variantId ||
+      (item?.rowType === 'variant' ? item.id : null);
 
-    if (action === 'Adjust stock') {
-      setSelectedIds([item.id]);
-      notify(`Adjust stock selected for ${item.name}.`);
-    } else if (action === 'Set reorder level') {
-      setInventory((current) =>
-        current.map((product) =>
-          product.id === item.id
-            ? { ...product, reorder: product.reorder + 5 }
-            : product,
-        ),
-      );
-      notify(`Reorder level updated for ${item.name}.`);
-    } else if (action === 'View history') {
-      notify(`Inventory history opened for ${item.name}.`);
-    } else if (action === 'View product') {
-      if (go) go('/admin/products');
+    setHistoryModal(item || null);
+    setHistoryLoading(true);
+    try {
+      const res = await adminApi.getInventoryMovements({
+        variantId: targetVariantId || undefined,
+        limit: 50,
+      });
+      const data = res?.data?.data || res?.data || [];
+      setHistoryMovements(Array.isArray(data) ? data : []);
+    } catch (err) {
+      notify('Unable to load movement history.');
+      setHistoryMovements([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
   const clearFilters = () => {
     setSearch('');
     setCategory('All categories');
-    setCollection('All collections');
     setStockFilter('All Stock');
+    setPage(1);
   };
+
+  const totalPages = Math.max(1, Math.ceil(visibleRows.length / Number(pageSize)));
+
+  useEffect(() => {
+    setPage(1);
+  }, [search, category, stockFilter, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages && totalPages >= 1) {
+      setPage(1);
+    }
+  }, [page, totalPages]);
+
+  const paginatedVisibleRows = useMemo(() => {
+    const pSize = Number(pageSize);
+    return visibleRows.slice((page - 1) * pSize, page * pSize);
+  }, [page, pageSize, visibleRows]);
 
   return (
     <div className="admin-dashboard inventory-page">
@@ -416,7 +615,14 @@ export default function AdminInventoryPage({ go }) {
           <button
             className="admin-action-button is-primary"
             type="button"
-            onClick={() => notify('Stock adjustment opened.')}
+            onClick={() => {
+              const target =
+                selectedIds.length > 0
+                  ? inventory.find((i) => selectedIds.includes(i.id))
+                  : null;
+              setAdjustItem(target);
+              setAdjustModalOpen(true);
+            }}
           >
             <AdminIcon name="sliders" size={15} />
             Adjust Stock
@@ -430,74 +636,82 @@ export default function AdminInventoryPage({ go }) {
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Total units</span>
-            <span className="admin-trend-pill">+640 this month</span>
+            <span className="admin-trend-pill">Catalog total</span>
           </div>
-          <div className="admin-stat-value">18,420</div>
+          <div className="admin-stat-value">
+            {stats.totalUnits.toLocaleString('en-US')}
+          </div>
         </article>
 
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Inventory value</span>
-            <span className="admin-trend-pill">+3.2%</span>
+            <span className="admin-trend-pill">Asset value</span>
           </div>
-          <div className="admin-stat-value">$2,184,300</div>
+          <div className="admin-stat-value">
+            ${stats.totalValue.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+          </div>
         </article>
 
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Low stock</span>
-            <span className="inventory-warning-pill">+5 this week</span>
+            <span className="inventory-warning-pill">
+              ≤ {globalThreshold} units
+            </span>
           </div>
-          <div className="admin-stat-value">37</div>
+          <div className="admin-stat-value">{stats.lowStockCount}</div>
         </article>
 
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Out of stock</span>
-            <span className="inventory-danger-pill">+2 this week</span>
+            <span className="inventory-danger-pill">0 units</span>
           </div>
-          <div className="admin-stat-value">9</div>
+          <div className="admin-stat-value">{stats.outOfStockCount}</div>
         </article>
       </section>
 
+      {loading && (
+        <p className="inventory-empty-state" role="status">
+          Loading catalog inventory…
+        </p>
+      )}
+      {loadError && (
+        <p className="inventory-empty-state" role="alert">
+          {loadError}{' '}
+          <button type="button" onClick={loadInventory}>
+            Retry
+          </button>
+        </p>
+      )}
+
       <section className="inventory-catalog-toolbar">
-        <div className="inventory-filter-row">
+        <div className="inventory-filter-row" style={{ gridTemplateColumns: 'minmax(240px, 1fr) minmax(180px, 260px)' }}>
           <label className="products-search-field inventory-search-field">
             <AdminIcon name="search" size={16} />
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setPage(1);
+              }}
               placeholder="Search by product name or SKU"
               aria-label="Search by product name or SKU"
             />
           </label>
 
-          <select
+          <AdminCustomSelect
             value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            aria-label="Filter by category"
-          >
-            <option>All categories</option>
-            {categories.map((item) => (
-              <option key={item}>{item}</option>
-            ))}
-          </select>
-
-          <select
-            value={collection}
-            onChange={(event) => setCollection(event.target.value)}
-            aria-label="Filter by collection"
-          >
-            <option>All collections</option>
-            <option>Winter 2026</option>
-            <option>Evening Edit</option>
-            <option>Icons</option>
-            <option>Core Collection</option>
-            <option>Autumn 2026</option>
-            <option>Essentials</option>
-            <option>Spring 2026</option>
-          </select>
+            onChange={(val) => {
+              setCategory(val);
+              setPage(1);
+            }}
+            options={['All categories', ...categories]}
+            ariaLabel="Filter by category"
+            placeholder="All categories"
+          />
         </div>
 
         <div className="inventory-quick-row">
@@ -511,11 +725,14 @@ export default function AdminInventoryPage({ go }) {
               className={`inventory-quick-filter${
                 stockFilter === 'All Stock' ? ' is-active' : ''
               }`}
-              onClick={() => setStockFilter('All Stock')}
+              onClick={() => {
+                setStockFilter('All Stock');
+                setPage(1);
+              }}
               aria-pressed={stockFilter === 'All Stock'}
             >
               All Stock
-              <span>1,248</span>
+              <span>{inventory.length}</span>
             </button>
 
             <button
@@ -523,12 +740,15 @@ export default function AdminInventoryPage({ go }) {
               className={`inventory-quick-filter${
                 stockFilter === 'Low Stock' ? ' is-active' : ''
               }`}
-              onClick={() => setStockFilter('Low Stock')}
+              onClick={() => {
+                setStockFilter('Low Stock');
+                setPage(1);
+              }}
               aria-pressed={stockFilter === 'Low Stock'}
             >
               <i className="low" />
               Low Stock
-              <span>37</span>
+              <span>{stats.lowStockCount}</span>
             </button>
 
             <button
@@ -536,19 +756,22 @@ export default function AdminInventoryPage({ go }) {
               className={`inventory-quick-filter${
                 stockFilter === 'Out of Stock' ? ' is-active' : ''
               }`}
-              onClick={() => setStockFilter('Out of Stock')}
+              onClick={() => {
+                setStockFilter('Out of Stock');
+                setPage(1);
+              }}
               aria-pressed={stockFilter === 'Out of Stock'}
             >
               <i className="out" />
               Out of Stock
-              <span>9</span>
+              <span>{stats.outOfStockCount}</span>
             </button>
           </div>
 
           <button
             className="inventory-history-link"
             type="button"
-            onClick={() => notify('Stock history ledger selected.')}
+            onClick={() => openHistory(null)}
           >
             Stock History
           </button>
@@ -579,10 +802,9 @@ export default function AdminInventoryPage({ go }) {
             </thead>
 
             <tbody>
-              {visibleRows.map((item) => {
+              {paginatedVisibleRows.map((item) => {
                 const isVariant = item.rowType === 'variant';
-                const isExpanded =
-                  !isVariant && expandedIds.includes(item.id);
+                const isExpanded = !isVariant && expandedIds.includes(item.id);
 
                 return (
                   <tr
@@ -616,9 +838,9 @@ export default function AdminInventoryPage({ go }) {
                             className={`inventory-expand-button${
                               isExpanded ? ' is-expanded' : ''
                             }`}
-                            aria-label={`${isExpanded ? 'Collapse' : 'Expand'} ${
-                              item.name
-                            }`}
+                            aria-label={`${
+                              isExpanded ? 'Collapse' : 'Expand'
+                            } ${item.name}`}
                             aria-expanded={isExpanded}
                             onClick={() => toggleExpanded(item.id)}
                           >
@@ -671,51 +893,31 @@ export default function AdminInventoryPage({ go }) {
                     <td className="inventory-actions-cell">
                       <div className="inventory-row-menu-anchor">
                         <button
+                          ref={(el) => (triggerRefs.current[item.id] = el)}
                           className="products-row-menu-button"
                           type="button"
                           aria-label={`More actions for ${item.name}`}
-                          aria-expanded={openMenu === item.id}
-                          onClick={() =>
-                            setOpenMenu((current) =>
-                              current === item.id ? null : item.id,
-                            )
-                          }
+                          aria-expanded={menuTarget?.item?.id === item.id}
+                          onClick={() => {
+                            setMenuTarget(
+                              menuTarget?.item?.id === item.id
+                                ? null
+                                : {
+                                    item,
+                                    triggerRef: { current: triggerRefs.current[item.id] },
+                                  }
+                            );
+                          }}
                         >
                           <AdminIcon name="more" size={16} />
                         </button>
-
-                        {openMenu === item.id && (
-                          <div className="products-row-menu inventory-row-menu">
-                            {[
-                              'Adjust stock',
-                              'Set reorder level',
-                              'View history',
-                              'View product',
-                            ].map((action) => (
-                              <button
-                                key={action}
-                                type="button"
-                                onClick={() => runRowAction(action, item)}
-                              >
-                                {action}
-
-                                {action === 'View product' && (
-                                  <AdminIcon
-                                    name="external"
-                                    size={11}
-                                  />
-                                )}
-                              </button>
-                            ))}
-                          </div>
-                        )}
                       </div>
                     </td>
                   </tr>
                 );
               })}
 
-              {visibleRows.length === 0 && (
+              {paginatedVisibleRows.length === 0 && !loading && (
                 <tr>
                   <td colSpan="7" className="inventory-empty-state">
                     <AdminIcon name="searchSlash" size={20} />
@@ -732,14 +934,23 @@ export default function AdminInventoryPage({ go }) {
 
         <div className="inventory-pagination">
           <span>
-            Showing 1–10 of 1,248 products
+            Showing{' '}
+            {visibleRows.length === 0
+              ? 0
+              : (page - 1) * Number(pageSize) + 1}
+            –
+            {Math.min(page * Number(pageSize), visibleRows.length)} of{' '}
+            {visibleRows.length} items
           </span>
 
           <div className="inventory-pagination-controls">
             <label>
               <select
                 value={pageSize}
-                onChange={(event) => setPageSize(event.target.value)}
+                onChange={(event) => {
+                  setPageSize(event.target.value);
+                  setPage(1);
+                }}
                 aria-label="Inventory per page"
               >
                 <option value="10">10 per page</option>
@@ -749,20 +960,44 @@ export default function AdminInventoryPage({ go }) {
               <AdminIcon name="chevron" size={12} />
             </label>
 
-            <button type="button" disabled>
+            <button
+              type="button"
+              disabled={page === 1}
+              onClick={() => setPage((c) => Math.max(1, c - 1))}
+            >
               Previous
             </button>
 
-            <button type="button" className="is-active">
-              1
+            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => i + 1).map(
+              (pNum) => (
+                <button
+                  type="button"
+                  key={pNum}
+                  className={page === pNum ? 'is-active' : ''}
+                  onClick={() => setPage(pNum)}
+                >
+                  {pNum}
+                </button>
+              )
+            )}
+            {totalPages > 5 && <span>…</span>}
+            {totalPages > 5 && (
+              <button
+                type="button"
+                className={page === totalPages ? 'is-active' : ''}
+                onClick={() => setPage(totalPages)}
+              >
+                {totalPages}
+              </button>
+            )}
+
+            <button
+              type="button"
+              disabled={page >= totalPages}
+              onClick={() => setPage((c) => Math.min(totalPages, c + 1))}
+            >
+              Next
             </button>
-
-            <button type="button">2</button>
-            <button type="button">3</button>
-            <span>…</span>
-            <button type="button">125</button>
-
-            <button type="button">Next</button>
           </div>
         </div>
       </section>
@@ -773,7 +1008,11 @@ export default function AdminInventoryPage({ go }) {
 
           <button
             type="button"
-            onClick={() => updateSelectedStock(1)}
+            onClick={() => {
+              const target = inventory.find((i) => selectedIds.includes(i.id));
+              setAdjustItem(target || null);
+              setAdjustModalOpen(true);
+            }}
           >
             <AdminIcon name="sliders" size={14} />
             Adjust stock
@@ -781,16 +1020,16 @@ export default function AdminInventoryPage({ go }) {
 
           <button
             type="button"
-            onClick={setReorderLevel}
+            onClick={() => {
+              setReorderItem(null);
+              setReorderModalOpen(true);
+            }}
           >
             <AdminIcon name="bell" size={14} />
             Set reorder level
           </button>
 
-          <button
-            type="button"
-            onClick={exportInventory}
-          >
+          <button type="button" onClick={exportInventory}>
             <AdminIcon name="download" size={14} />
             Export
           </button>
@@ -805,6 +1044,96 @@ export default function AdminInventoryPage({ go }) {
           </button>
         </div>
       )}
+
+      {/* Portal Row Action Menu */}
+      <AdminRowActionMenu
+        isOpen={Boolean(menuTarget)}
+        onClose={() => setMenuTarget(null)}
+        triggerRef={menuTarget?.triggerRef}
+        header={{
+          title: menuTarget?.item?.name,
+          subtitle: `SKU: ${menuTarget?.item?.sku || '—'} · Stock: ${menuTarget?.item?.stock ?? 0}`,
+        }}
+        items={[
+          {
+            id: 'adjust',
+            label: 'Adjust stock',
+            icon: 'sliders',
+            onClick: () => {
+              setAdjustItem(menuTarget.item);
+              setAdjustModalOpen(true);
+            },
+          },
+          {
+            id: 'reorder',
+            label: 'Set reorder level',
+            icon: 'alert',
+            onClick: () => {
+              setReorderItem(menuTarget.item);
+              setReorderModalOpen(true);
+            },
+          },
+          {
+            id: 'history',
+            label: 'View stock history',
+            icon: 'receipt',
+            onClick: () => {
+              openHistory(menuTarget.item);
+            },
+          },
+          {
+            id: 'divider',
+            isDivider: true,
+          },
+          {
+            id: 'product',
+            label: 'View in catalog',
+            icon: 'external',
+            onClick: () => {
+              if (go && (menuTarget?.item?.productId || menuTarget?.item?.id)) {
+                go(`/admin/products/${menuTarget.item.productId || menuTarget.item.id}`);
+              }
+            },
+          },
+        ]}
+      />
+
+      {/* Adjust Stock Modal */}
+      <AdminAdjustStockModal
+        item={adjustItem}
+        catalog={inventory}
+        globalThreshold={globalThreshold}
+        isOpen={adjustModalOpen}
+        onClose={() => {
+          setAdjustModalOpen(false);
+          setAdjustItem(null);
+        }}
+        onSave={handleAdjustSave}
+      />
+
+      {/* Stock History Modal */}
+      <AdminStockHistoryModal
+        item={historyModal}
+        movements={historyMovements}
+        loading={historyLoading}
+        isOpen={Boolean(historyModal !== null || historyLoading)}
+        onClose={() => {
+          setHistoryModal(null);
+          setHistoryMovements([]);
+        }}
+      />
+
+      {/* Reorder Level Modal */}
+      <AdminReorderLevelModal
+        item={reorderItem}
+        currentLevel={globalThreshold}
+        isOpen={reorderModalOpen}
+        onClose={() => {
+          setReorderModalOpen(false);
+          setReorderItem(null);
+        }}
+        onSave={handleReorderSave}
+      />
 
       {notice && (
         <div className="admin-toast" role="status">

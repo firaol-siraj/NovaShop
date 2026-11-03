@@ -1,186 +1,8 @@
-import { useMemo, useRef, useState, useEffect } from 'react';
+import { useMemo, useRef, useState, useEffect, useCallback } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import AdminRowActionMenu from '../../components/admin/AdminRowActionMenu';
+import shippingApi from '../../lib/api/shippingApi';
 import './admin-shipping.css';
-
-const ZONES = [
-  {
-    id: 'ZN-0001',
-    name: 'United States',
-    countries: 'United States',
-    methods: ['Standard', 'Express', 'Overnight'],
-    startingRate: 15,
-    freeOver: 300,
-    estimatedDelivery: '3–6 days',
-    estimatedBasis: '(Standard)',
-    status: 'active',
-    updated: 'Sep 12, 2026',
-    rates: { standard: 15, express: 35, overnight: 60 },
-    times: { standard: '3–6 days', express: '1–2 days', overnight: '1 day' },
-    handlingTime: '1–2 business days',
-  },
-  {
-    id: 'ZN-0002',
-    name: 'Canada',
-    countries: 'Canada',
-    methods: ['Standard', 'Express'],
-    startingRate: 25,
-    freeOver: 400,
-    estimatedDelivery: '4–8 days',
-    estimatedBasis: '',
-    status: 'active',
-    updated: 'Sep 10, 2026',
-    rates: { standard: 25, express: 45, overnight: null },
-    times: { standard: '4–8 days', express: '2–4 days', overnight: null },
-    handlingTime: '1–2 business days',
-  },
-  {
-    id: 'ZN-0003',
-    name: 'United Kingdom & Ireland',
-    countries: 'United Kingdom, Ireland',
-    methods: ['Standard', 'Express'],
-    startingRate: 20,
-    freeOver: 350,
-    estimatedDelivery: '3–6 days',
-    estimatedBasis: '',
-    status: 'active',
-    updated: 'Sep 08, 2026',
-    rates: { standard: 20, express: 40, overnight: null },
-    times: { standard: '3–6 days', express: '2–3 days', overnight: null },
-    handlingTime: '1–2 business days',
-  },
-  {
-    id: 'ZN-0004',
-    name: 'European Union',
-    countries: '27 countries',
-    methods: ['Standard', 'Express'],
-    startingRate: 22,
-    freeOver: 400,
-    estimatedDelivery: '4–8 days',
-    estimatedBasis: '',
-    status: 'active',
-    updated: 'Sep 06, 2026',
-    rates: { standard: 22, express: 42, overnight: null },
-    times: { standard: '4–8 days', express: '2–4 days', overnight: null },
-    handlingTime: '1–2 business days',
-  },
-  {
-    id: 'ZN-0005',
-    name: 'Middle East',
-    countries: 'United Arab Emirates, Saudi Arabia, Qatar +3',
-    methods: ['Standard', 'Express'],
-    startingRate: 30,
-    freeOver: 500,
-    estimatedDelivery: '5–9 days',
-    estimatedBasis: '',
-    status: 'active',
-    updated: 'Sep 03, 2026',
-    rates: { standard: 30, express: 55, overnight: null },
-    times: { standard: '5–9 days', express: '3–5 days', overnight: null },
-    handlingTime: '1–2 business days',
-  },
-  {
-    id: 'ZN-0006',
-    name: 'Asia Pacific',
-    countries: 'Singapore, Japan, South Korea +5',
-    methods: ['Standard', 'Express'],
-    startingRate: 28,
-    freeOver: 500,
-    estimatedDelivery: '5–10 days',
-    estimatedBasis: '',
-    status: 'active',
-    updated: 'Aug 29, 2026',
-    rates: { standard: 28, express: 50, overnight: null },
-    times: { standard: '5–10 days', express: '3–5 days', overnight: null },
-    handlingTime: '1–2 business days',
-  },
-  {
-    id: 'ZN-0007',
-    name: 'Rest of world',
-    countries: 'All other countries',
-    methods: ['Standard'],
-    startingRate: 45,
-    freeOver: null,
-    estimatedDelivery: '7–14 days',
-    estimatedBasis: '',
-    status: 'inactive',
-    updated: 'Aug 20, 2026',
-    rates: { standard: 45, express: null, overnight: null },
-    times: { standard: '7–14 days', express: null, overnight: null },
-    handlingTime: '1–2 business days',
-  },
-];
-
-const METHODS = [
-  {
-    id: 'SM-01',
-    name: 'Standard Shipping',
-    description: 'Tracked delivery to your door',
-    carrier: 'DHL',
-    rateStructure: 'Flat rate',
-    rateFrom: 15,
-    estimatedDelivery: '3–14 days',
-    estimatedNote: 'Business days',
-    zonesActive: 7,
-    status: 'active',
-  },
-  {
-    id: 'SM-02',
-    name: 'Express Shipping',
-    description: 'Faster tracked delivery',
-    carrier: 'FedEx',
-    rateStructure: 'Flat rate',
-    rateFrom: 35,
-    estimatedDelivery: '1–5 days',
-    estimatedNote: '',
-    zonesActive: 6,
-    status: 'active',
-  },
-  {
-    id: 'SM-03',
-    name: 'Overnight Shipping',
-    description: 'Next business day delivery',
-    carrier: 'FedEx',
-    rateStructure: 'Flat rate',
-    rateFrom: 60,
-    estimatedDelivery: '1 day',
-    estimatedNote: '',
-    zonesActive: 1,
-    status: 'active',
-  },
-  {
-    id: 'SM-04',
-    name: 'Free Shipping',
-    description: 'Free delivery over a minimum order',
-    carrier: 'DHL',
-    rateStructure: 'Free',
-    rateFrom: null,
-    rateNote: 'Over $300–$500',
-    estimatedDelivery: '3–10 days',
-    estimatedNote: '',
-    zonesActive: 6,
-    status: 'active',
-  },
-  {
-    id: 'SM-05',
-    name: 'Store Pickup',
-    description: 'Collect from a NovaShop location',
-    carrier: 'In-house',
-    rateStructure: 'Free',
-    rateFrom: null,
-    rateNote: 'No charge',
-    estimatedDelivery: 'Same day',
-    estimatedNote: 'Order before 2pm',
-    zonesActive: 1,
-    status: 'inactive',
-  },
-];
-
-const KPI_STATS = [
-  { label: 'Delivery zones', value: '7', trend: '+1 this month', tone: 'positive' },
-  { label: 'Active methods', value: '4', trend: 'No change', tone: 'neutral' },
-  { label: 'Countries covered', value: '48', trend: '+6 this month', tone: 'positive' },
-  { label: 'Avg. delivery (days)', value: '4.2', trend: '−0.3 days', tone: 'positive' },
-];
 
 const STATUS_OPTIONS = [
   { id: 'all', label: 'All statuses' },
@@ -196,15 +18,16 @@ const TABS = [
 ];
 
 function money(value) {
-  if (value === null || value === undefined) return null;
-  return `$${value.toFixed(2)}`;
+  if (value === null || value === undefined || isNaN(value)) return null;
+  return `$${Number(value).toFixed(2)}`;
 }
 
 function StatusPill({ status }) {
+  const norm = (status || 'active').toLowerCase();
   return (
-    <span className={`ship-status-pill is-${status}`}>
+    <span className={`ship-status-pill is-${norm}`}>
       <i />
-      {status === 'active' ? 'Active' : 'Inactive'}
+      {norm === 'active' ? 'Active' : 'Inactive'}
     </span>
   );
 }
@@ -238,17 +61,76 @@ function FilterDropdown({ label, value, options, isOpen, onToggle, onChange }) {
 }
 
 export default function AdminShippingPage({ go }) {
-  const [activeTab, setActiveTab] = useState('zones');
-  const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const getInitialParams = () => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      return {
+        tab: sp.get('tab') || 'zones',
+        search: sp.get('search') || '',
+        status: sp.get('status') || 'all',
+      };
+    } catch {
+      return { tab: 'zones', search: '', status: 'all' };
+    }
+  };
+
+  const initialParams = useMemo(getInitialParams, []);
+  const [activeTab, setActiveTab] = useState(initialParams.tab);
+  const [search, setSearch] = useState(initialParams.search);
+  const [statusFilter, setStatusFilter] = useState(initialParams.status);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
   const [openRowMenu, setOpenRowMenu] = useState(null);
   const [hoveredZoneId, setHoveredZoneId] = useState(null);
   const [notice, setNotice] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const [rateEdits, setRateEdits] = useState({
-    'ZN-0001': { standard: '16.00', express: '38.00' },
-  });
+  // Sync state to URL search parameters
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(window.location.search);
+      if (activeTab && activeTab !== 'zones') sp.set('tab', activeTab);
+      else sp.delete('tab');
+
+      if (search) sp.set('search', search);
+      else sp.delete('search');
+
+      if (statusFilter && statusFilter !== 'all') sp.set('status', statusFilter);
+      else sp.delete('status');
+
+      const newQuery = sp.toString() ? `?${sp.toString()}` : '';
+      const newUrl = `${window.location.pathname}${newQuery}`;
+      if (window.location.search !== newQuery) {
+        window.history.replaceState(null, '', newUrl);
+      }
+    } catch (err) {
+      console.warn('[AdminShipping] URL sync warning:', err);
+    }
+  }, [activeTab, search, statusFilter]);
+
+  // Back/forward navigation popstate listener
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const sp = new URLSearchParams(window.location.search);
+        setActiveTab(sp.get('tab') || 'zones');
+        setSearch(sp.get('search') || '');
+        setStatusFilter(sp.get('status') || 'all');
+      } catch (err) {
+        console.warn('[AdminShipping] PopState warning:', err);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Real backend data state
+  const [stats, setStats] = useState(null);
+  const [zones, setZones] = useState([]);
+  const [methods, setMethods] = useState([]);
+  const [shippingRates, setShippingRates] = useState([]);
+  const [deliveryTimes, setDeliveryTimes] = useState([]);
+
+  const [rateEdits, setRateEdits] = useState({});
   const [timeEdits, setTimeEdits] = useState({});
 
   const filterRef = useRef(null);
@@ -265,13 +147,113 @@ export default function AdminShippingPage({ go }) {
 
   const notify = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(''), 2200);
+    window.setTimeout(() => setNotice(''), 2500);
   };
+
+  const fetchShippingData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await shippingApi.getAdminStats();
+      if (data) {
+        setStats(data.stats);
+        setZones(data.deliveryZones || []);
+        setMethods(data.shippingMethods || []);
+        setShippingRates(data.shippingRates || []);
+        setDeliveryTimes(data.deliveryTimes || []);
+      }
+    } catch (err) {
+      console.error('[AdminShipping] Error fetching shipping data:', err);
+      notify('Failed to load shipping data.');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchShippingData();
+  }, [fetchShippingData]);
+
+  const kpiStats = useMemo(() => {
+    if (!stats) {
+      return [
+        { label: 'Delivery zones', value: '0', trend: '-', tone: 'neutral' },
+        { label: 'Active methods', value: '0', trend: '-', tone: 'neutral' },
+        { label: 'Countries covered', value: '0', trend: '-', tone: 'neutral' },
+        { label: 'Avg. delivery (days)', value: '-', trend: '-', tone: 'neutral' },
+      ];
+    }
+
+    return [
+      { label: 'Delivery zones', value: String(stats.zonesCount || 0), trend: stats.zonesDelta || '-', tone: 'neutral' },
+      { label: 'Active methods', value: String(stats.methodsCount || 0), trend: stats.methodsDelta || '-', tone: 'neutral' },
+      { label: 'Countries covered', value: String(stats.countriesCount || 0), trend: stats.countriesDelta || '-', tone: 'neutral' },
+      { label: 'Avg. delivery (days)', value: stats.avgDeliveryDays || '-', trend: stats.avgDeliveryDelta || '-', tone: 'neutral' },
+    ];
+  }, [stats]);
+
+  // Transform zones with rates & times for the tables
+  const formattedZones = useMemo(() => {
+    return zones.map((zone) => {
+      const zoneMethods = methods.filter((m) => String(m.zoneId || m.zone) === String(zone.id));
+      const methodNames = zoneMethods.map((m) => m.name);
+
+      const standardRateDoc = shippingRates.find(
+        (r) => String(r.zoneId || r.zone) === String(zone.id) && (r.methodName || '').toLowerCase().includes('standard')
+      );
+      const expressRateDoc = shippingRates.find(
+        (r) => String(r.zoneId || r.zone) === String(zone.id) && (r.methodName || '').toLowerCase().includes('express')
+      );
+      const overnightRateDoc = shippingRates.find(
+        (r) => String(r.zoneId || r.zone) === String(zone.id) && (r.methodName || '').toLowerCase().includes('overnight')
+      );
+
+      const standardMethod = zoneMethods.find((m) => (m.name || '').toLowerCase().includes('standard'));
+      const expressMethod = zoneMethods.find((m) => (m.name || '').toLowerCase().includes('express'));
+
+      const standardTransit = standardMethod
+        ? `${standardMethod.minDays}–${standardMethod.maxDays} days`
+        : '2–4 days';
+      const expressTransit = expressMethod
+        ? `${expressMethod.minDays}–${expressMethod.maxDays} days`
+        : null;
+
+      const startingRate = standardRateDoc ? standardRateDoc.amountUSD : (zoneMethods.length > 0 ? 0 : 0);
+
+      const countriesList = Array.isArray(zone.countries) ? zone.countries.join(', ') : zone.countries;
+
+      return {
+        id: zone.id,
+        name: zone.name,
+        countries: countriesList || 'Ethiopia',
+        regions: zone.regions || [],
+        methods: methodNames.length > 0 ? methodNames : ['Standard Delivery'],
+        startingRate,
+        freeOver: zone.freeOverThresholdUSD || 300,
+        estimatedDelivery: standardTransit,
+        estimatedBasis: '(Standard)',
+        status: (zone.status || 'active').toLowerCase(),
+        updated: 'Active',
+        rates: {
+          standard: standardRateDoc ? standardRateDoc.amountUSD : 5,
+          express: expressRateDoc ? expressRateDoc.amountUSD : (expressMethod ? 15 : null),
+          overnight: overnightRateDoc ? overnightRateDoc.amountUSD : null,
+          standardRateId: standardRateDoc?.id,
+          expressRateId: expressRateDoc?.id,
+        },
+        times: {
+          standard: standardTransit,
+          express: expressTransit,
+          overnight: null,
+        },
+        handlingTime: zone.handlingTime || '1–2 business days',
+      };
+    });
+  }, [zones, methods, shippingRates]);
 
   const filteredZones = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return ZONES.filter((zone) => {
+    return formattedZones.filter((zone) => {
       const matchesSearch =
         !query ||
         zone.name.toLowerCase().includes(query) ||
@@ -281,22 +263,26 @@ export default function AdminShippingPage({ go }) {
 
       return matchesSearch && matchesStatus;
     });
-  }, [search, statusFilter]);
+  }, [formattedZones, search, statusFilter]);
 
   const filteredMethods = useMemo(() => {
     const query = search.trim().toLowerCase();
 
-    return METHODS.filter((method) => {
+    return methods.map((m) => ({
+      ...m,
+      rateFrom: (shippingRates.find((r) => String(r.methodId) === String(m.id))?.amountUSD) ?? null,
+      zonesActive: zones.filter((z) => String(z.id) === String(m.zoneId)).length || 1,
+    })).filter((method) => {
       const matchesSearch =
         !query ||
         method.name.toLowerCase().includes(query) ||
         method.carrier.toLowerCase().includes(query);
 
-      const matchesStatus = statusFilter === 'all' || method.status === statusFilter;
+      const matchesStatus = statusFilter === 'all' || (method.status || 'active').toLowerCase() === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
-  }, [search, statusFilter]);
+  }, [methods, shippingRates, zones, search, statusFilter]);
 
   const pendingRateEdits = useMemo(() => {
     let count = 0;
@@ -317,7 +303,57 @@ export default function AdminShippingPage({ go }) {
     setTimeEdits((current) => ({ ...current, [zoneId]: value }));
   };
 
-  const handleRowMenuAction = (zone, action) => {
+  const handleSaveRates = async () => {
+    notify('Saving rate adjustments…');
+    try {
+      for (const [zoneId, fields] of Object.entries(rateEdits)) {
+        const zoneObj = formattedZones.find((z) => z.id === zoneId);
+        if (!zoneObj) continue;
+
+        if (fields.standard !== undefined && zoneObj.rates.standardRateId) {
+          await shippingApi.updateRate(zoneObj.rates.standardRateId, {
+            amountUSD: Number(fields.standard),
+            amountETB: Number((Number(fields.standard) * 120).toFixed(2)),
+          });
+        }
+        if (fields.express !== undefined && zoneObj.rates.expressRateId) {
+          await shippingApi.updateRate(zoneObj.rates.expressRateId, {
+            amountUSD: Number(fields.express),
+            amountETB: Number((Number(fields.express) * 120).toFixed(2)),
+          });
+        }
+      }
+      setRateEdits({});
+      notify('Shipping rates successfully published.');
+      fetchShippingData();
+    } catch (err) {
+      console.error('[AdminShipping] Save rates error:', err);
+      notify('Failed to save rate updates.');
+    }
+  };
+
+  const handleSaveTimes = async () => {
+    notify('Updating transit times…');
+    try {
+      for (const [zoneId, val] of Object.entries(timeEdits)) {
+        const match = val.match(/(\d+)\s*[-–]\s*(\d+)/);
+        if (match) {
+          await shippingApi.updateDeliveryTimes(zoneId, {
+            standardTransitMin: Number(match[1]),
+            standardTransitMax: Number(match[2]),
+          });
+        }
+      }
+      setTimeEdits({});
+      notify('Transit times successfully updated.');
+      fetchShippingData();
+    } catch (err) {
+      console.error('[AdminShipping] Save times error:', err);
+      notify('Failed to update transit times.');
+    }
+  };
+
+  const handleRowMenuAction = async (zone, action) => {
     setOpenRowMenu(null);
 
     if (action === 'edit') {
@@ -329,12 +365,52 @@ export default function AdminShippingPage({ go }) {
       return;
     }
     if (action === 'rates') {
+      if (go) {
+        go(`/admin/shipping/zones/${zone.id}/rates`);
+        return;
+      }
       setActiveTab('rates');
       notify(`Showing rates for ${zone.name}.`);
       return;
     }
+    if (action === 'toggle') {
+      const nextStatus = zone.status === 'active' ? 'inactive' : 'active';
+      try {
+        await shippingApi.updateZone(zone.id, { status: nextStatus });
+        notify(`Zone ${zone.name} is now ${nextStatus}.`);
+        fetchShippingData();
+      } catch (err) {
+        notify(err.response?.data?.message || 'Failed to update zone status');
+      }
+      return;
+    }
+    if (action === 'duplicate') {
+      try {
+        await shippingApi.createZone({
+          name: `${zone.name} (Copy)`,
+          countries: Array.isArray(zone.countries) ? zone.countries : [zone.countries || 'Ethiopia'],
+          regions: zone.regions || [],
+          status: 'inactive',
+          freeOverThresholdUSD: zone.freeOverThresholdUSD || 300,
+          handlingTime: zone.handlingTime || '1–2 business days',
+        });
+        notify(`Duplicated ${zone.name}.`);
+        fetchShippingData();
+      } catch (err) {
+        notify(err.response?.data?.message || 'Failed to duplicate zone');
+      }
+      return;
+    }
     if (action === 'delete') {
-      notify(`${zone.name} removed from delivery zones.`);
+      if (window.confirm(`Are you sure you want to delete zone "${zone.name}"?`)) {
+        try {
+          await shippingApi.deleteZone(zone.id);
+          notify(`${zone.name} removed from delivery zones.`);
+          fetchShippingData();
+        } catch (err) {
+          notify(err.response?.data?.message || 'Failed to delete zone.');
+        }
+      }
     }
   };
 
@@ -343,15 +419,23 @@ export default function AdminShippingPage({ go }) {
       go('/admin/shipping/zones/new');
       return;
     }
-    notify('New delivery zone draft created.');
+    notify('Opening new delivery zone dialog…');
+  };
+
+  const handleAddMethod = () => {
+    if (go) {
+      go('/admin/shipping/methods/new');
+      return;
+    }
+    notify('Opening new shipping method dialog…');
   };
 
   const handleShippingSettings = () => {
     if (go) {
-      go('/admin/settings');
+      go('/admin/shipping/settings');
       return;
     }
-    notify('Opening global shipping settings…');
+    notify('Opening shipping operational settings…');
   };
 
   return (
@@ -371,10 +455,17 @@ export default function AdminShippingPage({ go }) {
             Shipping settings
           </button>
 
-          <button type="button" className="admin-action-button is-primary" onClick={handleAddZone}>
-            <AdminIcon name="plus" size={14} />
-            Add zone
-          </button>
+          {activeTab === 'methods' ? (
+            <button type="button" className="admin-action-button is-primary" onClick={handleAddMethod}>
+              <AdminIcon name="plus" size={14} />
+              Add method
+            </button>
+          ) : (
+            <button type="button" className="admin-action-button is-primary" onClick={handleAddZone}>
+              <AdminIcon name="plus" size={14} />
+              Add zone
+            </button>
+          )}
         </div>
       </section>
 
@@ -382,8 +473,24 @@ export default function AdminShippingPage({ go }) {
       <div className="ship-period-label">Performance overview · Last 30 days</div>
 
       <section className="ship-stat-grid admin-stat-grid">
-        {KPI_STATS.map((stat) => (
-          <article className="admin-stat-card ship-stat-card" key={stat.label}>
+        {kpiStats.map((stat) => (
+          <article
+            className="admin-stat-card ship-stat-card"
+            key={stat.label}
+            style={{ cursor: 'pointer' }}
+            onClick={() => {
+              if (stat.label === 'Active zones') {
+                setActiveTab('zones');
+                setStatusFilter('active');
+              } else if (stat.label === 'Active methods') {
+                setActiveTab('methods');
+                setStatusFilter('active');
+              } else if (stat.label === 'Avg. transit time') {
+                setActiveTab('times');
+              }
+            }}
+            title={`Filter by ${stat.label}`}
+          >
             <span className="admin-stat-label">{stat.label}</span>
 
             <div className="ship-stat-row">
@@ -419,6 +526,19 @@ export default function AdminShippingPage({ go }) {
             }}
           />
         </div>
+
+        {(search || statusFilter !== 'all') && (
+          <button
+            type="button"
+            className="ship-clear-filter-btn"
+            onClick={() => {
+              setSearch('');
+              setStatusFilter('all');
+            }}
+          >
+            Clear filters
+          </button>
+        )}
       </section>
 
       {/* TABS */}
@@ -431,8 +551,8 @@ export default function AdminShippingPage({ go }) {
             onClick={() => setActiveTab(tab.id)}
           >
             {tab.label}
-            {tab.id === 'zones' && <b>{ZONES.length}</b>}
-            {tab.id === 'methods' && <b>{METHODS.length}</b>}
+            {tab.id === 'zones' && <b>{zones.length}</b>}
+            {tab.id === 'methods' && <b>{methods.length}</b>}
           </button>
         ))}
       </div>
@@ -455,84 +575,93 @@ export default function AdminShippingPage({ go }) {
               </thead>
 
               <tbody>
-                {filteredZones.map((zone) => (
-                  <tr key={zone.id}>
-                    <td>
-                      <div
-                        className="ship-zone-cell"
-                        onMouseEnter={() => setHoveredZoneId(zone.id)}
-                        onMouseLeave={() => setHoveredZoneId(null)}
-                      >
-                        <strong>{zone.name}</strong>
-                        <span>{zone.countries}</span>
-
-                        {hoveredZoneId === zone.id && (
-                          <div className="ship-tooltip">
-                            Updated {zone.updated} · {zone.id}
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    <td>
-                      <span className="ship-methods-count">{zone.methods.length} methods</span>
-                      <span className="ship-methods-list">({zone.methods.join(', ')})</span>
-                    </td>
-
-                    <td>
-                      <strong>{money(zone.startingRate)}</strong>
-                      <span className="ship-free-over">
-                        {zone.freeOver ? `Free over $${zone.freeOver}` : 'No free shipping'}
-                      </span>
-                    </td>
-
-                    <td>{zone.estimatedDelivery} {zone.estimatedBasis && <em>{zone.estimatedBasis}</em>}</td>
-
-                    <td>
-                      <StatusPill status={zone.status} />
-                    </td>
-
-                    <td className="ship-actions-cell">
-                      <div
-                        className="ship-row-menu-anchor"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          className="products-row-menu-button"
-                          onClick={() =>
-                            setOpenRowMenu(openRowMenu === zone.id ? null : zone.id)
-                          }
-                          aria-label={`Actions for ${zone.name}`}
-                        >
-                          <AdminIcon name="more" size={15} />
-                        </button>
-
-                        {openRowMenu === zone.id && (
-                          <div className="ship-row-menu">
-                            <button type="button" onClick={() => handleRowMenuAction(zone, 'edit')}>
-                              <AdminIcon name="pencil" size={13} />
-                              Edit zone
-                            </button>
-                            <button type="button" onClick={() => handleRowMenuAction(zone, 'rates')}>
-                              <AdminIcon name="sliders" size={13} />
-                              Manage rates
-                            </button>
-                            <div className="ship-row-menu-divider" />
-                            <button
-                              type="button"
-                              className="is-danger"
-                              onClick={() => handleRowMenuAction(zone, 'delete')}
-                            >
-                              <AdminIcon name="trash" size={13} />
-                              Delete zone
-                            </button>
-                          </div>
-                        )}
-                      </div>
+                {filteredZones.length === 0 ? (
+                  <tr>
+                    <td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#8A847C' }}>
+                      {loading ? 'Loading shipping zones…' : 'No delivery zones found.'}
                     </td>
                   </tr>
-                ))}
+                ) : (
+                  filteredZones.map((zone) => (
+                    <tr key={zone.id}>
+                      <td>
+                        <div
+                          className="ship-zone-cell"
+                          onMouseEnter={() => setHoveredZoneId(zone.id)}
+                          onMouseLeave={() => setHoveredZoneId(null)}
+                        >
+                          <strong>{zone.name}</strong>
+                          <span>{zone.countries}</span>
+
+                          {hoveredZoneId === zone.id && (
+                            <div className="ship-tooltip">
+                              Free over ${zone.freeOver} · Handling: {zone.handlingTime}
+                            </div>
+                          )}
+                        </div>
+                      </td>
+
+                      <td>
+                        <span className="ship-methods-count">
+                          {zone.methods.length} {zone.methods.length === 1 ? 'method' : 'methods'}
+                        </span>
+                        <span className="ship-methods-list">({zone.methods.join(', ')})</span>
+                      </td>
+
+                      <td>
+                        <strong>{money(zone.startingRate)}</strong>
+                        <span className="ship-free-over">
+                          {zone.freeOver ? `Free over $${zone.freeOver}` : 'No free shipping'}
+                        </span>
+                      </td>
+
+                      <td>{zone.estimatedDelivery} {zone.estimatedBasis && <em>{zone.estimatedBasis}</em>}</td>
+
+                      <td>
+                        <StatusPill status={zone.status} />
+                      </td>
+
+                      <td className="ship-actions-cell" onClick={(e) => e.stopPropagation()}>
+                        <AdminRowActionMenu
+                          item={zone}
+                          title={zone.name}
+                          subtitle={`${zone.regions?.length || 0} ${(zone.regions?.length || 0) === 1 ? 'region' : 'regions'} · ${zone.status || 'Active'}`}
+                          items={[
+                            {
+                              label: 'Edit zone',
+                              icon: 'edit',
+                              onClick: () => handleRowMenuAction(zone, 'edit'),
+                            },
+                            {
+                              label: 'Manage rates',
+                              icon: 'sliders',
+                              onClick: () => handleRowMenuAction(zone, 'rates'),
+                            },
+                            {
+                              label: zone.status === 'active' ? 'Deactivate zone' : 'Activate zone',
+                              icon: zone.status === 'active' ? 'stop' : 'check',
+                              onClick: () => handleRowMenuAction(zone, 'toggle'),
+                            },
+                            {
+                              label: 'Duplicate zone',
+                              icon: 'duplicate',
+                              onClick: () => handleRowMenuAction(zone, 'duplicate'),
+                            },
+                            {
+                              divider: true,
+                            },
+                            {
+                              label: 'Delete zone',
+                              icon: 'trash',
+                              danger: true,
+                              onClick: () => handleRowMenuAction(zone, 'delete'),
+                            },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           )}
@@ -553,89 +682,124 @@ export default function AdminShippingPage({ go }) {
               </thead>
 
               <tbody>
-                {filteredMethods.map((method) => (
-                  <tr key={method.id}>
-                    <td>
-                      <div className="ship-method-cell">
-                        <strong>{method.name}</strong>
-                        <span>{method.description}</span>
-                      </div>
+                {filteredMethods.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" style={{ textAlign: 'center', padding: '32px', color: '#8A847C' }}>
+                      {loading ? 'Loading shipping methods…' : 'No shipping methods found.'}
                     </td>
+                  </tr>
+                ) : (
+                  filteredMethods.map((method) => (
+                    <tr key={method.id}>
+                      <td>
+                        <div className="ship-method-cell">
+                          <strong>{method.name}</strong>
+                          <span>{method.description || 'Doorstep courier service'}</span>
+                        </div>
+                      </td>
 
-                    <td>
-                      <span className="ship-carrier-tag">{method.carrier}</span>
-                    </td>
+                      <td>
+                        <span className="ship-carrier-tag">{method.carrier}</span>
+                      </td>
 
-                    <td>
-                      <strong>{method.rateStructure}</strong>
-                      <span className="ship-free-over">
-                        {method.rateFrom
-                          ? `From ${money(method.rateFrom)}`
-                          : method.rateNote}
-                      </span>
-                    </td>
+                      <td>
+                        <strong>{method.rateStructure || 'Flat rate'}</strong>
+                        <span className="ship-free-over">
+                          {method.rateFrom !== null
+                            ? `From ${money(method.rateFrom)}`
+                            : 'Standard rates apply'}
+                        </span>
+                      </td>
 
-                    <td>
-                      {method.estimatedDelivery}
-                      {method.estimatedNote && <em>{method.estimatedNote}</em>}
-                    </td>
+                      <td>
+                        {method.estimatedDelivery}
+                      </td>
 
-                    <td>{method.zonesActive} {method.zonesActive === 1 ? 'zone' : 'zones'}</td>
+                      <td>{method.zonesActive} {method.zonesActive === 1 ? 'zone' : 'zones'}</td>
 
-                    <td>
-                      <StatusPill status={method.status} />
-                    </td>
+                      <td>
+                        <StatusPill status={method.status || 'active'} />
+                      </td>
 
-                    <td className="ship-actions-cell">
-                      <div
-                        className="ship-row-menu-anchor"
-                        onClick={(event) => event.stopPropagation()}
-                      >
-                        <button
-                          type="button"
-                          className="products-row-menu-button"
-                          onClick={() =>
-                            setOpenRowMenu(openRowMenu === method.id ? null : method.id)
-                          }
-                          aria-label={`Actions for ${method.name}`}
-                        >
-                          <AdminIcon name="more" size={15} />
-                        </button>
-
-                        {openRowMenu === method.id && (
-                          <div className="ship-row-menu">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOpenRowMenu(null);
+                      <td className="ship-actions-cell" onClick={(e) => e.stopPropagation()}>
+                        <AdminRowActionMenu
+                          item={method}
+                          title={method.name}
+                          subtitle={`${method.carrier || 'Standard'} · ${method.status || 'Active'}`}
+                          items={[
+                            {
+                              label: 'Edit method',
+                              icon: 'edit',
+                              onClick: () => {
                                 if (go) {
                                   go(`/admin/shipping/methods/${method.id}/edit`);
                                   return;
                                 }
                                 notify(`Editing ${method.name}…`);
-                              }}
-                            >
-                              <AdminIcon name="pencil" size={13} />
-                              Edit method
-                            </button>
-                            <div className="ship-row-menu-divider" />
-                            <button
-                              type="button"
-                              className="is-danger"
-                              onClick={() => {
-                                setOpenRowMenu(null);
-                                notify(`${method.name} disabled.`);
-                              }}
-                            >
-                              <AdminIcon name="stop" size={13} />
-                              Disable method
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                              },
+                            },
+                            {
+                              label: (method.status || 'active').toLowerCase() === 'active' ? 'Disable method' : 'Enable method',
+                              icon: (method.status || 'active').toLowerCase() === 'active' ? 'stop' : 'check',
+                              onClick: async () => {
+                                const nextStatus = (method.status || 'active').toLowerCase() === 'active' ? 'inactive' : 'active';
+                                try {
+                                  await shippingApi.updateMethod(method.id, { status: nextStatus });
+                                  notify(`${method.name} is now ${nextStatus}.`);
+                                  fetchShippingData();
+                                } catch {
+                                  notify('Failed to update method status.');
+                                }
+                              },
+                            },
+                            {
+                              label: 'Duplicate method',
+                              icon: 'duplicate',
+                              onClick: async () => {
+                                try {
+                                  await shippingApi.createMethod({
+                                    name: `${method.name} (Copy)`,
+                                    zone: method.zoneId,
+                                    carrier: method.carrier,
+                                    rateStructure: method.rateStructure,
+                                    estimatedMinDays: method.minDays || 2,
+                                    estimatedMaxDays: method.maxDays || 4,
+                                    estimatedDeliveryNote: method.deliveryNote || 'business days',
+                                    status: 'inactive',
+                                    rateUSD: 5,
+                                    rateETB: 150,
+                                  });
+                                  notify(`Duplicated ${method.name}.`);
+                                  fetchShippingData();
+                                } catch {
+                                  notify('Failed to duplicate method.');
+                                }
+                              },
+                            },
+                            {
+                              divider: true,
+                            },
+                            {
+                              label: 'Delete method',
+                              icon: 'trash',
+                              danger: true,
+                              onClick: async () => {
+                                if (!window.confirm(`Are you sure you want to delete "${method.name}"?`)) return;
+                                try {
+                                  await shippingApi.deleteMethod(method.id);
+                                  notify(`${method.name} deleted.`);
+                                  fetchShippingData();
+                                } catch {
+                                  notify('Failed to delete method.');
+                                }
+                              },
+                            },
+                          ]}
+                        />
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           )}
@@ -676,7 +840,7 @@ export default function AdminShippingPage({ go }) {
                                 type="text"
                                 inputMode="decimal"
                                 value={
-                                  edited.standard ?? zone.rates.standard.toFixed(2)
+                                  edited.standard ?? (zone.rates.standard !== undefined ? zone.rates.standard.toFixed(2) : '5.00')
                                 }
                                 onChange={(event) =>
                                   updateRateEdit(zone.id, 'standard', event.target.value)
@@ -700,7 +864,7 @@ export default function AdminShippingPage({ go }) {
                                 type="text"
                                 inputMode="decimal"
                                 value={
-                                  edited.express ?? zone.rates.express.toFixed(2)
+                                  edited.express ?? (zone.rates.express !== undefined ? zone.rates.express.toFixed(2) : '15.00')
                                 }
                                 onChange={(event) =>
                                   updateRateEdit(zone.id, 'express', event.target.value)
@@ -733,12 +897,22 @@ export default function AdminShippingPage({ go }) {
                 </tbody>
               </table>
 
-              <div className="ship-table-footnote">
+              <div className="ship-table-footnote" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>Inline rate adjustments will be previewed prior to publication</span>
                 {pendingRateEdits > 0 && (
-                  <span className="ship-pending-flag">
-                    {pendingRateEdits} pending edit{pendingRateEdits === 1 ? '' : 's'} detected
-                  </span>
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    <span className="ship-pending-flag">
+                      {pendingRateEdits} pending edit{pendingRateEdits === 1 ? '' : 's'} detected
+                    </span>
+                    <button
+                      type="button"
+                      className="admin-action-button is-primary"
+                      style={{ padding: '4px 12px', fontSize: '12px' }}
+                      onClick={handleSaveRates}
+                    >
+                      Save changes
+                    </button>
+                  </div>
                 )}
               </div>
             </>
@@ -746,63 +920,78 @@ export default function AdminShippingPage({ go }) {
 
           {/* ---------------- DELIVERY TIMES ---------------- */}
           {activeTab === 'times' && (
-            <table className="ship-table">
-              <thead>
-                <tr>
-                  <th>Zone</th>
-                  <th>Standard shipping</th>
-                  <th>Express shipping</th>
-                  <th>Overnight shipping</th>
-                  <th>Internal handling time</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {filteredZones.map((zone) => (
-                  <tr key={zone.id}>
-                    <td>
-                      <strong>{zone.name}</strong>
-                    </td>
-
-                    <td>
-                      <div className="ship-time-input">
-                        <input
-                          type="text"
-                          value={timeEdits[zone.id] ?? zone.times.standard}
-                          onChange={(event) => updateTimeEdit(zone.id, event.target.value)}
-                        />
-                      </div>
-                    </td>
-
-                    <td>
-                      {zone.times.express || (
-                        <span className="ship-not-offered">Not offered</span>
-                      )}
-                    </td>
-
-                    <td>
-                      {zone.times.overnight || (
-                        <span className="ship-not-offered">Not offered</span>
-                      )}
-                    </td>
-
-                    <td>
-                      <div className="ship-handling-cell">
-                        <span>{zone.handlingTime}</span>
-                        <em>(Read-only)</em>
-                      </div>
-                    </td>
+            <>
+              <table className="ship-table">
+                <thead>
+                  <tr>
+                    <th>Zone</th>
+                    <th>Standard shipping</th>
+                    <th>Express shipping</th>
+                    <th>Overnight shipping</th>
+                    <th>Internal handling time</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody>
+                  {filteredZones.map((zone) => (
+                    <tr key={zone.id}>
+                      <td>
+                        <strong>{zone.name}</strong>
+                      </td>
+
+                      <td>
+                        <div className="ship-time-input">
+                          <input
+                            type="text"
+                            value={timeEdits[zone.id] ?? zone.times.standard}
+                            onChange={(event) => updateTimeEdit(zone.id, event.target.value)}
+                          />
+                        </div>
+                      </td>
+
+                      <td>
+                        {zone.times.express || (
+                          <span className="ship-not-offered">Not offered</span>
+                        )}
+                      </td>
+
+                      <td>
+                        {zone.times.overnight || (
+                          <span className="ship-not-offered">Not offered</span>
+                        )}
+                      </td>
+
+                      <td>
+                        <div className="ship-handling-cell">
+                          <span>{zone.handlingTime}</span>
+                          <em>(Read-only)</em>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+
+              {Object.keys(timeEdits).length > 0 && (
+                <div className="ship-table-footnote" style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px' }}>
+                  <button
+                    type="button"
+                    className="admin-action-button is-primary"
+                    style={{ padding: '6px 14px', fontSize: '13px' }}
+                    onClick={handleSaveTimes}
+                  >
+                    Save delivery times
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
         {activeTab === 'zones' && (
           <div className="ship-table-footnote">
             <span>
-              Showing <strong>1–{filteredZones.length}</strong> of {ZONES.length} zones
+              Showing <strong>1–{filteredZones.length}</strong> of {zones.length} zones
             </span>
             <span>All active zones synced with checkout</span>
           </div>

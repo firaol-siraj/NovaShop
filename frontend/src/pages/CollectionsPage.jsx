@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useCategories } from "../context/CategoryContext";
 
 const T = {
-  bg: "#FAF7F2",
-  espresso: "#231E1B",
-  muted: "#6E6962",
-  border: "#E8E2D9",
-  card: "#F0EBE4",
+  bg: "var(--bg-main)",
+  espresso: "var(--text-primary)",
+  muted: "var(--text-muted)",
+  border: "var(--border-default)",
+  card: "var(--bg-surface)",
 };
 
 const FALLBACK_IMAGE =
@@ -81,6 +81,7 @@ export default function CollectionsPage({ go }) {
 
   const [failedImages, setFailedImages] = useState({});
   const [retrying, setRetrying] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "instant" });
@@ -98,10 +99,32 @@ export default function CollectionsPage({ go }) {
       });
   }, [categories]);
 
+  const displayedCollections = useMemo(() => {
+    if (showAll || collections.length <= 6) {
+      return collections;
+    }
+    return collections.slice(0, 6);
+  }, [collections, showAll]);
+
+  const handleToggleShowAll = () => {
+    setShowAll((prev) => {
+      const next = !prev;
+      if (!next && typeof window !== "undefined") {
+        const gridEl = document.querySelector(".col-grid");
+        if (gridEl) {
+          const rect = gridEl.getBoundingClientRect();
+          if (rect.top < 0) {
+            gridEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }
+      }
+      return next;
+    });
+  };
+
   const handleCollectionClick = (collection) => {
     if (!collection.slug) return;
-
-    go(`/shop?category=${encodeURIComponent(collection.slug)}`);
+    go(`/collections/${encodeURIComponent(collection.slug)}`);
   };
 
   const handleRetry = async () => {
@@ -368,12 +391,7 @@ export default function CollectionsPage({ go }) {
         .col-skeleton {
           aspect-ratio: 3 / 4;
           margin-bottom: 20px;
-          background: linear-gradient(
-            100deg,
-            #eee8e0 20%,
-            #f7f3ed 40%,
-            #eee8e0 60%
-          );
+          background: var(--skeleton-base);
           background-size: 200% 100%;
           animation: col-shimmer 1.4s ease infinite;
         }
@@ -382,10 +400,54 @@ export default function CollectionsPage({ go }) {
           to { background-position-x: -200%; }
         }
 
+        .col-more-wrapper {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin-top: 56px;
+          padding-top: 16px;
+        }
+
+        .col-more-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          background: transparent;
+          border: none;
+          border-bottom: 1px solid ${T.espresso};
+          padding: 0 0 4px;
+          color: ${T.espresso};
+          font-family: var(--font-sans);
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.16em;
+          text-transform: uppercase;
+          cursor: pointer;
+          transition: opacity 200ms ease, transform 200ms ease;
+        }
+
+        .col-more-link:hover {
+          opacity: 0.65;
+        }
+
+        .col-more-link:focus-visible {
+          outline: 2px solid ${T.espresso};
+          outline-offset: 4px;
+        }
+
+        .col-more-arrow {
+          display: inline-block;
+          font-size: 12px;
+          line-height: 1;
+          transition: transform 200ms ease;
+        }
+
         @media (prefers-reduced-motion: reduce) {
           .col-img,
           .col-image-overlay,
-          .col-explore {
+          .col-explore,
+          .col-more-link,
+          .col-more-arrow {
             transition: none;
           }
 
@@ -522,13 +584,14 @@ export default function CollectionsPage({ go }) {
                   Curated collections
                 </span>
                 <span className="col-results-label">
-                  {collections.length}{" "}
-                  {collections.length === 1 ? "collection" : "collections"}
+                  {collections.length > 6 && !showAll
+                    ? `Showing 6 of ${collections.length} collections`
+                    : `${collections.length} ${collections.length === 1 ? "collection" : "collections"}`}
                 </span>
               </div>
 
               <div className="col-grid">
-                {collections.map((collection) => {
+                {displayedCollections.map((collection) => {
                   const count = getProductCount(collection);
                   const image = getCategoryImage(collection);
                   const imageFailed = failedImages[collection.id || collection.slug];
@@ -586,6 +649,23 @@ export default function CollectionsPage({ go }) {
                   );
                 })}
               </div>
+
+              {collections.length > 6 && (
+                <div className="col-more-wrapper">
+                  <button
+                    type="button"
+                    className="col-more-link"
+                    onClick={handleToggleShowAll}
+                    aria-expanded={showAll}
+                    aria-label={showAll ? "Show fewer collections" : "View more collections"}
+                  >
+                    <span>{showAll ? "Show less" : "View more"}</span>
+                    <span className="col-more-arrow" aria-hidden="true">
+                      {showAll ? "↑" : "↓"}
+                    </span>
+                  </button>
+                </div>
+              )}
             </>
           )}
         </div>

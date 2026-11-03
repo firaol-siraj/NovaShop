@@ -3,7 +3,7 @@ import { useCategories } from "../../context/CategoryContext";
 
 /* ─── Arrow icon ────────────────────────────────────────────────────────── */
 
-function ArrowIcon({ color = "#1B1816", size = 16 }) {
+function ArrowIcon({ color = "var(--text-primary)", size = 16 }) {
   return (
     <svg
       width={size}
@@ -37,7 +37,7 @@ function CategoryCard({ cat, go }) {
         display: "flex",
         flexDirection: "column",
         cursor: "pointer",
-        outline: focused ? "2px solid #1B1816" : "none",
+        outline: focused ? "2px solid var(--border-focus)" : "none",
         outlineOffset: "4px",
         textDecoration: "none",
       }}
@@ -102,7 +102,7 @@ function CategoryCard({ cat, go }) {
               fontSize: "22px",
               fontWeight: 400,
               letterSpacing: "-0.01em",
-              color: "#1B1816",
+              color: "var(--text-primary)",
               lineHeight: 1.1,
             }}
           >
@@ -116,7 +116,7 @@ function CategoryCard({ cat, go }) {
               fontWeight: 500,
               letterSpacing: "0.15em",
               textTransform: "uppercase",
-              color: "#716A64", // Small gray label
+              color: "var(--text-muted)",
               lineHeight: 1,
             }}
           >
@@ -130,8 +130,8 @@ function CategoryCard({ cat, go }) {
             width: "42px",
             height: "42px",
             borderRadius: "50%",
-            border: "1px solid #1B1816",
-            background: isHighlighted ? "#1B1816" : "transparent",
+            border: "1px solid var(--border-strong)",
+            background: isHighlighted ? "var(--color-primary)" : "transparent",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -139,7 +139,7 @@ function CategoryCard({ cat, go }) {
             transition: "background 200ms ease",
           }}
         >
-          <ArrowIcon color={isHighlighted ? "#FFFFFF" : "#1B1816"} size={16} />
+          <ArrowIcon color={isHighlighted ? "var(--color-primary-contrast)" : "var(--text-primary)"} size={16} />
         </div>
       </div>
     </article>
@@ -159,7 +159,7 @@ export default function CategorySection({ go }) {
     <section
       aria-labelledby="category-heading"
       style={{
-        backgroundColor: "#FDFBF7",
+        backgroundColor: "var(--bg-main)",
         padding: "70px 0",
       }}
     >
@@ -176,8 +176,10 @@ export default function CategorySection({ go }) {
           style={{
             display: "flex",
             justifyContent: "space-between",
-            alignItems: "flex-start",
+            alignItems: "flex-end",
             marginBottom: "48px",
+            gap: "24px",
+            flexWrap: "wrap",
           }}
         >
           <div>
@@ -188,7 +190,7 @@ export default function CategorySection({ go }) {
                 fontSize: "11px",
                 letterSpacing: "0.2em",
                 textTransform: "uppercase",
-                color: "#716A64",
+                color: "var(--text-muted)",
                 marginBottom: "14px",
               }}
             >
@@ -202,7 +204,7 @@ export default function CategorySection({ go }) {
                 fontSize: "clamp(32px, 4vw, 40px)",
                 fontWeight: 400,
                 lineHeight: 1.05,
-                color: "#1B1816",
+                color: "var(--text-primary)",
                 margin: 0,
               }}
             >
@@ -210,20 +212,50 @@ export default function CategorySection({ go }) {
             </h2>
           </div>
 
-          <p
-            className="category-header-para"
+          <div
+            className="category-header-right"
             style={{
-              fontSize: "15px",
-              lineHeight: 1.65,
-              color: "#716A64",
-              maxWidth: "300px",
-              margin: 0,
-              textAlign: "right",
+              display: "flex",
+              alignItems: "center",
+              gap: "24px",
+              flexWrap: "wrap",
             }}
           >
-            Explore refined essentials and seasonal pieces designed for everyday
-            wear.
-          </p>
+            <p
+              className="category-header-para"
+              style={{
+                fontSize: "15px",
+                lineHeight: 1.65,
+                color: "var(--text-muted)",
+                maxWidth: "280px",
+                margin: 0,
+                textAlign: "right",
+              }}
+            >
+              Explore refined essentials and seasonal pieces designed for everyday wear.
+            </p>
+
+            <button
+              type="button"
+              onClick={() => go("/collections")}
+              className="category-explore-btn"
+              style={{
+                background: "transparent",
+                border: "1px solid var(--border-strong)",
+                padding: "11px 22px",
+                color: "var(--text-primary)",
+                cursor: "pointer",
+                fontSize: "11px",
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                whiteSpace: "nowrap",
+                fontFamily: "var(--font-sans)",
+                transition: "background 180ms ease, color 180ms ease",
+              }}
+            >
+              Explore All Categories →
+            </button>
+          </div>
         </div>
 
         {loading && visibleCategories.length === 0 ? (
@@ -263,31 +295,16 @@ export default function CategorySection({ go }) {
           </div>
         )}
       </div>
-
-      {visibleCategories.length > 0 && categories.length > 4 && (
-        <div style={{ textAlign: "center", marginTop: "36px" }}>
-          <button
-            type="button"
-            onClick={() => go("/collections")}
-            style={{
-              background: "transparent",
-              border: "1px solid #1B1816",
-              padding: "13px 24px",
-              color: "#1B1816",
-              cursor: "pointer",
-              fontSize: "11px",
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-            }}
-          >
-            Explore All Categories →
-          </button>
-        </div>
-      )}
       <style>{`
         @media (max-width: 1023px) {
           .category-grid {
             grid-template-columns: repeat(2, 1fr) !important;
+          }
+          .category-header-right {
+            align-items: flex-start !important;
+          }
+          .category-header-para {
+            text-align: left !important;
           }
         }
 
@@ -297,11 +314,22 @@ export default function CategorySection({ go }) {
           }
           .category-header {
             flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 20px !important;
+          }
+          .category-header-right {
+            flex-direction: column !important;
+            align-items: flex-start !important;
             gap: 16px !important;
+            width: 100% !important;
           }
           .category-header-para {
             text-align: left !important;
             max-width: 100% !important;
+          }
+          .category-explore-btn {
+            width: 100% !important;
+            text-align: center !important;
           }
           .category-grid {
             grid-template-columns: 1fr !important;

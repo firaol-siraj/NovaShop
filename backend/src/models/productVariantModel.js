@@ -44,19 +44,48 @@ const productVariantSchema = new mongoose.Schema(
       default: 0,
       min: [0, 'Stock cannot be negative'],
     },
+    reserved: {
+      type: Number,
+      default: 0,
+      min: [0, 'Reserved stock cannot be negative'],
+    },
+    lowStockThreshold: {
+      type: Number,
+      default: null,
+      min: [0, 'Low stock threshold cannot be negative'],
+    },
+    isLowStockAlerted: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     image: {
       type: String,
       default: '',
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true },
+  }
 );
+
+// Virtual: available stock (on hand - reserved)
+productVariantSchema.virtual('available').get(function () {
+  return Math.max(0, (this.stock || 0) - (this.reserved || 0));
+});
 
 // Compound index: A product cannot have two variants with the exact same size and color name
 productVariantSchema.index(
   { product: 1, size: 1, 'color.name': 1 },
   { unique: true }
 );
+
+// Indexes for inventory health and low stock alerting
+productVariantSchema.index({ stock: 1 });
+productVariantSchema.index({ product: 1, stock: 1 });
+productVariantSchema.index({ product: 1, reserved: 1 });
 
 const ProductVariant = mongoose.model('ProductVariant', productVariantSchema);
 

@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 const overlayStyle = {
   position: 'fixed',
@@ -16,17 +18,19 @@ const panelStyle = {
   right: 0,
   height: '100vh',
   width: 'min(470px, 100vw)',
-  background: '#F9F5F0',
-  borderLeft: '1px solid rgba(27, 24, 22, 0.12)',
-  boxShadow: '-18px 0 38px rgba(17, 14, 12, 0.08)',
+  background: 'var(--bg-surface)',
+  borderLeft: '1px solid var(--border-default)',
+  boxShadow: 'var(--shadow-lg)',
   transform: 'translateX(0)',
   transition: 'transform 300ms ease-out',
   zIndex: 130,
   display: 'flex',
   flexDirection: 'column',
+  color: 'var(--text-primary)',
 };
 
 export default function ShoppingBagDrawer({ go }) {
+  const { isAuthenticated } = useAuth();
   const {
     items,
     savedItems,
@@ -34,6 +38,7 @@ export default function ShoppingBagDrawer({ go }) {
     total,
     hasCartIssues,
     removeItem,
+    removeSavedItem,
     updateQuantity,
     saveForLater,
     moveToBag,
@@ -89,9 +94,9 @@ export default function ShoppingBagDrawer({ go }) {
     if (prevItems.length > 0) {
       const changedIds = currentItems
         .filter((current) => {
-          const prev = prevItems.find((p) => 
-            (p.id === current.id || p.name === current.name) && 
-            p.color === current.color && 
+          const prev = prevItems.find((p) =>
+            (p.id === current.id || p.name === current.name) &&
+            p.color === current.color &&
             p.size === current.size
           );
           return prev && prev.qty !== current.qty;
@@ -161,8 +166,8 @@ export default function ShoppingBagDrawer({ go }) {
       >
         <header
           style={{
-            background: '#F9F5F0',
-            borderBottom: '1px solid rgba(27, 24, 22, 0.08)',
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-subtle)',
             padding: '20px 22px 16px',
             position: 'sticky',
             top: 0,
@@ -179,7 +184,7 @@ export default function ShoppingBagDrawer({ go }) {
                   lineHeight: 1.05,
                   letterSpacing: '-0.04em',
                   fontWeight: 400,
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                   fontStyle: 'italic',
                 }}
               >
@@ -190,7 +195,7 @@ export default function ShoppingBagDrawer({ go }) {
                   margin: '8px 0 0',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '12px',
-                  color: '#7A726C',
+                  color: 'var(--text-muted)',
                   letterSpacing: '0.01em',
                 }}
               >
@@ -204,7 +209,7 @@ export default function ShoppingBagDrawer({ go }) {
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
                 fontSize: '30px',
                 lineHeight: 1,
                 cursor: 'pointer',
@@ -220,6 +225,48 @@ export default function ShoppingBagDrawer({ go }) {
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {!isEmpty || savedItems.length > 0 ? (
             <>
+              {!isAuthenticated && !isEmpty && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    margin: '12px 22px 0',
+                    borderRadius: '10px',
+                    background: 'var(--bg-surface-sunken)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                  }}
+                >
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-primary)' }}>
+                    Sign in to save your bag across devices
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      closeCart();
+                      if (go) go('/login');
+                      else window.dispatchEvent(new CustomEvent('novashop:navigate', { detail: { path: '/login' } }));
+                    }}
+                    style={{
+                      border: 'none',
+                      background: 'var(--color-primary)',
+                      color: 'var(--color-primary-contrast)',
+                      borderRadius: '999px',
+                      padding: '5px 12px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '9px',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
               {!isEmpty && (
                 <>
                   <div style={{ padding: '18px 22px 0' }}>
@@ -233,7 +280,7 @@ export default function ShoppingBagDrawer({ go }) {
                     fontWeight: 600,
                     letterSpacing: '0.14em',
                     textTransform: 'uppercase',
-                    color: '#8A817B',
+                    color: 'var(--text-muted)',
                     paddingBottom: '10px',
                   }}
                 >
@@ -257,16 +304,16 @@ export default function ShoppingBagDrawer({ go }) {
                         gridTemplateColumns: '88px 1fr auto',
                         gap: '14px',
                         padding: '18px 0',
-                        borderTop: '1px solid rgba(27, 24, 22, 0.08)',
+                        borderTop: '1px solid var(--border-subtle)',
                         opacity: isRemoving ? 0 : 1,
                         transform: isRemoving ? 'translateX(8px)' : 'translateX(0)',
                         maxHeight: isRemoving ? '0px' : '220px',
                         overflow: 'hidden',
-                        background: isHighlighted ? 'rgba(155, 166, 147, 0.15)' : 'transparent',
+                        background: isHighlighted ? 'var(--color-accent-soft)' : 'transparent',
                         transition: 'background 300ms ease, opacity 220ms ease, transform 220ms ease',
                       }}
                     >
-                      <div style={{ width: '88px', height: '88px', borderRadius: '10px', overflow: 'hidden', background: '#EFEAE4' }}>
+                      <div style={{ width: '88px', height: '88px', borderRadius: '10px', overflow: 'hidden', background: 'var(--bg-surface-sunken)' }}>
                         <img
                           src={item.image}
                           alt={item.name}
@@ -280,7 +327,7 @@ export default function ShoppingBagDrawer({ go }) {
                             fontFamily: 'var(--font-sans)',
                             fontSize: '15px',
                             fontWeight: 700,
-                            color: '#1B1816',
+                            color: 'var(--text-primary)',
                             lineHeight: 1.35,
                             marginBottom: '6px',
                           }}
@@ -292,7 +339,7 @@ export default function ShoppingBagDrawer({ go }) {
                           style={{
                             fontFamily: 'var(--font-sans)',
                             fontSize: '12px',
-                            color: '#7A726C',
+                            color: 'var(--text-muted)',
                             lineHeight: 1.6,
                           }}
                         >
@@ -300,10 +347,10 @@ export default function ShoppingBagDrawer({ go }) {
                           {'    '}
                           <span>Size: {item.size}</span>
                         </div>
- 
+
                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
                           {item.issue && (
-                            <div style={{ fontSize: '10px', color: '#A14A3F', marginTop: '6px' }}>
+                            <div style={{ fontSize: '10px', color: 'var(--color-danger)', marginTop: '6px' }}>
                               {item.issue === 'unavailable'
                                 ? 'No longer available'
                                 : item.issue === 'out_of_stock'
@@ -319,9 +366,9 @@ export default function ShoppingBagDrawer({ go }) {
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '10px',
-                              border: '1px solid rgba(27, 24, 22, 0.16)',
+                              border: '1px solid var(--border-default)',
                               borderRadius: '999px',
-                              background: '#FDFBF7',
+                              background: 'var(--bg-surface)',
                               padding: '4px 8px',
                             }}
                           >
@@ -334,7 +381,7 @@ export default function ShoppingBagDrawer({ go }) {
                                 border: 'none',
                                 background: 'transparent',
                                 fontSize: '18px',
-                                color: '#1B1816',
+                                color: 'var(--text-primary)',
                                 cursor: item.issue === 'unavailable' || item.qty <= 1 ? 'not-allowed' : 'pointer',
                                 width: '18px',
                                 height: '18px',
@@ -350,7 +397,7 @@ export default function ShoppingBagDrawer({ go }) {
                                 fontFamily: 'var(--font-sans)',
                                 fontSize: '12px',
                                 fontWeight: 600,
-                                color: '#1B1816',
+                                color: 'var(--text-primary)',
                                 minWidth: '14px',
                                 textAlign: 'center',
                               }}
@@ -366,7 +413,7 @@ export default function ShoppingBagDrawer({ go }) {
                                 border: 'none',
                                 background: 'transparent',
                                 fontSize: '18px',
-                                color: '#1B1816',
+                                color: 'var(--text-primary)',
                                 cursor: Boolean(item.issue) || item.qty >= (item.maxQuantity || 10) ? 'not-allowed' : 'pointer',
                                 width: '18px',
                                 height: '18px',
@@ -386,7 +433,7 @@ export default function ShoppingBagDrawer({ go }) {
                               style={{
                                 border: 'none',
                                 background: 'transparent',
-                                color: '#4D4743',
+                                color: 'var(--text-secondary)',
                                 padding: 0,
                                 cursor: isSaving ? 'default' : 'pointer',
                                 fontFamily: 'var(--font-sans)',
@@ -407,7 +454,7 @@ export default function ShoppingBagDrawer({ go }) {
                               style={{
                                 border: 'none',
                                 background: 'transparent',
-                                color: '#4D4743',
+                                color: 'var(--text-secondary)',
                                 padding: 0,
                                 cursor: isRemoving ? 'default' : 'pointer',
                                 fontFamily: 'var(--font-sans)',
@@ -429,7 +476,7 @@ export default function ShoppingBagDrawer({ go }) {
                           fontFamily: 'var(--font-sans)',
                           fontSize: '15px',
                           fontWeight: 700,
-                          color: '#1B1816',
+                          color: 'var(--text-primary)',
                           alignSelf: 'start',
                           justifySelf: 'end',
                           marginTop: '8px',
@@ -454,7 +501,7 @@ export default function ShoppingBagDrawer({ go }) {
                       fontSize: '11px',
                       letterSpacing: '0.14em',
                       textTransform: 'uppercase',
-                      color: '#8A817B',
+                      color: 'var(--text-muted)',
                     }}
                   >
                     Saved for Later ({savedItems.length})
@@ -469,13 +516,13 @@ export default function ShoppingBagDrawer({ go }) {
                           gridTemplateColumns: '72px 1fr auto',
                           gap: '14px',
                           padding: '12px 0',
-                          borderTop: '1px solid rgba(27, 24, 22, 0.08)',
+                          borderTop: '1px solid var(--border-subtle)',
                         }}
                       >
                         <img
                           src={item.image}
                           alt={item.name}
-                          style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '10px', background: '#EFEAE4' }}
+                          style={{ width: '72px', height: '72px', objectFit: 'cover', borderRadius: '10px', background: 'var(--bg-surface-sunken)' }}
                         />
 
                         <div>
@@ -484,7 +531,7 @@ export default function ShoppingBagDrawer({ go }) {
                               fontFamily: 'var(--font-sans)',
                               fontSize: '14px',
                               fontWeight: 700,
-                              color: '#1B1816',
+                              color: 'var(--text-primary)',
                             }}
                           >
                             {item.name}
@@ -493,7 +540,7 @@ export default function ShoppingBagDrawer({ go }) {
                             style={{
                               fontFamily: 'var(--font-sans)',
                               fontSize: '12px',
-                              color: '#7A726C',
+                              color: 'var(--text-muted)',
                               marginTop: '4px',
                             }}
                           >
@@ -507,7 +554,7 @@ export default function ShoppingBagDrawer({ go }) {
                               fontFamily: 'var(--font-sans)',
                               fontSize: '14px',
                               fontWeight: 700,
-                              color: '#1B1816',
+                              color: 'var(--text-primary)',
                             }}
                           >
                             {formatCurrency(item.price)}
@@ -519,8 +566,8 @@ export default function ShoppingBagDrawer({ go }) {
                               onClick={() => moveToBag(item)}
                               style={{
                                 border: 'none',
-                                background: '#1B1816',
-                                color: '#FDFBF7',
+                                background: 'var(--color-primary)',
+                                color: 'var(--color-primary-contrast)',
                                 borderRadius: '999px',
                                 padding: '8px 12px',
                                 cursor: 'pointer',
@@ -535,11 +582,11 @@ export default function ShoppingBagDrawer({ go }) {
 
                             <button
                               type="button"
-                              onClick={() => removeItem(item.id)}
+                              onClick={() => removeSavedItem(item.productId || item.id, item.variantId)}
                               style={{
                                 border: 'none',
                                 background: 'transparent',
-                                color: '#4D4743',
+                                color: 'var(--text-secondary)',
                                 padding: 0,
                                 cursor: 'pointer',
                                 fontFamily: 'var(--font-sans)',
@@ -579,11 +626,11 @@ export default function ShoppingBagDrawer({ go }) {
                   alignItems: 'center',
                   justifyContent: 'center',
                   borderRadius: '50%',
-                  background: '#EFEAE4',
+                  background: 'var(--bg-surface-sunken)',
                   marginBottom: '22px',
                 }}
               >
-                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#1B1816" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ color: 'var(--text-primary)' }} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M6 7h12l-1 12H7L6 7Z" />
                   <path d="M9 7V5a3 3 0 0 1 6 0v2" />
                 </svg>
@@ -595,7 +642,7 @@ export default function ShoppingBagDrawer({ go }) {
                   fontFamily: 'var(--font-serif)',
                   fontSize: '30px',
                   fontStyle: 'italic',
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                 }}
               >
                 Your bag is empty.
@@ -605,7 +652,7 @@ export default function ShoppingBagDrawer({ go }) {
                 style={{
                   margin: '12px 0 0',
                   fontFamily: 'var(--font-sans)',
-                  color: '#726B66',
+                  color: 'var(--text-muted)',
                   fontSize: '14px',
                   maxWidth: '260px',
                   lineHeight: 1.6,
@@ -620,8 +667,8 @@ export default function ShoppingBagDrawer({ go }) {
                 style={{
                   marginTop: '22px',
                   border: 'none',
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '10px',
                   letterSpacing: '0.14em',
@@ -640,10 +687,10 @@ export default function ShoppingBagDrawer({ go }) {
         {!isEmpty && (
           <footer
             style={{
-              background: '#F5F0E9',
-              borderTop: '1px solid rgba(27, 24, 22, 0.08)',
+              background: 'var(--bg-surface-sunken)',
+              borderTop: '1px solid var(--border-default)',
               padding: '18px 22px 22px',
-              boxShadow: '0 -10px 18px rgba(27,24,22,0.04)',
+              boxShadow: '0 -10px 18px rgba(0,0,0,0.04)',
             }}
           >
             <div style={{ marginBottom: '12px' }}>
@@ -654,7 +701,7 @@ export default function ShoppingBagDrawer({ go }) {
                   fontSize: '11px',
                   letterSpacing: '0.14em',
                   textTransform: 'uppercase',
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                 }}
               >
                 Order Summary
@@ -662,44 +709,44 @@ export default function ShoppingBagDrawer({ go }) {
             </div>
 
             <div style={{ display: 'grid', gap: '10px', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#1B1816' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-primary)' }}>
                 <span>Subtotal</span>
                 <strong>{formatCurrency(subtotalValue)}</strong>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#1B1816' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-primary)' }}>
                 <span>Shipping</span>
-                <span style={{ color: '#227B51', fontWeight: 600 }}>COMPLIMENTARY</span>
+                <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>COMPLIMENTARY</span>
               </div>
 
               {appliedPromo && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#1B1816' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-primary)' }}>
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ color: '#227B51', fontSize: '12px' }}>✓</span>
+                    <span style={{ color: 'var(--color-success)', fontSize: '12px' }}>✓</span>
                     <span>{appliedPromo}</span>
                   </span>
-                  <strong style={{ color: '#1B1816' }}>-{formatCurrency(promoDiscount)}</strong>
+                  <strong style={{ color: 'var(--text-primary)' }}>-{formatCurrency(promoDiscount)}</strong>
                 </div>
               )}
             </div>
 
             <div style={{ marginTop: '12px', marginBottom: '8px' }}>
-              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A726C', marginBottom: '8px' }}>Promo codes</div>
-              <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#7A726C', lineHeight: 1.5 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>Promo codes</div>
+              <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
                 Promo codes are not available yet.
               </p>
             </div>
 
-            <div style={{ borderTop: '1px solid rgba(27, 24, 22, 0.08)', margin: '16px 0 14px' }} />
+            <div style={{ borderTop: '1px solid var(--border-subtle)', margin: '16px 0 14px' }} />
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '8px' }}>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#1B1816' }}>Total</span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '30px', fontWeight: 700, color: '#1B1816', lineHeight: 1 }}>{formatCurrency(totalValue)}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-primary)' }}>Total</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '30px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{formatCurrency(totalValue)}</span>
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#7A726C', marginBottom: '18px' }}>VAT & duties included</div>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '18px' }}>VAT & duties included</div>
 
             {hasCartIssues && (
-              <p style={{ margin: '0 0 12px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#A14A3F', lineHeight: 1.5 }}>
+              <p style={{ margin: '0 0 12px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--color-danger)', lineHeight: 1.5 }}>
                 Resolve unavailable or out-of-stock items before checkout.
               </p>
             )}
@@ -713,9 +760,9 @@ export default function ShoppingBagDrawer({ go }) {
               }}
               style={{
                 width: '100%',
-                background: hasCartIssues ? '#B1A9A2' : '#1B1816',
+                background: hasCartIssues ? 'var(--border-strong)' : 'var(--color-primary)',
                 border: 'none',
-                color: '#FDFBF7',
+                color: 'var(--color-primary-contrast)',
                 borderRadius: '999px',
                 padding: '16px 18px',
                 display: 'flex',
@@ -734,17 +781,17 @@ export default function ShoppingBagDrawer({ go }) {
             </button>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', margin: '16px 0 10px' }}>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(27, 24, 22, 0.12)' }} />
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A726C' }}>or</span>
-              <div style={{ flex: 1, height: '1px', background: 'rgba(27, 24, 22, 0.12)' }} />
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>or</span>
+              <div style={{ flex: 1, height: '1px', background: 'var(--border-subtle)' }} />
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '16px' }}>
               <button
                 type="button"
                 style={{
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '999px',
                   padding: '12px 10px',
@@ -759,8 +806,8 @@ export default function ShoppingBagDrawer({ go }) {
               <button
                 type="button"
                 style={{
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '999px',
                   padding: '12px 10px',
@@ -774,7 +821,7 @@ export default function ShoppingBagDrawer({ go }) {
               </button>
             </div>
 
-            <div style={{ textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: '#7A726C' }}>
+            <div style={{ textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
               Secure Checkout · Complimentary Returns
             </div>
           </footer>

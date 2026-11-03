@@ -261,12 +261,14 @@
 
 .discounts-table td {
   position: relative;
-  height: 72px;
-  padding: 7px 11px;
+  min-height: 64px;
+  height: auto;
+  padding: 12px 11px;
   border-bottom: 1px solid #F0ECE6;
   color: #625B53;
-  font-size: 9px;
+  font-size: 13px;
   vertical-align: middle;
+  overflow: visible;
 }
 
 .discounts-table tbody tr:last-child td {
@@ -354,17 +356,23 @@
 }
 
 .discounts-name-content {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
   min-width: 0;
+  overflow: visible;
+  padding: 2px 0;
 }
 
 .discounts-name-content > strong {
-  overflow: hidden;
+  overflow: visible;
   color: #38332E;
-  font-size: 10px;
-  font-weight: 700;
-  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
 }
 
 .discounts-code-row {
@@ -848,4 +856,103 @@
   .discounts-stat-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ==========================================================================
+   DARK THEME OVERRIDES (WCAG AA Compliant >= 4.5:1)
+   ========================================================================== */
+[data-theme="dark"] .discounts-filter-button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-filter-button svg {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-filter-button.is-active {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .discounts-filter-menu button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-clear-filters {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-quick-filter {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-table th {
+  background-color: var(--bg-surface-sunken) !important;
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .discounts-table td {
+  background-color: var(--bg-surface) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-checkbox-cell input {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-name-content > strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .discounts-copy-button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-copy-button:hover {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-main-text {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .discounts-used-text {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-status-pill.expired {
+  color: var(--color-danger) !important;
+}
+
+[data-theme="dark"] .discounts-empty-state strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .discounts-empty-state button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-pagination-controls select {
+  background-color: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .discounts-pagination-controls > button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
 }

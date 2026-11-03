@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 
 const T = {
-  bg: '#FAF7F2',
-  bgAlt: '#F2EDE5',
-  espresso: '#231E1B',
-  muted: '#6E6962',
-  border: 'rgba(27,24,22,0.12)',
+  bg: 'var(--bg-main)',
+  bgAlt: 'var(--bg-surface)',
+  espresso: 'var(--text-primary)',
+  muted: 'var(--text-secondary)',
+  border: 'var(--border-default)',
 };
 
 export default function ShippingReturnsPage({ go }) {
@@ -342,7 +342,7 @@ export default function ShippingReturnsPage({ go }) {
             }}
             onMouseEnter={e => {
               e.currentTarget.style.background = T.espresso;
-              e.currentTarget.style.color = '#FDFBF7';
+              e.currentTarget.style.color = 'var(--color-primary-contrast)';
             }}
             onMouseLeave={e => {
               e.currentTarget.style.background = 'transparent';

@@ -10,22 +10,36 @@ const formatDate = (value) => {
 };
 
 export const toAdminCategory = (category) => ({
-  id: String(category._id),
-  name: category.name,
-  slug: category.slug,
+  id: String(category.id || category._id),
+  name: category.name || '',
+  slug: category.slug || '',
   description: category.description || '',
   image: category.image || '',
-  parentId: category.parent ? String(category.parent._id || category.parent) : undefined,
-  // The backend has no product count or visibility status for categories yet.
-  products: 0,
-  status: 'Active',
+  parentId: category.parent ? String(category.parent._id || category.parent.id || category.parent) : undefined,
+  products:
+    category.products !== undefined
+      ? Number(category.products)
+      : category.productCount !== undefined
+      ? Number(category.productCount)
+      : 0,
+  status: category.status
+    ? category.status.charAt(0).toUpperCase() + category.status.slice(1).toLowerCase()
+    : 'Active',
   updated: formatDate(category.updatedAt),
   date: formatDate(category.createdAt),
 });
 
-// Accepts the envelope returned by the shared Axios client: { success, count, data }.
-export const parseCategoryList = (response) =>
-  (Array.isArray(response?.data) ? response.data : []).map(toAdminCategory);
+// Accepts raw array or envelope { success, count, data }.
+export const parseCategoryList = (response) => {
+  const list = Array.isArray(response)
+    ? response
+    : Array.isArray(response?.data)
+    ? response.data
+    : Array.isArray(response?.categories)
+    ? response.categories
+    : [];
+  return list.map(toAdminCategory);
+};
 
 export const parseCategory = (response) => (response?.data ? toAdminCategory(response.data) : null);
 

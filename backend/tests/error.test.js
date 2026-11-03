@@ -47,6 +47,22 @@ describe("Error Middleware Unit Tests", () => {
       });
     });
 
+    it("should format MongoDB duplicate key error (code 11000) as a 400 error", () => {
+      const err = new Error('E11000 duplicate key error');
+      err.code = 11000;
+      err.keyValue = { code: 'WELCOME10' };
+
+      errorMiddleware(err, req, res, next);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'fail',
+          message: 'A record with code "WELCOME10" already exists.',
+        })
+      );
+    });
+
     it("should default statusCode to 500 and status to 'error' if not provided", () => {
       const err = new Error("Unexpected dev error");
 

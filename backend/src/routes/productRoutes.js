@@ -1,6 +1,8 @@
 import express from "express";
 import {
   getProducts,
+  getProductFilters,
+  getProductsByIds,
   getAdminProducts,
   getProductById,
   createProduct,
@@ -16,8 +18,10 @@ import {
   updateProductSchema,
   createReviewSchema,
   getProductsQuerySchema,
+  getProductFiltersQuerySchema,
 } from "../validators/productValidator.js";
 import { cacheMiddleware } from "../middlewares/cacheMiddleware.js";
+import { getProductReviews } from "../controllers/reviewController.js";
 
 const router = express.Router();
 
@@ -177,6 +181,34 @@ router
  */
 router.get("/admin/all", protect, restrictTo("admin"), getAdminProducts);
 
+/**
+ * @openapi
+ * /products/filters:
+ *   get:
+ *     summary: Fetch product filter facets (categories, priceRange, sizes, colors)
+ *     tags: [Products]
+ *     parameters:
+ *       - in: query
+ *         name: category
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: keyword
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Product facets retrieved successfully
+ */
+router.get(
+  "/filters",
+  validate(getProductFiltersQuerySchema, "query"),
+  cacheMiddleware("products"),
+  getProductFilters
+);
+
+router.post("/by-ids", getProductsByIds);
+
 router
   .route("/:id/reviews")
   /**
@@ -215,6 +247,8 @@ router
     validate(createReviewSchema, "body"),
     createProductReview
   );
+
+router.get("/:id/reviews", validate(productIdOrSlugParamSchema, "params"), getProductReviews);
 
 router
   .route("/:id")

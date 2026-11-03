@@ -22,7 +22,11 @@ export function CategoryProvider({ children }) {
     setError("");
     try {
       const response = await categoryApi.getCategories();
-      const nextCategories = Array.isArray(response?.data) ? response.data : [];
+      const nextCategories = Array.isArray(response?.data)
+        ? response.data
+        : Array.isArray(response)
+        ? response
+        : [];
       setCategories(nextCategories);
       return nextCategories;
     } catch (requestError) {

@@ -709,3 +709,228 @@
     display: none;
   }
 }
+
+/* ==========================================================================
+   DARK THEME OVERRIDES (WCAG AA Compliant >= 4.5:1)
+   ========================================================================== */
+[data-theme="dark"] .analytics-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #2A2622);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .analytics-card-heading h2 {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-card-heading p {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-card-footer {
+  border-top-color: var(--border-subtle, #2A2622);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .analytics-card-footer strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-note {
+  border-top-color: var(--border-subtle, #2A2622);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .analytics-kpi-label {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-range-button {
+  background-color: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-range-button svg:first-child {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-range-button svg:last-child {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-range-button:hover {
+  border-color: var(--border-strong, #7A7165);
+}
+
+[data-theme="dark"] .analytics-range-menu {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .analytics-range-menu button {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-range-menu button:hover {
+  background: var(--bg-surface-sunken, #181614);
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-range-menu button.is-selected {
+  color: var(--admin-primary, #F0ECE4) !important;
+}
+
+[data-theme="dark"] .analytics-range-menu button svg {
+  color: var(--admin-primary, #F0ECE4) !important;
+}
+
+[data-theme="dark"] .analytics-segmented-control {
+  background: var(--bg-surface-sunken, #181614);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .analytics-segmented-control button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-segmented-control button:hover {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-segmented-control button.is-selected {
+  background: var(--bg-surface-raised, #282420) !important;
+  border: none !important;
+  color: var(--text-primary, #FBF9F5) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .analytics-chart-grid {
+  stroke: var(--chart-grid, #2D2722);
+}
+
+[data-theme="dark"] .analytics-chart-axis-label {
+  fill: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .analytics-chart-area {
+  fill: rgba(240, 236, 228, 0.06);
+}
+
+[data-theme="dark"] .analytics-chart-line {
+  stroke: var(--admin-primary, #F0ECE4);
+}
+
+[data-theme="dark"] .analytics-chart-guide {
+  stroke: var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .analytics-chart-dot {
+  stroke: var(--bg-surface, #1E1B18);
+}
+
+[data-theme="dark"] .analytics-chart-tooltip {
+  background: var(--bg-surface-raised, #282420);
+  border: 1px solid var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .analytics-funnel-top {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-funnel-values {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-funnel-percent {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-funnel-bar {
+  background: var(--chart-track, #2A2622);
+}
+
+[data-theme="dark"] .analytics-products-row {
+  border-bottom-color: var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .analytics-products-head {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-product-identity strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-product-identity small {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-products-units {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-products-revenue {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-products-share {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-bar-top {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-bar-top strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-bar-track {
+  background: var(--chart-track, #2A2622);
+}
+
+[data-theme="dark"] .analytics-donut-hole {
+  background: var(--bg-surface, #1E1B18);
+}
+
+[data-theme="dark"] .analytics-donut-hole strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-donut-hole span {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .analytics-loyalty-legend-row {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-loyalty-legend-row strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-legend-dot.is-new {
+  background: var(--chart-track, #473F37);
+  border: 1px solid var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .analytics-icon-link {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .analytics-icon-link:hover {
+  border-color: var(--border-strong, #7A7165);
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .analytics-text-link {
+  color: var(--color-accent, #D4A662) !important;
+}

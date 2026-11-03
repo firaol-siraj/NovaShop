@@ -667,3 +667,82 @@
     margin-left: auto;
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES
+========================================================= */
+
+[data-theme="dark"] .hc-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .hc-card-heading h2 {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hc-section-row {
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .hc-section-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .hc-section-icon {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hc-section-copy strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hc-section-menu button {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hc-section-menu button svg {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hc-add-section {
+  color: var(--text-primary, #FBF9F5);
+  border-color: var(--border-default, #3D3730);
+  background: var(--bg-surface-raised, #24201D);
+}
+
+[data-theme="dark"] .hc-hint-card {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hc-hint-card strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hc-segmented-control {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .hc-segmented-control button {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hc-segmented-control button.is-selected {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hc-mock-announcement {
+  background: var(--bg-surface-sunken, #181614);
+  color: var(--text-primary, #FBF9F5);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .hc-details-body strong {
+  color: var(--text-primary, #FBF9F5);
+}

@@ -3,7 +3,7 @@ import AuthLayout from '../../components/admin/AuthLayout';
 import TextField from '../../components/admin/TextField';
 import PasswordField from '../../components/admin/PasswordField';
 import PrimaryButton from '../../components/admin/PrimaryButton';
-import { useAuth } from '../../context/AuthContext';
+import { useAdminAuth } from '../../context/AdminAuthContext';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,7 +49,7 @@ export default function AdminSignInPage({ go }) {
     setFieldErrors((current) => ({ ...current, ...validateForm({ email, password }) }));
   };
 
-  const { login } = useAuth();
+  const { login } = useAdminAuth();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -66,7 +66,7 @@ export default function AdminSignInPage({ go }) {
     setSubmitError('');
 
     try {
-      await login({ email: email.trim(), password, rememberMe }, true);
+      await login({ email: email.trim(), password, rememberMe });
       const query = new URLSearchParams(window.location.search);
       const requestedTarget = query.get('redirect');
       let redirectTarget = '/admin/dashboard';

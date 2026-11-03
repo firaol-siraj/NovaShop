@@ -9,7 +9,7 @@ function ArrowLeftIcon() {
 
 export default function AuthLayout({ children, go, hideBackLink }) {
   return (
-    <div style={{ minHeight: '100vh', background: '#F4EFE9', color: '#1B1816', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-primary)', display: 'flex', flexDirection: 'column' }}>
       <header
         style={{
           display: 'flex',
@@ -17,8 +17,8 @@ export default function AuthLayout({ children, go, hideBackLink }) {
           justifyContent: 'space-between',
           minHeight: '54px',
           padding: '0 28px',
-          borderBottom: '1px solid rgba(27, 24, 22, 0.08)',
-          background: 'rgba(244, 239, 233, 0.94)',
+          borderBottom: '1px solid var(--border-subtle)',
+          background: 'var(--bg-surface)',
           backdropFilter: 'blur(8px)',
           position: 'sticky',
           top: 0,
@@ -34,7 +34,7 @@ export default function AuthLayout({ children, go, hideBackLink }) {
             border: 'none',
             padding: 0,
             cursor: 'pointer',
-            color: '#1B1816',
+            color: 'var(--text-primary)',
             fontFamily: 'var(--font-serif)',
             fontSize: '18px',
             letterSpacing: '0.14em',
@@ -52,7 +52,7 @@ export default function AuthLayout({ children, go, hideBackLink }) {
             style={{
               border: 'none',
               background: 'transparent',
-              color: '#6F6862',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
               fontSize: '10px',
@@ -76,15 +76,15 @@ export default function AuthLayout({ children, go, hideBackLink }) {
 
       <footer
         style={{
-          background: '#F4EFE9',
-          borderTop: '1px solid rgba(27, 24, 22, 0.08)',
+          background: 'var(--bg-main)',
+          borderTop: '1px solid var(--border-subtle)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           gap: '18px',
           padding: '16px 28px 20px',
           flexWrap: 'wrap',
-          color: '#7A726C',
+          color: 'var(--text-muted)',
           fontFamily: 'var(--font-sans)',
           fontSize: '10px',
           letterSpacing: '0.12em',
@@ -108,7 +108,7 @@ const linkStyle = {
   background: 'transparent',
   border: 'none',
   cursor: 'pointer',
-  color: '#7A726C',
+  color: 'var(--text-muted)',
   padding: 0,
   fontFamily: 'var(--font-sans)',
   fontSize: '10px',

@@ -80,10 +80,10 @@ export default function ForgotPasswordPage({ go }) {
   const inputStyle = useMemo(
     () => ({
       width: '100%',
-      background: '#F6F0E9',
-      border: '1px solid rgba(27, 24, 22, 0.16)',
+      background: 'var(--bg-input)',
+      border: '1px solid var(--border-default)',
       borderRadius: '0',
-      color: '#1B1816',
+      color: 'var(--text-primary)',
       padding: '14px 12px',
       fontSize: '14px',
       fontFamily: 'var(--font-sans)',
@@ -147,8 +147,9 @@ export default function ForgotPasswordPage({ go }) {
             right: '28px',
             zIndex: 9999,
             maxWidth: '340px',
-            background: '#1B1816',
-            color: '#F4EFE9',
+            background: 'var(--bg-surface-raised)',
+            border: '1px solid var(--border-default)',
+            color: 'var(--text-primary)',
             padding: '14px 18px',
             display: 'flex',
             alignItems: 'flex-start',
@@ -161,15 +162,15 @@ export default function ForgotPasswordPage({ go }) {
           role="status"
           aria-live="polite"
         >
-          <span style={{ color: '#A8D5B5', marginTop: '1px', flexShrink: 0 }}>
+          <span style={{ color: 'var(--color-success)', marginTop: '1px', flexShrink: 0 }}>
             <CheckCircleIcon />
           </span>
           <div>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '0.06em', marginBottom: '4px' }}>
               Check your inbox
             </div>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'rgba(244,239,233,0.75)', lineHeight: 1.6 }}>
-              If an account exists for <strong style={{ color: '#F4EFE9' }}>{toast.sentEmail}</strong>, the reset request was accepted. The link expires in 10 minutes.
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              If an account exists for <strong style={{ color: 'var(--text-primary)' }}>{toast.sentEmail}</strong>, the reset request was accepted. The link expires in 10 minutes.
             </div>
           </div>
         </div>
@@ -191,7 +192,7 @@ export default function ForgotPasswordPage({ go }) {
             <h1
               style={{
                 margin: 0,
-                color: '#1B1816',
+                color: 'var(--text-primary)',
                 fontFamily: 'var(--font-serif)',
                 fontSize: 'clamp(30px, 3vw, 38px)',
                 lineHeight: 1.12,
@@ -205,7 +206,7 @@ export default function ForgotPasswordPage({ go }) {
             <p
               style={{
                 margin: '12px auto 0',
-                color: '#6E6962',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '14px',
                 lineHeight: 1.7,
@@ -225,7 +226,7 @@ export default function ForgotPasswordPage({ go }) {
                   style={{
                     display: 'block',
                     marginBottom: '10px',
-                    color: '#7A726C',
+                    color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '10px',
                     letterSpacing: '0.16em',
@@ -251,8 +252,8 @@ export default function ForgotPasswordPage({ go }) {
                   aria-label="Email address"
                   style={{
                     ...inputStyle,
-                    borderColor: error ? '#B55247' : 'rgba(27, 24, 22, 0.16)',
-                    boxShadow: error ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                    borderColor: error ? 'var(--color-danger)' : 'var(--border-default)',
+                    boxShadow: error ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                   }}
                 />
 
@@ -261,7 +262,7 @@ export default function ForgotPasswordPage({ go }) {
                     role="alert"
                     style={{
                       marginTop: '8px',
-                      color: '#B55247',
+                      color: 'var(--color-danger)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '12px',
                       lineHeight: 1.5,
@@ -278,8 +279,8 @@ export default function ForgotPasswordPage({ go }) {
                 style={{
                   width: '100%',
                   minHeight: '46px',
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '0',
                   cursor: isSending ? 'wait' : 'pointer',
@@ -305,7 +306,7 @@ export default function ForgotPasswordPage({ go }) {
 
           {/* Back to Login */}
           <div style={{ width: '100%', display: 'grid', gap: '18px' }}>
-            <div style={{ width: '100%', height: '1px', background: 'rgba(27, 24, 22, 0.12)' }} />
+            <div style={{ width: '100%', height: '1px', background: 'var(--border-default)' }} />
             <button
               type="button"
               onClick={() => go('/login')}
@@ -318,15 +319,15 @@ export default function ForgotPasswordPage({ go }) {
                 border: 'none',
                 padding: 0,
                 cursor: 'pointer',
-                color: '#6E6962',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '10px',
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
                 transition: 'color 180ms ease',
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = '#1B1816'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = '#6E6962'; }}
+              onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--text-primary)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-secondary)'; }}
             >
               <span style={{ display: 'inline-flex', alignItems: 'center' }}><ArrowLeftIcon /></span>
               Back to Login

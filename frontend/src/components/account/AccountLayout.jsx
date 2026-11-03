@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 
-function AccountSidebar({ go, currentPath, onSignOut, onWishlistOpen }) {
+function AccountSidebar({ go, currentPath, onSignOut }) {
   const accountNav = [
     { key: 'overview', label: 'Overview', path: '/account' },
     { key: 'orders', label: 'Orders', path: '/account/orders' },
@@ -53,11 +53,11 @@ function AccountSidebar({ go, currentPath, onSignOut, onWishlistOpen }) {
                 width: '100%',
                 textAlign: 'left',
                 border: 'none',
-                background: isActive ? '#F0E8DE' : 'transparent',
-                borderLeft: isActive ? '2px solid #1B1816' : '2px solid transparent',
+                background: isActive ? 'var(--bg-selected)' : 'transparent',
+                borderLeft: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
                 padding: '12px 12px 12px 14px',
                 cursor: 'pointer',
-                color: isActive ? '#1B1816' : '#6E6962',
+                color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                 transition: 'background 180ms ease, color 180ms ease',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '13px',
@@ -71,7 +71,7 @@ function AccountSidebar({ go, currentPath, onSignOut, onWishlistOpen }) {
         })}
       </nav>
 
-      <div style={{ marginTop: '28px', paddingTop: '18px', borderTop: '1px solid rgba(27,24,22,0.1)' }}>
+      <div style={{ marginTop: '28px', paddingTop: '18px', borderTop: '1px solid var(--border-subtle)' }}>
         <button
           type="button"
           onClick={onSignOut}
@@ -83,7 +83,7 @@ function AccountSidebar({ go, currentPath, onSignOut, onWishlistOpen }) {
             border: 'none',
             padding: 0,
             cursor: 'pointer',
-            color: '#6E6962',
+            color: 'var(--text-muted)',
             fontFamily: 'var(--font-sans)',
             fontSize: '12px',
             letterSpacing: '0.08em',
@@ -112,10 +112,10 @@ export default function AccountLayout({ children, go, currentPath }) {
   };
 
   return (
-    <div style={{ background: '#F6F1EA', minHeight: '100vh', color: '#1B1816' }} className="ns-account-shell">
+    <div style={{ background: 'var(--bg-main)', minHeight: '100vh', color: 'var(--text-primary)' }} className="ns-account-shell">
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 40px 52px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: '36px', alignItems: 'start' }}>
-          <div style={{ background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.10)', borderRadius: '14px', padding: '18px 14px 20px' }}>
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '18px 14px 20px' }}>
             <AccountSidebar go={go} currentPath={currentPath} onSignOut={handleSignOut} onWishlistOpen={openWishlist} />
           </div>
 

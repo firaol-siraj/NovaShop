@@ -43,24 +43,50 @@ export default function ResetPasswordPage({ go, search }) {
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [invalidToken, setInvalidToken] = useState(false);
+  const [tokenChecking, setTokenChecking] = useState(true);
   const token = new URLSearchParams(search).get('token') || '';
   const tokenInvalid = !token || invalidToken;
 
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (token) {
+    if (!token) {
+      setInvalidToken(true);
+      setTokenChecking(false);
+      return;
+    }
+    let active = true;
+    authApi
+      .validateResetToken(token)
+      .then(() => {
+        if (!active) return;
+        setInvalidToken(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setInvalidToken(true);
+      })
+      .finally(() => {
+        if (active) setTokenChecking(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [token]);
+
+  useEffect(() => {
+    if (token && !invalidToken) {
       inputRef.current?.focus();
     }
-  }, [token]);
+  }, [token, invalidToken]);
 
   const inputStyle = useMemo(
     () => ({
       width: '100%',
-      background: '#F6F0E9',
-      border: '1px solid rgba(27, 24, 22, 0.16)',
+      background: 'var(--bg-input)',
+      border: '1px solid var(--border-default)',
       borderRadius: '0',
-      color: '#1B1816',
+      color: 'var(--text-primary)',
       padding: '14px 12px',
       paddingRight: '48px', // space for eye icon
       fontSize: '14px',
@@ -125,7 +151,7 @@ export default function ResetPasswordPage({ go, search }) {
             <h1
               style={{
                 margin: 0,
-                color: '#1B1816',
+                color: 'var(--text-primary)',
                 fontFamily: 'var(--font-serif)',
                 fontSize: 'clamp(26px, 3vw, 30px)',
                 lineHeight: 1.12,
@@ -139,7 +165,7 @@ export default function ResetPasswordPage({ go, search }) {
             <p
               style={{
                 margin: '12px auto 0',
-                color: '#6E6962',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '14px',
                 lineHeight: 1.7,
@@ -152,16 +178,16 @@ export default function ResetPasswordPage({ go, search }) {
 
           <div style={{ width: '100%' }}>
             {tokenInvalid ? (
-              <div style={{ textAlign: 'center', background: 'rgba(181, 82, 71, 0.06)', padding: '24px', border: '1px solid rgba(181, 82, 71, 0.2)' }}>
-                <div style={{ color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '13px', marginBottom: '18px' }}>
+              <div style={{ textAlign: 'center', background: 'rgba(217, 83, 79, 0.08)', padding: '24px', border: '1px solid var(--color-danger)' }}>
+                <div style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '13px', marginBottom: '18px' }}>
                   This reset link is invalid or has expired.
                 </div>
                 <button
                   type="button"
                   onClick={() => go('/forgot-password')}
                   style={{
-                    background: '#1B1816',
-                    color: '#FDFBF7',
+                    background: 'var(--color-primary)',
+                    color: 'var(--color-primary-contrast)',
                     border: 'none',
                     borderRadius: '0',
                     cursor: 'pointer',
@@ -187,7 +213,7 @@ export default function ResetPasswordPage({ go, search }) {
                       display: 'block',
                       marginBottom: '10px',
                       textAlign: 'left',
-                      color: '#7A726C',
+                      color: 'var(--text-secondary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.16em',
@@ -218,8 +244,8 @@ export default function ResetPasswordPage({ go, search }) {
                       aria-label="New password"
                       style={{
                         ...inputStyle,
-                        borderColor: errors.password ? '#B55247' : 'rgba(27, 24, 22, 0.16)',
-                        boxShadow: errors.password ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                        borderColor: errors.password ? 'var(--color-danger)' : 'var(--border-default)',
+                        boxShadow: errors.password ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                       }}
                     />
 
@@ -234,7 +260,7 @@ export default function ResetPasswordPage({ go, search }) {
                         transform: 'translateY(-50%)',
                         border: 'none',
                         background: 'transparent',
-                        color: '#1B1816',
+                        color: 'var(--text-primary)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -245,13 +271,13 @@ export default function ResetPasswordPage({ go, search }) {
                       <EyeIcon visible={showPassword} />
                     </button>
                   </div>
-                  
+
                   {errors.password ? (
                     <div
                       role="alert"
                       style={{
                         marginTop: '8px',
-                        color: '#B55247',
+                        color: 'var(--color-danger)',
                         fontFamily: 'var(--font-sans)',
                         fontSize: '12px',
                         lineHeight: 1.5,
@@ -264,7 +290,7 @@ export default function ResetPasswordPage({ go, search }) {
                     <div
                       style={{
                         marginTop: '8px',
-                        color: '#7A726C',
+                        color: 'var(--text-secondary)',
                         fontFamily: 'var(--font-sans)',
                         fontSize: '12px',
                         lineHeight: 1.5,
@@ -283,7 +309,7 @@ export default function ResetPasswordPage({ go, search }) {
                       display: 'block',
                       marginBottom: '10px',
                       textAlign: 'left',
-                      color: '#7A726C',
+                      color: 'var(--text-secondary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.16em',
@@ -309,8 +335,8 @@ export default function ResetPasswordPage({ go, search }) {
                       aria-label="Confirm password"
                       style={{
                         ...inputStyle,
-                        borderColor: errors.confirmPassword ? '#B55247' : 'rgba(27, 24, 22, 0.16)',
-                        boxShadow: errors.confirmPassword ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                        borderColor: errors.confirmPassword ? 'var(--color-danger)' : 'var(--border-default)',
+                        boxShadow: errors.confirmPassword ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                       }}
                     />
 
@@ -325,7 +351,7 @@ export default function ResetPasswordPage({ go, search }) {
                         transform: 'translateY(-50%)',
                         border: 'none',
                         background: 'transparent',
-                        color: '#1B1816',
+                        color: 'var(--text-primary)',
                         cursor: 'pointer',
                         display: 'flex',
                         alignItems: 'center',
@@ -342,7 +368,7 @@ export default function ResetPasswordPage({ go, search }) {
                       role="alert"
                       style={{
                         marginTop: '8px',
-                        color: '#B55247',
+                        color: 'var(--color-danger)',
                         fontFamily: 'var(--font-sans)',
                         fontSize: '12px',
                         lineHeight: 1.5,
@@ -360,8 +386,8 @@ export default function ResetPasswordPage({ go, search }) {
                   style={{
                     width: '100%',
                     minHeight: '46px',
-                    background: '#1B1816',
-                    color: '#FDFBF7',
+                    background: 'var(--color-primary)',
+                    color: 'var(--color-primary-contrast)',
                     border: 'none',
                     borderRadius: '0',
                     cursor: isSubmitting ? 'wait' : 'pointer',
@@ -399,7 +425,7 @@ export default function ResetPasswordPage({ go, search }) {
                 border: 'none',
                 padding: 0,
                 cursor: 'pointer',
-                color: '#6E6962',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '10px',
                 letterSpacing: '0.14em',
@@ -407,11 +433,11 @@ export default function ResetPasswordPage({ go, search }) {
                 transition: 'color 180ms ease, transform 180ms ease',
               }}
               onMouseEnter={(event) => {
-                event.currentTarget.style.color = '#1B1816';
+                event.currentTarget.style.color = 'var(--text-primary)';
                 event.currentTarget.firstChild.style.transform = 'translateX(-3px)';
               }}
               onMouseLeave={(event) => {
-                event.currentTarget.style.color = '#6E6962';
+                event.currentTarget.style.color = 'var(--text-secondary)';
                 event.currentTarget.firstChild.style.transform = 'translateX(0)';
               }}
             >

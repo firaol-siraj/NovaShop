@@ -1,8 +1,26 @@
 import express from 'express';
-import { registerUser, loginUser, loginAdmin, getMe, refreshAccessToken, logout, forgotPassword, resetPassword, verifyEmail } from '../controllers/authController.js';
+import {
+  registerUser,
+  loginUser,
+  loginAdmin,
+  getMe,
+  refreshAccessToken,
+  refreshAdminAccessToken,
+  logout,
+  adminLogout,
+  forgotPassword,
+  validateResetToken,
+  resetPassword,
+  adminForgotPassword,
+  validateAdminResetToken,
+  adminResetPassword,
+  verifyEmail,
+  acceptAdminInvite,
+} from '../controllers/authController.js';
 import validate from '../middlewares/validateMiddleware.js';
 import { registerSchema, loginSchema, forgotPasswordSchema,resetPasswordSchema } from '../validators/authValidator.js';
 import { protect } from '../middlewares/authMiddleware.js';
+import { authLimiter } from '../middlewares/rateLimiter.js';
 
 const router = express.Router();
 
@@ -81,7 +99,7 @@ const router = express.Router();
  *                   type: string
  *                   example: User already exists with this email
  */
-router.post('/register', validate(registerSchema, "body"), registerUser);
+router.post('/register', authLimiter, validate(registerSchema, "body"), registerUser);
 /**
  * @openapi
  * /auth/login:
@@ -152,8 +170,8 @@ router.post('/register', validate(registerSchema, "body"), registerUser);
  *                   type: string
  *                   example: Invalid email or password
  */
-router.post('/login', validate(loginSchema, "body"), loginUser);
-router.post('/admin/login', validate(loginSchema, "body"), loginAdmin);
+router.post('/login', authLimiter, validate(loginSchema, "body"), loginUser);
+router.post('/admin/login', authLimiter, validate(loginSchema, "body"), loginAdmin);
 /**
  * @openapi
  * /auth/me:
@@ -230,30 +248,11 @@ router.get('/me', protect, getMe);
  *                   example: Refresh token missing. Please log in again.
  */
 router.post('/refresh-token', refreshAccessToken);
-/**
- * @openapi
- * /auth/logout:
- *   post:
- *     summary: Logout user, clear DB refresh token, and erase cookie
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logged out successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: Logged out successfully
- */
+router.post('/admin/refresh-token', refreshAdminAccessToken);
+
 router.post('/logout', logout);
+router.post('/admin/logout', adminLogout);
+router.post('/admin/accept-invite', authLimiter, acceptAdminInvite);
 
 // Password recovery and verification routes
 /**
@@ -290,7 +289,14 @@ router.post('/logout', logout);
  *       404:
  *         description: No user registered with provided email address
  */
-router.post('/forgot-password', validate(forgotPasswordSchema, "body"), forgotPassword);
+router.post('/forgot-password', authLimiter, validate(forgotPasswordSchema, "body"), forgotPassword);
+router.get('/reset-password/validate', validateResetToken);
+router.post('/reset-password', authLimiter, resetPassword);
+
+// Admin password reset routes
+router.post('/admin/forgot-password', authLimiter, adminForgotPassword);
+router.get('/admin/reset-password/validate', validateAdminResetToken);
+router.post('/admin/reset-password', authLimiter, adminResetPassword);
 /**
  * @openapi
  * /auth/reset-password/{token}:
@@ -332,7 +338,7 @@ router.post('/forgot-password', validate(forgotPasswordSchema, "body"), forgotPa
  *       400:
  *         description: Token is invalid or has expired
  */
-router.put('/reset-password/:token', validate(resetPasswordSchema, "body"), resetPassword);
+router.put('/reset-password/:token', authLimiter, validate(resetPasswordSchema, "body"), resetPassword);
 /**
  * @openapi
  * /auth/verify-email/{token}:
@@ -363,6 +369,7 @@ router.put('/reset-password/:token', validate(resetPasswordSchema, "body"), rese
  *       400:
  *         description: Verification token is invalid or has expired
  */
+router.get('/verify-email', verifyEmail);
 router.get('/verify-email/:token', verifyEmail);
 
 export default router;

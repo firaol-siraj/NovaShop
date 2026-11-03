@@ -1,15 +1,16 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { categoryApi } from "../../lib/api/categoryApi";
-import { AdminIcon } from "../../components/admin/AdminLayout";
-import { parseCategoryList, toCategoryPayload } from "./categoryAdapter";
-import "./admin-categories.css";
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { adminApi } from '../../lib/api/adminApi';
+import { AdminIcon } from '../../components/admin/AdminLayout';
+import AdminRowActionMenu from '../../components/admin/AdminRowActionMenu';
+import { parseCategoryList, toCategoryPayload } from './categoryAdapter';
+import './admin-categories.css';
 
 const formatCsv = (rows) =>
   rows
     .map((row) =>
-      row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","),
+      row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')
     )
-    .join("\n");
+    .join('\n');
 
 function CategoryStatus({ status }) {
   if (!status) return <span className="cat-neutral-status">—</span>;
@@ -22,14 +23,15 @@ function CategoryStatus({ status }) {
 }
 
 function CategoryModal({ category, parentId, categories, onClose, onSave }) {
-  const [name, setName] = useState(category?.name || "");
-  const [parent, setParent] = useState(category?.parentId || parentId || "");
-  const [status, setStatus] = useState(category?.status || "Active");
-  const [error, setError] = useState("");
+  const [name, setName] = useState(category?.name || '');
+  const [parent, setParent] = useState(category?.parentId || parentId || '');
+  const [status, setStatus] = useState(category?.status || 'Active');
+  const [error, setError] = useState('');
+
   const submit = (event) => {
     event.preventDefault();
     if (!name.trim()) {
-      setError("Enter a category name.");
+      setError('Enter a category name.');
       return;
     }
     onSave({
@@ -39,6 +41,7 @@ function CategoryModal({ category, parentId, categories, onClose, onSave }) {
       status,
     });
   };
+
   return (
     <div
       className="admin-modal-backdrop"
@@ -56,10 +59,10 @@ function CategoryModal({ category, parentId, categories, onClose, onSave }) {
             <span className="admin-modal-eyebrow">Product catalog</span>
             <h2 id="cat-modal-title">
               {category
-                ? "Edit category"
+                ? 'Edit category'
                 : parent
-                  ? "Add subcategory"
-                  : "Add category"}
+                ? 'Add subcategory'
+                : 'Add category'}
             </h2>
           </div>
           <button
@@ -120,56 +123,45 @@ function CategoryModal({ category, parentId, categories, onClose, onSave }) {
 export default function AdminCategoriesPage({ go }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState("");
-  const [search, setSearch] = useState("");
-  const [parentFilter, setParentFilter] = useState("All parent categories");
-  const [productFilter, setProductFilter] = useState("All products");
-  const [quickFilter, setQuickFilter] = useState("All");
+  const [loadError, setLoadError] = useState('');
+  const [search, setSearch] = useState('');
+  const [parentFilter, setParentFilter] = useState('All parent categories');
+  const [productFilter, setProductFilter] = useState('All products');
+  const [quickFilter, setQuickFilter] = useState('All');
   const [expandedIds, setExpandedIds] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
   const [openMenu, setOpenMenu] = useState(null);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
   const [modal, setModal] = useState(null);
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState('');
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState("10");
+  const [pageSize, setPageSize] = useState('10');
   const [draggedId, setDraggedId] = useState(null);
 
   const notify = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(""), 2300);
+    window.setTimeout(() => setNotice(''), 2500);
   };
+
   const loadCategories = useCallback(async () => {
     try {
-      const response = await categoryApi.getCategories();
+      const response = await adminApi.getCategories();
       setCategories(parseCategoryList(response));
-      setLoadError("");
+      setLoadError('');
     } catch (requestError) {
-      setLoadError(requestError.message || "Unable to load categories.");
+      setLoadError(
+        requestError?.response?.data?.message ||
+          requestError.message ||
+          'Unable to load categories.'
+      );
     } finally {
       setLoading(false);
     }
   }, []);
+
   useEffect(() => {
-    let cancelled = false;
-    categoryApi
-      .getCategories()
-      .then((response) => {
-        if (cancelled) return;
-        setCategories(parseCategoryList(response));
-        setLoadError("");
-      })
-      .catch((requestError) => {
-        if (!cancelled)
-          setLoadError(requestError.message || "Unable to load categories.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    loadCategories();
+  }, [loadCategories]);
 
   const childCounts = useMemo(
     () =>
@@ -178,46 +170,49 @@ export default function AdminCategoriesPage({ go }) {
           counts[category.parentId] = (counts[category.parentId] || 0) + 1;
         return counts;
       }, {}),
-    [categories],
+    [categories]
   );
+
   const visibleRows = useMemo(() => {
     const rows = [];
+    const parentIds = new Set(categories.map((c) => c.id));
     categories
-      .filter((category) => !category.parentId)
+      .filter((category) => !category.parentId || !parentIds.has(category.parentId))
       .forEach((parent) => {
         const children = categories.filter(
-          (category) => category.parentId === parent.id,
+          (category) => category.parentId === parent.id
         );
         const showParent =
-          parentFilter === "All parent categories" ||
-          parentFilter === "Root categories" ||
+          parentFilter === 'All parent categories' ||
+          parentFilter === 'Root categories' ||
           parent.id === parentFilter;
         if (showParent) rows.push(parent);
         if (expandedIds.includes(parent.id) || search.trim())
           rows.push(...children);
       });
+
     return rows.filter((category) => {
       const query = search.trim().toLowerCase();
       const parent = categories.find(
-        (candidate) => candidate.id === category.parentId,
+        (candidate) => candidate.id === category.parentId
       );
       const matchesSearch =
         !query ||
-        `${category.name} ${category.slug} ${category.id} ${parent?.name || ""}`
+        `${category.name} ${category.slug} ${category.id} ${parent?.name || ''}`
           .toLowerCase()
           .includes(query);
       const matchesStatus =
-        quickFilter === "All" ||
-        (quickFilter === "Active" && category.status === "Active") ||
-        (quickFilter === "Hidden" && category.status === "Hidden") ||
-        (quickFilter === "Empty" && category.products === 0);
+        quickFilter === 'All' ||
+        (quickFilter === 'Active' && category.status === 'Active') ||
+        (quickFilter === 'Hidden' && category.status === 'Hidden') ||
+        (quickFilter === 'Empty' && category.products === 0);
       const matchesProducts =
-        productFilter === "All products" ||
-        (productFilter === "Has products" && category.products > 0) ||
-        (productFilter === "Empty" && category.products === 0);
+        productFilter === 'All products' ||
+        (productFilter === 'Has products' && category.products > 0) ||
+        (productFilter === 'Empty' && category.products === 0);
       const matchesParent =
-        parentFilter === "All parent categories" ||
-        (parentFilter === "Root categories"
+        parentFilter === 'All parent categories' ||
+        (parentFilter === 'Root categories'
           ? !category.parentId
           : category.id === parentFilter || category.parentId === parentFilter);
       return matchesSearch && matchesStatus && matchesProducts && matchesParent;
@@ -230,160 +225,219 @@ export default function AdminCategoriesPage({ go }) {
     quickFilter,
     search,
   ]);
+
   const allVisibleSelected =
     visibleRows.length > 0 &&
     visibleRows.every((category) => selectedIds.includes(category.id));
+
   const toggleCategory = (id) =>
     setSelectedIds((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
-        : [...current, id],
+        : [...current, id]
     );
+
   const toggleVisible = () =>
     setSelectedIds((current) =>
       allVisibleSelected
         ? current.filter(
-            (id) => !visibleRows.some((category) => category.id === id),
+            (id) => !visibleRows.some((category) => category.id === id)
           )
         : [
             ...new Set([
               ...current,
               ...visibleRows.map((category) => category.id),
             ]),
-          ],
+          ]
     );
+
   const toggleExpanded = (id) =>
     setExpandedIds((current) =>
       current.includes(id)
         ? current.filter((item) => item !== id)
-        : [...current, id],
+        : [...current, id]
     );
 
-  const setStatusForSelected = () =>
-    notify("Category visibility is not supported by the backend yet.");
+  const setStatusForSelected = async (status) => {
+    try {
+      await Promise.all(
+        selectedIds.map((id) =>
+          adminApi.updateCategory(id, { status: status.toLowerCase() })
+        )
+      );
+      notify(`Selected categories set as ${status}.`);
+      await loadCategories();
+    } catch (requestError) {
+      notify(
+        requestError?.response?.data?.message ||
+          requestError.message ||
+          'Unable to update category status.'
+      );
+    }
+  };
+
   const moveSelected = async (parentId) => {
     setMoveMenuOpen(false);
     try {
       await Promise.all(
         selectedIds.map((id) =>
-          categoryApi.updateCategory(id, { parent: parentId || null }),
-        ),
+          adminApi.updateCategory(id, { parent: parentId || null })
+        )
       );
-      notify("Selected categories moved.");
+      notify('Selected categories moved.');
+      await loadCategories();
     } catch (requestError) {
-      notify(requestError.message || "Unable to move categories.");
+      notify(
+        requestError?.response?.data?.message ||
+          requestError.message ||
+          'Unable to move categories.'
+      );
     }
-    await loadCategories();
   };
+
   const deleteCategories = async (ids) => {
     // Delete children before parents so parent references never dangle.
     const ordered = [...ids].sort(
       (x, y) =>
         Number(Boolean(categories.find((c) => c.id === y)?.parentId)) -
-        Number(Boolean(categories.find((c) => c.id === x)?.parentId)),
+        Number(Boolean(categories.find((c) => c.id === x)?.parentId))
     );
-    let failure = "";
+    let failure = '';
     for (const id of ordered) {
       try {
-        await categoryApi.deleteCategory(id);
+        await adminApi.deleteCategory(id);
       } catch (requestError) {
-        failure = requestError.message || "Unable to delete category.";
+        failure =
+          requestError?.response?.data?.message ||
+          requestError.message ||
+          'Unable to delete category.';
       }
     }
     setSelectedIds((current) => current.filter((id) => !ids.includes(id)));
     notify(
       failure ||
         (ids.length > 1
-          ? "Selected categories deleted."
-          : "Category deleted from the catalog."),
+          ? 'Selected categories deleted.'
+          : 'Category deleted from the catalog.')
     );
     await loadCategories();
   };
+
   const deleteSelected = () => deleteCategories(selectedIds);
+
   const saveCategory = async (nextCategory) => {
     try {
       const payload = toCategoryPayload(nextCategory);
-      if (nextCategory.id)
-        await categoryApi.updateCategory(nextCategory.id, payload);
-      else await categoryApi.createCategory(payload);
-      if (nextCategory.parentId)
+      if (nextCategory.status) {
+        payload.status = nextCategory.status.toLowerCase();
+      }
+      if (nextCategory.id) {
+        await adminApi.updateCategory(nextCategory.id, payload);
+      } else {
+        await adminApi.createCategory(payload);
+      }
+      if (nextCategory.parentId) {
         setExpandedIds((current) =>
           current.includes(nextCategory.parentId)
             ? current
-            : [...current, nextCategory.parentId],
+            : [...current, nextCategory.parentId]
         );
+      }
       setModal(null);
       notify(
         nextCategory.id
-          ? "Category changes saved."
-          : "Category added to the catalog.",
+          ? 'Category changes saved.'
+          : 'Category added to the catalog.'
       );
       await loadCategories();
     } catch (requestError) {
-      notify(requestError.message || "Unable to save category.");
+      notify(
+        requestError?.response?.data?.message ||
+          requestError.message ||
+          'Unable to save category.'
+      );
     }
   };
+
   const runRowAction = (action, category) => {
     setOpenMenu(null);
-    if (action === "Edit category") go(`/admin/categories/${category.id}/edit`);
-    else if (action === "Add subcategory") setModal({ parentId: category.id });
-    else if (action === "View products")
-      notify(`${category.products} products assigned to ${category.name}.`);
-    else if (action === "Duplicate")
+    if (action === 'Edit category') {
+      if (go) go(`/admin/categories/${category.id}/edit`);
+      else setModal({ category });
+    } else if (action === 'Add subcategory') {
+      setModal({ parentId: category.id });
+    } else if (action === 'View products') {
+      if (go) go(`/admin/products?category=${category.id}`);
+      else notify(`${category.products} products assigned to ${category.name}.`);
+    } else if (action === 'Duplicate') {
       setModal({
         category: {
           ...category,
           id: undefined,
-          slug: "",
+          slug: '',
           name: `${category.name} Copy`,
         },
       });
-    else {
+    } else {
       void deleteCategories([category.id]);
     }
   };
+
   const exportCategories = () => {
     const rows = [
       [
-        "Category",
-        "ID",
-        "URL",
-        "Parent category",
-        "Products",
-        "Status",
-        "Last updated",
+        'Category',
+        'ID',
+        'URL',
+        'Parent category',
+        'Products',
+        'Status',
+        'Last updated',
       ],
       ...categories.map((category) => [
         category.name,
         category.id,
         `/${category.slug}`,
-        categories.find((item) => item.id === category.parentId)?.name || "",
+        categories.find((item) => item.id === category.parentId)?.name || '',
         category.products,
         category.status,
         category.date,
       ]),
     ];
     const url = URL.createObjectURL(
-      new Blob([formatCsv(rows)], { type: "text/csv" }),
+      new Blob([formatCsv(rows)], { type: 'text/csv' })
     );
-    const anchor = document.createElement("a");
+    const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = "novashop-categories.csv";
+    anchor.download = 'novashop-categories.csv';
     anchor.click();
     URL.revokeObjectURL(url);
   };
-  const reorderRows = (targetId) => {
+
+  const reorderRows = async (targetId) => {
     if (!draggedId || draggedId === targetId) return;
-    setCategories((current) => {
-      const source = current.findIndex((item) => item.id === draggedId);
-      const target = current.findIndex((item) => item.id === targetId);
-      if (source < 0 || target < 0) return current;
-      const reordered = [...current];
-      const [moved] = reordered.splice(source, 1);
-      reordered.splice(target, 0, moved);
-      return reordered;
-    });
+    const source = categories.findIndex((item) => item.id === draggedId);
+    const target = categories.findIndex((item) => item.id === targetId);
+    if (source < 0 || target < 0) return;
+    const reordered = [...categories];
+    const [moved] = reordered.splice(source, 1);
+    reordered.splice(target, 0, moved);
+    setCategories(reordered);
     setDraggedId(null);
+    try {
+      const orderPayload = reordered.map((item, idx) => ({
+        id: item.id,
+        sortOrder: idx,
+      }));
+      await adminApi.reorderCategories(orderPayload);
+      notify('Category order updated.');
+    } catch (requestError) {
+      notify(
+        requestError?.response?.data?.message ||
+          requestError.message ||
+          'Failed to update category order.'
+      );
+    }
   };
 
   return (
@@ -406,7 +460,10 @@ export default function AdminCategoriesPage({ go }) {
           <button
             className="admin-action-button is-primary"
             type="button"
-            onClick={() => go("/admin/categories/new")}
+            onClick={() => {
+              if (go) go('/admin/categories/new');
+              else setModal({ category: null });
+            }}
           >
             <AdminIcon name="plus" size={15} /> Add Category
           </button>
@@ -420,12 +477,14 @@ export default function AdminCategoriesPage({ go }) {
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Total categories</span>
+            <span className="cat-stat-icon"><AdminIcon name="categories" size={14} /></span>
           </div>
           <div className="admin-stat-value">{categories.length}</div>
         </article>
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Top-level categories</span>
+            <span className="cat-stat-icon"><AdminIcon name="package" size={14} /></span>
           </div>
           <div className="admin-stat-value">
             {categories.filter((category) => !category.parentId).length}
@@ -434,6 +493,7 @@ export default function AdminCategoriesPage({ go }) {
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Subcategories</span>
+            <span className="cat-stat-icon"><AdminIcon name="products" size={14} /></span>
           </div>
           <div className="admin-stat-value">
             {categories.filter((category) => category.parentId).length}
@@ -448,7 +508,7 @@ export default function AdminCategoriesPage({ go }) {
       )}
       {loadError && (
         <p className="cat-empty-state" role="alert">
-          {loadError}{" "}
+          {loadError}{' '}
           <button
             type="button"
             onClick={() => {
@@ -506,15 +566,15 @@ export default function AdminCategoriesPage({ go }) {
           role="group"
           aria-label="Category status filters"
         >
-          {["All", "Active", "Hidden", "Empty"].map((filter) => (
+          {['All', 'Active', 'Hidden', 'Empty'].map((filter) => (
             <button
               type="button"
               key={filter}
-              className={`cat-quick-filter${quickFilter === filter ? " is-active" : ""}`}
+              className={`cat-quick-filter${quickFilter === filter ? ' is-active' : ''}`}
               aria-pressed={quickFilter === filter}
               onClick={() => setQuickFilter(filter)}
             >
-              {filter !== "All" && <i className={filter.toLowerCase()} />}
+              {filter !== 'All' && <i className={filter.toLowerCase()} />}
               {filter}
             </button>
           ))}
@@ -546,29 +606,29 @@ export default function AdminCategoriesPage({ go }) {
                 .slice((page - 1) * Number(pageSize), page * Number(pageSize))
                 .map((category) => {
                   const parent = categories.find(
-                    (item) => item.id === category.parentId,
+                    (item) => item.id === category.parentId
                   );
                   const childrenCount = childCounts[category.id] || 0;
                   return (
                     <tr
                       key={category.id}
-                      className={`${category.parentId ? "is-child" : "is-parent"}${draggedId === category.id ? " is-dragging" : ""}`}
+                      className={`${category.parentId ? 'is-child' : 'is-parent'}${draggedId === category.id ? ' is-dragging' : ''}`}
                       draggable
                       onDragStart={(event) => {
-                        event.dataTransfer.effectAllowed = "move";
-                        event.dataTransfer.setData("text/plain", category.id);
+                        event.dataTransfer.effectAllowed = 'move';
+                        event.dataTransfer.setData('text/plain', category.id);
                         setDraggedId(category.id);
                       }}
                       onDragOver={(event) => {
                         event.preventDefault();
-                        event.dataTransfer.dropEffect = "move";
+                        event.dataTransfer.dropEffect = 'move';
                       }}
                       onDrop={(event) => {
                         event.preventDefault();
                         reorderRows(
-                          event.dataTransfer.getData("text/plain") ||
+                          event.dataTransfer.getData('text/plain') ||
                             draggedId ||
-                            category.id,
+                            category.id
                         );
                       }}
                       onDragEnd={() => setDraggedId(null)}
@@ -583,7 +643,7 @@ export default function AdminCategoriesPage({ go }) {
                       </td>
                       <td className="cat-name-cell">
                         <div
-                          className={`cat-name-content${category.parentId ? " is-nested" : ""}`}
+                          className={`cat-name-content${category.parentId ? ' is-nested' : ''}`}
                         >
                           <span
                             className="cat-drag-grip"
@@ -598,9 +658,9 @@ export default function AdminCategoriesPage({ go }) {
                           </span>
                           {childrenCount > 0 ? (
                             <button
-                              className={`cat-expand-button${expandedIds.includes(category.id) ? " is-expanded" : ""}`}
+                              className={`cat-expand-button${expandedIds.includes(category.id) ? ' is-expanded' : ''}`}
                               type="button"
-                              aria-label={`${expandedIds.includes(category.id) ? "Collapse" : "Expand"} ${category.name}`}
+                              aria-label={`${expandedIds.includes(category.id) ? 'Collapse' : 'Expand'} ${category.name}`}
                               aria-expanded={expandedIds.includes(category.id)}
                               onClick={() => toggleExpanded(category.id)}
                             >
@@ -630,8 +690,8 @@ export default function AdminCategoriesPage({ go }) {
                               {parent
                                 ? `In ${parent.name}`
                                 : childrenCount
-                                  ? `${childrenCount} subcategories`
-                                  : "No subcategories"}
+                                ? `${childrenCount} subcategories`
+                                : 'No subcategories'}
                             </span>
                           </div>
                         </div>
@@ -657,45 +717,57 @@ export default function AdminCategoriesPage({ go }) {
                         <CategoryStatus status={category.status} />
                       </td>
                       <td className="cat-actions-cell">
-                        <div className="cat-row-menu-anchor">
-                          <button
-                            className="products-row-menu-button"
-                            type="button"
-                            aria-label={`More actions for ${category.name}`}
-                            aria-expanded={openMenu === category.id}
-                            onClick={() =>
-                              setOpenMenu((current) =>
-                                current === category.id ? null : category.id,
-                              )
-                            }
-                          >
-                            <AdminIcon name="more" size={16} />
-                          </button>
-                          {openMenu === category.id && (
-                            <div className="products-row-menu cat-row-menu">
-                              {[
-                                "Edit category",
-                                "Add subcategory",
-                                "View products",
-                                "Duplicate",
-                                "Delete category",
-                              ].map((action) => (
-                                <button
-                                  key={action}
-                                  type="button"
-                                  className={
-                                    action === "Delete category"
-                                      ? "is-danger"
-                                      : ""
-                                  }
-                                  onClick={() => runRowAction(action, category)}
-                                >
-                                  {action}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
+                        <AdminRowActionMenu
+                          item={category}
+                          title={category.name}
+                          subtitle={`/${category.slug || ''} · ${category.products || 0} products`}
+                          items={[
+                            {
+                              label: 'Edit category',
+                              icon: 'edit',
+                              onClick: () => {
+                                if (go) go(`/admin/categories/${category.id}/edit`);
+                                else setModal({ category });
+                              },
+                            },
+                            {
+                              label: 'Add subcategory',
+                              icon: 'plus',
+                              onClick: () => setModal({ parentId: category.id }),
+                            },
+                            {
+                              label: 'View products',
+                              icon: 'products',
+                              onClick: () => {
+                                if (go) go(`/admin/products?category=${category.id}`);
+                                else notify(`${category.products} products assigned to ${category.name}.`);
+                              },
+                            },
+                            {
+                              label: 'Duplicate',
+                              icon: 'copy',
+                              onClick: () => {
+                                setModal({
+                                  category: {
+                                    ...category,
+                                    id: undefined,
+                                    slug: '',
+                                    name: `${category.name} Copy`,
+                                  },
+                                });
+                              },
+                            },
+                            {
+                              divider: true,
+                            },
+                            {
+                              label: 'Delete category',
+                              icon: 'trash',
+                              danger: true,
+                              onClick: () => void deleteCategories([category.id]),
+                            },
+                          ]}
+                        />
                       </td>
                     </tr>
                   );
@@ -706,16 +778,16 @@ export default function AdminCategoriesPage({ go }) {
                     <AdminIcon name="searchSlash" size={20} />
                     <strong>
                       {categories.length === 0 && !loading
-                        ? "No categories yet. Add your first category."
-                        : "No categories match these filters."}
+                        ? 'No categories yet. Add your first category.'
+                        : 'No categories match these filters.'}
                     </strong>
                     <button
                       type="button"
                       onClick={() => {
-                        setSearch("");
-                        setParentFilter("All parent categories");
-                        setProductFilter("All products");
-                        setQuickFilter("All");
+                        setSearch('');
+                        setParentFilter('All parent categories');
+                        setProductFilter('All products');
+                        setQuickFilter('All');
                       }}
                     >
                       Reset filters
@@ -728,9 +800,9 @@ export default function AdminCategoriesPage({ go }) {
         </div>
         <div className="cat-pagination">
           <span>
-            Showing{" "}
+            Showing{' '}
             {visibleRows.length === 0 ? 0 : (page - 1) * Number(pageSize) + 1}–
-            {Math.min(page * Number(pageSize), visibleRows.length)} of{" "}
+            {Math.min(page * Number(pageSize), visibleRows.length)} of{' '}
             {visibleRows.length} categories
           </span>
           <div className="cat-pagination-controls">
@@ -761,16 +833,16 @@ export default function AdminCategoriesPage({ go }) {
               {
                 length: Math.max(
                   1,
-                  Math.ceil(visibleRows.length / Number(pageSize)),
+                  Math.ceil(visibleRows.length / Number(pageSize))
                 ),
               },
-              (_, index) => index + 1,
+              (_, index) => index + 1
             ).map((pageNumber) => (
               <button
                 type="button"
                 key={pageNumber}
-                className={page === pageNumber ? "is-active" : ""}
-                aria-current={page === pageNumber ? "page" : undefined}
+                className={page === pageNumber ? 'is-active' : ''}
+                aria-current={page === pageNumber ? 'page' : undefined}
                 onClick={() => setPage(pageNumber)}
               >
                 {pageNumber}
@@ -788,10 +860,10 @@ export default function AdminCategoriesPage({ go }) {
                   Math.min(
                     Math.max(
                       1,
-                      Math.ceil(visibleRows.length / Number(pageSize)),
+                      Math.ceil(visibleRows.length / Number(pageSize))
                     ),
-                    current + 1,
-                  ),
+                    current + 1
+                  )
                 )
               }
             >
@@ -807,10 +879,10 @@ export default function AdminCategoriesPage({ go }) {
             <i />
             {selectedIds.length} selected
           </strong>
-          <button type="button" onClick={() => setStatusForSelected("Active")}>
+          <button type="button" onClick={() => setStatusForSelected('Active')}>
             <AdminIcon name="check" size={14} /> Set as Active
           </button>
-          <button type="button" onClick={() => setStatusForSelected("Hidden")}>
+          <button type="button" onClick={() => setStatusForSelected('Hidden')}>
             <AdminIcon name="document" size={14} /> Set as Hidden
           </button>
           <div className="cat-bulk-move">
@@ -819,7 +891,7 @@ export default function AdminCategoriesPage({ go }) {
               aria-expanded={moveMenuOpen}
               onClick={() => setMoveMenuOpen((open) => !open)}
             >
-              <AdminIcon name="categories" size={14} /> Move to{" "}
+              <AdminIcon name="categories" size={14} /> Move to{' '}
               <AdminIcon name="chevron" size={12} />
             </button>
             {moveMenuOpen && (
@@ -827,7 +899,7 @@ export default function AdminCategoriesPage({ go }) {
                 {categories
                   .filter(
                     (category) =>
-                      !category.parentId && !selectedIds.includes(category.id),
+                      !category.parentId && !selectedIds.includes(category.id)
                   )
                   .map((category) => (
                     <button
@@ -838,7 +910,7 @@ export default function AdminCategoriesPage({ go }) {
                       {category.name}
                     </button>
                   ))}
-                <button type="button" onClick={() => moveSelected("")}>
+                <button type="button" onClick={() => moveSelected('')}>
                   Root categories
                 </button>
               </div>

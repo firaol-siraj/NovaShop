@@ -18,12 +18,12 @@ export default function Button({
   ].join(' ');
 
   const variants = {
-    primary:  'bg-[#231E1B] text-[#FDFBF7] hover:bg-[#3a3330] focus:ring-[#231E1B]',
-    secondary:'bg-[#EFECE6] text-[#231E1B] hover:bg-[#E8E2D8] focus:ring-[#D5CDC2]',
-    outline:  'border border-[#231E1B] text-[#231E1B] bg-transparent hover:bg-[#231E1B] hover:text-[#FDFBF7] focus:ring-[#231E1B]',
-    'outline-ivory': 'border border-[#FDFBF7] text-[#FDFBF7] bg-transparent hover:bg-[#FDFBF7]/10 focus:ring-[#FDFBF7]',
-    ghost:    'text-[#231E1B] bg-transparent hover:bg-[#F9F6F0] focus:ring-[#D5CDC2]',
-    danger:   'bg-rose-900 text-white hover:bg-rose-950 focus:ring-rose-900',
+    primary:  'bg-[var(--color-primary)] text-[var(--color-primary-contrast)] hover:bg-[var(--color-primary-hover)] focus:ring-[var(--border-focus)]',
+    secondary:'bg-[var(--bg-surface-sunken)] text-[var(--text-primary)] hover:bg-[var(--bg-hover)] focus:ring-[var(--border-default)]',
+    outline:  'border border-[var(--border-strong)] text-[var(--text-primary)] bg-transparent hover:bg-[var(--color-primary)] hover:text-[var(--color-primary-contrast)] focus:ring-[var(--border-focus)]',
+    'outline-ivory': 'border border-[var(--color-primary)] text-[var(--color-primary)] bg-transparent hover:bg-[var(--color-primary)]/10 focus:ring-[var(--color-primary)]',
+    ghost:    'text-[var(--text-primary)] bg-transparent hover:bg-[var(--bg-hover)] focus:ring-[var(--border-default)]',
+    danger:   'bg-[var(--color-danger)] text-white hover:opacity-90 focus:ring-[var(--color-danger)]',
   };
 
   const sizes = {

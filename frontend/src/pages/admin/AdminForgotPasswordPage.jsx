@@ -2,7 +2,7 @@ import { useState } from 'react';
 import AuthLayout from '../../components/admin/AuthLayout';
 import TextField from '../../components/admin/TextField';
 import PrimaryButton from '../../components/admin/PrimaryButton';
-import { requestPasswordReset } from '../../lib/api';
+import { authApi } from '../../lib/api/authApi';
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -33,10 +33,10 @@ export default function AdminForgotPasswordPage({ go }) {
     setSubmitError('');
 
     try {
-      await requestPasswordReset(email.trim());
+      await authApi.adminForgotPassword({ email: email.trim() });
       setIsSent(true);
     } catch (requestError) {
-      setSubmitError(requestError?.message || 'Unable to send a reset link right now.');
+      setSubmitError(requestError?.response?.data?.message || requestError?.message || 'Unable to send a reset link right now.');
     } finally {
       setIsSubmitting(false);
     }

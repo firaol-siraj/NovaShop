@@ -38,7 +38,7 @@ export default function Layout({ children, go, currentPath }) {
       <div className="min-h-screen" style={{ backgroundColor: 'var(--color-bg-main)', color: 'var(--color-text-deep)' }}>
         {children}
         {!isAuthFlow && <ShoppingBagDrawer go={go} />}
-        {!isAuthFlow && <WishlistDrawer />}
+        {!isAuthFlow && <WishlistDrawer go={go} />}
         <SearchOverlay go={go} />
         <CartToastHost />
       </div>
@@ -47,13 +47,13 @@ export default function Layout({ children, go, currentPath }) {
 
   return (
     <div className="flex flex-col min-h-screen" style={{ backgroundColor: 'var(--color-bg-main)', color: 'var(--color-text-deep)' }}>
-      <Navbar go={go} currentPath={currentPath} hideAnnouncementBar={currentPath === '/privacy-policy'} />
+      <Navbar go={go} currentPath={currentPath} hideAnnouncementBar={currentPath === '/' || currentPath === '' || currentPath === '/privacy-policy'} />
       <main className="flex-grow">
         {children}
       </main>
       {!isOrderFlow && <Footer go={go} />}
       <ShoppingBagDrawer go={go} />
-      <WishlistDrawer />
+      <WishlistDrawer go={go} />
       <SearchOverlay go={go} />
       <CartToastHost />
     </div>

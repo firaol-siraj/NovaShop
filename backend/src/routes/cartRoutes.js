@@ -7,7 +7,7 @@ import {
   clearCart,
   mergeCart,
 } from '../controllers/cartController.js';
-import { protect } from '../middlewares/authMiddleware.js';
+import { protectCustomer } from '../middlewares/authMiddleware.js';
 import validate from '../middlewares/validateMiddleware.js';
 import {
   addCartItemSchema,
@@ -19,7 +19,7 @@ import {
 const router = express.Router();
 
 // All cart routes require authentication
-router.use(protect);
+router.use(protectCustomer);
 
 router
   .route('/')

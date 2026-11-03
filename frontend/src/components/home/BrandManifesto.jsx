@@ -18,7 +18,7 @@ export default function BrandManifesto({ go }) {
   ];
 
   return (
-    <section style={{ backgroundColor: '#F7F2EA', padding: '80px 0' }}>
+    <section style={{ backgroundColor: 'var(--bg-main)', padding: '80px 0' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
         <div
           style={{
@@ -76,8 +76,8 @@ export default function BrandManifesto({ go }) {
                 right: '-40px',
                 bottom: '-30px',
                 width: '42%',
-                background: '#F6F1EA',
-                border: '8px solid #ffffff',
+                background: 'var(--bg-surface)',
+                border: '4px solid var(--border-default)',
                 borderRadius: '12px',
                 boxShadow: '0 20px 34px rgba(17, 14, 12, 0.18)',
                 overflow: 'hidden',
@@ -109,7 +109,7 @@ export default function BrandManifesto({ go }) {
                 fontWeight: 500,
                 letterSpacing: '0.2em',
                 textTransform: 'uppercase',
-                color: '#8C837C',
+                color: 'var(--text-muted)',
               }}
             >
               THE NOVASHOP MANIFESTO
@@ -125,7 +125,7 @@ export default function BrandManifesto({ go }) {
                 fontWeight: 400,
                 fontStyle: 'italic',
                 letterSpacing: '-0.03em',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
               }}
             >
               Designed for everyday movement.
@@ -138,7 +138,7 @@ export default function BrandManifesto({ go }) {
                 fontFamily: 'var(--font-sans)',
                 fontSize: '15px',
                 lineHeight: '1.8',
-                color: '#6E6962',
+                color: 'var(--text-secondary)',
                 fontWeight: 300,
               }}
             >
@@ -148,7 +148,7 @@ export default function BrandManifesto({ go }) {
             <div
               style={{
                 width: '100%',
-                borderTop: '1px solid rgba(27, 24, 22, 0.14)',
+                borderTop: '1px solid var(--border-default)',
                 marginBottom: '12px',
               }}
             />
@@ -171,7 +171,7 @@ export default function BrandManifesto({ go }) {
                         fontSize: '12px',
                         fontWeight: 500,
                         letterSpacing: '0.08em',
-                        color: '#8C837C',
+                        color: 'var(--text-muted)',
                         paddingTop: '4px',
                       }}
                     >
@@ -186,7 +186,7 @@ export default function BrandManifesto({ go }) {
                           fontWeight: 600,
                           letterSpacing: '0.16em',
                           textTransform: 'uppercase',
-                          color: '#1B1816',
+                          color: 'var(--text-primary)',
                         }}
                       >
                         {feature.title}
@@ -196,7 +196,7 @@ export default function BrandManifesto({ go }) {
                           fontFamily: 'var(--font-sans)',
                           fontSize: '14px',
                           lineHeight: '1.7',
-                          color: '#7A736E',
+                          color: 'var(--text-secondary)',
                           fontWeight: 300,
                         }}
                       >
@@ -205,7 +205,7 @@ export default function BrandManifesto({ go }) {
                     </div>
                   </div>
                   {index < features.length - 1 && (
-                    <div style={{ borderTop: '1px solid rgba(27, 24, 22, 0.08)' }} />
+                    <div style={{ borderTop: '1px solid var(--border-subtle)' }} />
                   )}
                 </div>
               ))}
@@ -228,8 +228,8 @@ export default function BrandManifesto({ go }) {
                 fontWeight: 600,
                 letterSpacing: '0.16em',
                 textTransform: 'uppercase',
-                color: '#1B1816',
-                borderBottom: '1px solid #1B1816',
+                color: 'var(--text-primary)',
+                borderBottom: '1px solid var(--text-primary)',
                 paddingBottom: '2px',
                 transition: 'opacity 200ms ease',
                 width: 'fit-content',

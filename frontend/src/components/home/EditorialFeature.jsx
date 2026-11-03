@@ -10,7 +10,7 @@ export default function EditorialFeature({
   ctaLabel = 'Discover More',
   ctaPath = '/shop',
   imageLeft = true,
-  bgColor = '#F7F2EA',
+  bgColor = 'var(--bg-surface)',
 }) {
   const [isImageHovered, setIsImageHovered] = useState(false);
 
@@ -33,7 +33,7 @@ export default function EditorialFeature({
         overflow: 'hidden',
         borderRadius: '18px',
         aspectRatio: '4 / 5',
-        background: '#EAE0D3',
+        background: 'var(--bg-surface-sunken)',
         cursor: go ? 'pointer' : 'default',
       }}
     >
@@ -60,10 +60,11 @@ export default function EditorialFeature({
           left: '24px',
           bottom: '24px',
           width: 'min(68%, 420px)',
-          background: 'rgba(253, 251, 247, 0.92)',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-subtle)',
           borderRadius: '14px',
           padding: '22px 22px 18px',
-          boxShadow: '0 10px 24px rgba(27, 24, 22, 0.08)',
+          boxShadow: 'var(--shadow-md)',
         }}
       >
         <div
@@ -72,7 +73,7 @@ export default function EditorialFeature({
             fontSize: '10px',
             letterSpacing: '0.18em',
             textTransform: 'uppercase',
-            color: '#8C837C',
+            color: 'var(--text-muted)',
             marginBottom: '10px',
             fontWeight: 500,
           }}
@@ -84,7 +85,7 @@ export default function EditorialFeature({
             fontFamily: 'var(--font-serif)',
             fontSize: '20px',
             lineHeight: 1.25,
-            color: '#1B1816',
+            color: 'var(--text-primary)',
             fontWeight: 400,
           }}
         >
@@ -112,7 +113,7 @@ export default function EditorialFeature({
           fontWeight: 500,
           letterSpacing: '0.2em',
           textTransform: 'uppercase',
-          color: '#8C837C',
+          color: 'var(--text-muted)',
         }}
       >
         {eyebrowLabel}
@@ -127,7 +128,7 @@ export default function EditorialFeature({
           fontWeight: 400,
           fontStyle: 'italic',
           letterSpacing: '-0.03em',
-          color: '#1B1816',
+          color: 'var(--text-primary)',
         }}
       >
         {headingText}
@@ -140,7 +141,7 @@ export default function EditorialFeature({
           fontFamily: 'var(--font-sans)',
           fontSize: '15px',
           lineHeight: '1.8',
-          color: '#6E6962',
+          color: 'var(--text-secondary)',
           fontWeight: 300,
         }}
       >
@@ -166,7 +167,7 @@ export default function EditorialFeature({
                 fontWeight: 500,
                 letterSpacing: '0.17em',
                 textTransform: 'uppercase',
-                color: '#8C837C',
+                color: 'var(--text-muted)',
               }}
             >
               {block.label}
@@ -177,7 +178,7 @@ export default function EditorialFeature({
                 fontSize: '15px',
                 fontWeight: 600,
                 lineHeight: '1.4',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
               }}
             >
               {block.value}
@@ -201,8 +202,8 @@ export default function EditorialFeature({
           fontWeight: 600,
           letterSpacing: '0.16em',
           textTransform: 'uppercase',
-          color: '#1B1816',
-          borderBottom: '1px solid #1B1816',
+          color: 'var(--text-primary)',
+          borderBottom: '1px solid var(--text-primary)',
           paddingBottom: '2px',
           transition: 'opacity 200ms ease',
         }}
@@ -234,8 +235,10 @@ export default function EditorialFeature({
     </div>
   );
 
+  const resolvedBg = bgColor === '#F7F2EA' ? 'var(--bg-surface)' : bgColor;
+
   return (
-    <section style={{ backgroundColor: bgColor, padding: '80px 0' }}>
+    <section style={{ backgroundColor: resolvedBg, padding: '80px 0' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
         <div
           style={{

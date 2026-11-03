@@ -1,10 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import AccountLayout from '../components/account/AccountLayout';
-import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { orderApi } from '../lib/api/orderApi';
 
-const PAGE_SIZE = 10;
-const FILTER_TABS = ['all', 'processing', 'shipped', 'delivered', 'cancelled'];
+const FILTER_TABS = [
+  { key: 'all', label: 'All Orders' },
+  { key: 'processing', label: 'Processing' },
+  { key: 'shipped', label: 'Shipped' },
+  { key: 'delivered', label: 'Delivered' },
+  { key: 'cancelled', label: 'Cancelled' },
+];
 
 function formatMoney(value) {
   return new Intl.NumberFormat('en-US', {
@@ -14,7 +19,8 @@ function formatMoney(value) {
 }
 
 function formatDate(value) {
-  const date = value ? new Date(value) : new Date();
+  if (!value) return '—';
+  const date = new Date(value);
   return new Intl.DateTimeFormat('en-US', {
     month: 'short',
     day: 'numeric',
@@ -22,394 +28,367 @@ function formatDate(value) {
   }).format(date);
 }
 
-function formatPlacedLabel(value) {
-  const date = value ? new Date(value) : new Date();
-  const now = new Date();
-  const sameDay = date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth() && date.getDate() === now.getDate();
-
-  if (sameDay) {
-    return `Placed Today, ${new Intl.DateTimeFormat('en-US', { hour: 'numeric', minute: '2-digit' }).format(date)}`;
-  }
-
-  return `Placed ${new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(date)}`;
-}
-
-function formatTime(value) {
-  const date = value ? new Date(value) : new Date();
-  return new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  }).format(date);
-}
-
 function normalizeStatus(status) {
   const value = String(status || '').toLowerCase();
-  if (['placed', 'processing', 'confirmed', 'pending'].includes(value)) return 'processing';
+  if (['placed', 'processing', 'confirmed', 'pending', 'pending_payment'].includes(value)) return 'processing';
   if (['shipped', 'in-transit', 'in_transit'].includes(value)) return 'shipped';
   if (value === 'delivered') return 'delivered';
   if (value === 'cancelled' || value === 'canceled') return 'cancelled';
   return 'processing';
 }
 
-function getStatusMeta(status) {
-  const normalized = normalizeStatus(status);
+function getStatusBadge(status) {
+  const norm = normalizeStatus(status);
   const map = {
     processing: {
       label: 'Processing',
-      chip: 'rgba(196, 142, 74, 0.12)',
-      color: '#8D5C33',
-      border: 'rgba(196, 142, 74, 0.26)',
-      dot: '#B77A48',
+      chip: 'rgba(212, 166, 98, 0.15)',
+      color: 'var(--color-warning)',
+      border: 'rgba(212, 166, 98, 0.35)',
     },
     shipped: {
       label: 'Shipped',
-      chip: 'rgba(120, 126, 137, 0.12)',
-      color: '#44505A',
-      border: 'rgba(120, 126, 137, 0.30)',
-      dot: '#5F6A7A',
+      chip: 'rgba(128, 128, 128, 0.12)',
+      color: 'var(--text-secondary)',
+      border: 'var(--border-subtle)',
     },
     delivered: {
       label: 'Delivered',
-      chip: 'rgba(90, 110, 100, 0.12)',
-      color: '#2E5E47',
-      border: 'rgba(90, 110, 100, 0.22)',
-      dot: '#2E5E47',
+      chip: 'rgba(46, 125, 50, 0.15)',
+      color: 'var(--color-success)',
+      border: 'rgba(46, 125, 50, 0.35)',
     },
     cancelled: {
       label: 'Cancelled',
-      chip: 'rgba(121, 84, 83, 0.10)',
-      color: '#7A4C4A',
-      border: 'rgba(121, 84, 83, 0.20)',
-      dot: '#7A4C4A',
+      chip: 'rgba(217, 83, 79, 0.15)',
+      color: 'var(--color-danger)',
+      border: 'rgba(217, 83, 79, 0.35)',
     },
   };
 
-  return map[normalized] || map.processing;
-}
-
-function formatStatusBadge(order) {
-  const status = normalizeStatus(order.status);
-  const meta = getStatusMeta(status);
-  const deliveredDate = order.deliveredAt ? formatDate(order.deliveredAt) : order.deliveryDate ? formatDate(order.deliveryDate) : null;
-
-  if (status === 'shipped') {
-    return {
-      label: 'Shipped',
-      chip: meta.chip,
-      color: meta.color,
-      border: meta.border,
-      dot: meta.dot,
-      icon: 'truck',
-    };
-  }
-
-  if (status === 'delivered') {
-    return {
-      label: `Delivered · ${deliveredDate || formatDate(order.placedAt || order.createdAt)}`,
-      chip: meta.chip,
-      color: meta.color,
-      border: meta.border,
-      dot: meta.dot,
-      icon: 'check',
-    };
-  }
-
-  if (status === 'cancelled') {
-    return {
-      label: 'Cancelled',
-      chip: meta.chip,
-      color: meta.color,
-      border: meta.border,
-      dot: meta.dot,
-      icon: 'x',
-    };
-  }
-
-  return {
-    label: 'Processing',
-    chip: meta.chip,
-    color: meta.color,
-    border: meta.border,
-    dot: meta.dot,
-    icon: 'clock',
-  };
-}
-
-function getOrderStatusLabel(status) {
-  const normalized = normalizeStatus(status);
-  if (normalized === 'shipped') return 'Shipped';
-  if (normalized === 'delivered') return 'Delivered';
-  if (normalized === 'cancelled') return 'Cancelled';
-  return 'Processing';
-}
-
-function getOrderId(order) {
-  return order.orderId || order.id || 'NS-0000';
+  return map[norm] || map.processing;
 }
 
 export default function OrderHistoryPage({ go, currentPath }) {
-  const { orders } = useCart();
-  const { user, isLoading } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const listRef = useRef(null);
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [page, setPage] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const pageParam = Number(params.get('page') || 1);
-    return Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
+    const p = parseInt(params.get('page'), 10);
+    return Number.isFinite(p) && p > 0 ? p : 1;
   });
+
   const [statusFilter, setStatusFilter] = useState(() => {
     const params = new URLSearchParams(window.location.search);
-    const rawStatus = params.get('status');
-    return FILTER_TABS.includes(rawStatus || 'all') ? rawStatus || 'all' : 'all';
+    const s = params.get('status');
+    return FILTER_TABS.some((t) => t.key === s) ? s : 'all';
   });
 
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 1,
+    currentPage: 1,
+  });
+
+  const fetchOrders = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await orderApi.getMyOrders({
+        page,
+        limit: 10,
+        status: statusFilter,
+      });
+
+      if (res.success && Array.isArray(res.data)) {
+        setOrders(res.data);
+        setPagination({
+          total: res.total || res.data.length,
+          totalPages: res.totalPages || 1,
+          currentPage: res.currentPage || page,
+        });
+      } else {
+        throw new Error(res.message || 'Unable to load orders');
+      }
+    } catch (err) {
+      if (err.status === 401 || err.response?.status === 401) {
+        sessionStorage.setItem('novashop_redirect_after_login', '/account/orders');
+        go('/login');
+        return;
+      }
+      setError(err.response?.data?.message || err.message || 'Failed to fetch orders.');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, statusFilter, go]);
+
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (!authLoading && !user) {
       sessionStorage.setItem('novashop_redirect_after_login', '/account/orders');
       go('/login');
+      return;
     }
-  }, [isLoading, user, go]);
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const requestedStatus = params.get('status');
-    if (requestedStatus && FILTER_TABS.includes(requestedStatus)) {
-      setStatusFilter(requestedStatus);
-    } else {
-      setStatusFilter('all');
+    if (user) {
+      fetchOrders();
     }
-  }, [currentPath]);
+  }, [authLoading, user, fetchOrders, go]);
 
-  const filteredOrders = useMemo(() => {
-    const normalizedOrders = [...(orders || [])].sort((a, b) => {
-      const dateA = new Date(a.placedAt || a.createdAt || 0).getTime();
-      const dateB = new Date(b.placedAt || b.createdAt || 0).getTime();
-      return dateB - dateA;
-    });
-
-    if (statusFilter === 'all') return normalizedOrders;
-    return normalizedOrders.filter((order) => normalizeStatus(order.status) === statusFilter);
-  }, [orders, statusFilter]);
-
-  useEffect(() => {
+  const handleTabChange = (key) => {
+    setStatusFilter(key);
     setPage(1);
-  }, [statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const currentPageOrders = filteredOrders.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (statusFilter !== 'all') params.set('status', statusFilter);
-    else params.delete('status');
-    params.set('page', String(safePage));
-    const target = `${window.location.pathname}?${params.toString()}`;
-    if (window.location.search !== params.toString() ? `?${params.toString()}` : '' ) {
-      window.history.replaceState({}, '', target);
-    }
-  }, [statusFilter, safePage]);
-
-  const handleStatusChange = (nextStatus) => {
-    const nextUrl = new URL(window.location.href);
-    if (nextStatus === 'all') nextUrl.searchParams.delete('status');
-    else nextUrl.searchParams.set('status', nextStatus);
-    nextUrl.searchParams.set('page', '1');
-    setStatusFilter(nextStatus);
-    setPage(1);
-    go(`${nextUrl.pathname}${nextUrl.search}`);
+    const params = new URLSearchParams();
+    if (key !== 'all') params.set('status', key);
+    params.set('page', '1');
+    const query = params.toString() ? `?${params.toString()}` : '';
+    window.history.replaceState({}, '', `/account/orders${query}`);
   };
 
-  const handlePageChange = (nextPage) => {
-    setPage(nextPage);
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > pagination.totalPages) return;
+    setPage(newPage);
+    const params = new URLSearchParams(window.location.search);
+    params.set('page', String(newPage));
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    window.history.replaceState({}, '', `/account/orders?${params.toString()}`);
     if (listRef.current) {
       listRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
-  const startIndex = filteredOrders.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const endIndex = Math.min(safePage * PAGE_SIZE, filteredOrders.length);
-
-  const emptyMessage = statusFilter === 'all' ? 'No orders yet.' : `No ${getOrderStatusLabel(statusFilter).toLowerCase()} orders.`;
-
-  if (!user) return null;
+  if (authLoading || !user) return null;
 
   return (
-    <AccountLayout go={go} currentPath={currentPath}>
-      <div style={{ marginBottom: '8px', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#7A726C' }}>
-        <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#7A726C', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
-        <span style={{ margin: '0 10px', color: '#B9B1AB' }}>/</span>
-        <button type="button" onClick={() => go('/account')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#7A726C', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Account</button>
-        <span style={{ margin: '0 10px', color: '#B9B1AB' }}>/</span>
-        <span style={{ color: '#1B1816' }}>Orders</span>
-      </div>
+    <AccountLayout go={go} currentPath={currentPath || '/account/orders'}>
+      <div style={{ display: 'grid', gap: '20px' }}>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
+          <span style={{ margin: '0 8px', color: 'var(--border-default)' }}>/</span>
+          <button type="button" onClick={() => go('/account')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Account</button>
+          <span style={{ margin: '0 8px', color: 'var(--border-default)' }}>/</span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Orders</span>
+        </div>
 
-      <section style={{ display: 'grid', gap: '10px' }}>
-        <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 3vw, 52px)', letterSpacing: '-0.04em', color: '#1B1816', fontWeight: 500 }}>Orders</h1>
-        <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#6E6962' }}>View and manage your recent orders.</p>
-      </section>
+        <div>
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(32px, 3vw, 52px)', letterSpacing: '-0.04em', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.08 }}>Order History</h1>
+          <p style={{ margin: '8px 0 0', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.65 }}>View, track, and download official receipts for your NovaShop purchases.</p>
+        </div>
 
-      <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)' }} />
+        <div style={{ height: '1px', width: '100%', background: 'var(--border-default)' }} />
 
-      <section style={{ display: 'grid', gap: '14px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'nowrap', overflowX: 'auto', paddingBottom: '4px' }}>
-          {['all', 'processing', 'shipped', 'delivered', 'cancelled'].map((tab) => {
-            const active = statusFilter === tab;
-            const label = tab === 'all' ? 'All' : getOrderStatusLabel(tab);
+        {/* Filter Tabs */}
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+          {FILTER_TABS.map((tab) => {
+            const active = statusFilter === tab.key;
             return (
               <button
-                key={tab}
+                key={tab.key}
                 type="button"
-                onClick={() => handleStatusChange(tab)}
+                onClick={() => handleTabChange(tab.key)}
                 style={{
-                  border: '1px solid rgba(27,24,22,0.12)',
-                  background: active ? '#1B1816' : 'transparent',
-                  color: active ? '#FDFBF7' : '#6E6962',
+                  border: '1px solid var(--border-default)',
+                  background: active ? 'var(--color-primary)' : 'transparent',
+                  color: active ? 'var(--color-primary-contrast)' : 'var(--text-secondary)',
                   borderRadius: '999px',
-                  padding: '10px 16px',
+                  padding: '9px 18px',
                   fontFamily: 'var(--font-sans)',
-                  fontSize: '10px',
-                  letterSpacing: '0.14em',
+                  fontSize: '11px',
+                  letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   cursor: 'pointer',
                   transition: 'all 180ms ease',
                   whiteSpace: 'nowrap',
                 }}
               >
-                {label}
+                {tab.label}
               </button>
             );
           })}
         </div>
 
-        <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)' }} />
+        {error && (
+          <div style={{ background: 'rgba(217, 83, 79, 0.1)', border: '1px solid var(--color-danger)', borderRadius: '12px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px' }}>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--color-danger)' }}>{error}</span>
+            <button
+              type="button"
+              onClick={fetchOrders}
+              style={{ border: '1px solid var(--color-danger)', background: 'transparent', color: 'var(--color-danger)', borderRadius: '999px', padding: '6px 14px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         <div ref={listRef} style={{ display: 'grid', gap: '16px' }}>
-          {filteredOrders.length === 0 ? (
-            <div style={{ minHeight: '240px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.10)', borderRadius: '16px', padding: '30px 20px' }}>
+          {loading ? (
+            <div style={{ display: 'grid', gap: '14px' }}>
+              <div style={{ height: '140px', background: 'var(--skeleton-base)', borderRadius: '14px', animation: 'pulse 1.5s infinite' }} />
+              <div style={{ height: '140px', background: 'var(--skeleton-base)', borderRadius: '14px', animation: 'pulse 1.5s infinite' }} />
+            </div>
+          ) : orders.length === 0 ? (
+            <div style={{ minHeight: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', textAlign: 'center', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', padding: '36px 20px' }}>
               <div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A726C', marginBottom: '8px' }}>Status</div>
-                <div style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', color: '#1B1816', marginBottom: '8px' }}>{emptyMessage}</div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#6E6962' }}>Try another filter to browse your purchases.</div>
+                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px' }}>
+                  📦
+                </div>
+                <h3 style={{ margin: '0 0 6px', fontFamily: 'var(--font-serif)', fontSize: '24px', color: 'var(--text-primary)', fontWeight: 500 }}>
+                  {statusFilter === 'all' ? 'No orders placed yet' : `No ${statusFilter} orders`}
+                </h3>
+                <p style={{ margin: '0 0 18px', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                  Explore the curated collections and complete your first order.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => go('/shop')}
+                  style={{ border: 'none', background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '12px 24px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}
+                >
+                  Start Shopping
+                </button>
               </div>
             </div>
           ) : (
-            currentPageOrders.map((order, index) => {
-              const status = normalizeStatus(order.status);
-              const badge = formatStatusBadge(order);
-              const totalItems = Array.isArray(order.items) ? order.items.reduce((sum, item) => sum + Number(item.qty || 1), 0) : 0;
-              const orderTotal = Number(order.total || order.summary?.total || order.subtotal || 0);
-              const totalLabel = totalItems === 1 ? '1 item' : `${totalItems} items`;
-              const productItems = Array.isArray(order.items) ? order.items : [];
-              const previewItems = productItems.slice(0, 3);
-              const extraItems = Math.max(0, productItems.length - 3);
-              const orderId = getOrderId(order);
+            orders.map((order) => {
+              const statusMeta = getStatusBadge(order.status);
+              const itemsList = order.orderItems || [];
+              const totalItems = itemsList.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
+              const orderId = order.orderNumber || order._id;
+              const isPaid = Boolean(order.isPaid || order.paymentStatus === 'paid');
 
               return (
                 <article
-                  key={orderId}
-                  onClick={() => go(`/account/orders/${orderId}`)}
+                  key={order._id}
+                  onClick={() => go(`/account/orders/${order._id}`)}
                   style={{
-                    background: '#F7F2EA',
-                    border: '1px solid rgba(27,24,22,0.12)',
-                    borderRadius: '14px',
-                    boxShadow: '0 8px 22px rgba(27,24,22,0.04)',
-                    overflow: 'hidden',
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: '16px',
+                    padding: '20px 24px',
                     cursor: 'pointer',
-                    opacity: 0,
-                    transform: 'translateY(8px)',
-                    animation: 'nsOrderFade 200ms ease forwards',
-                    animationDelay: `${index * 50}ms`,
+                    display: 'grid',
+                    gap: '16px',
                     transition: 'border-color 180ms ease, box-shadow 180ms ease',
                   }}
-                  onMouseEnter={(event) => {
-                    event.currentTarget.style.borderColor = 'rgba(27,24,22,0.18)';
-                    event.currentTarget.style.boxShadow = '0 10px 26px rgba(27,24,22,0.07)';
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-strong)';
+                    e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.12)';
                   }}
-                  onMouseLeave={(event) => {
-                    event.currentTarget.style.borderColor = 'rgba(27,24,22,0.12)';
-                    event.currentTarget.style.boxShadow = '0 8px 22px rgba(27,24,22,0.04)';
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-default)';
+                    e.currentTarget.style.boxShadow = 'none';
                   }}
                 >
-                  <div style={{ background: '#F0E7DF', borderBottom: '1px solid rgba(27,24,22,0.10)', padding: '18px 18px 12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 700, color: '#1B1816' }}>Order #{orderId}</span>
-                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#9C948F', display: 'inline-block' }} />
-                        <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#6E6962' }}>{formatPlacedLabel(order.placedAt || order.createdAt)}</span>
-                      </div>
+                  {/* Header Row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        #{orderId}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)' }}>·</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        Placed on {formatDate(order.createdAt)}
+                      </span>
+                      <span style={{ color: 'var(--text-muted)' }}>·</span>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                        {totalItems} piece{totalItems === 1 ? '' : 's'}
+                      </span>
+                    </div>
 
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '7px 10px',
-                        borderRadius: '999px',
-                        background: badge.chip,
-                        color: badge.color,
-                        border: `1px solid ${badge.border}`,
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: '9px',
-                        letterSpacing: '0.12em',
-                        textTransform: 'uppercase',
-                        fontWeight: 600,
-                      }}>
-                        <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: badge.dot, display: 'inline-block' }} />
-                        {badge.label}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span
+                        style={{
+                          background: statusMeta.chip,
+                          border: `1px solid ${statusMeta.border}`,
+                          color: statusMeta.color,
+                          borderRadius: '999px',
+                          padding: '4px 10px',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: '9px',
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {statusMeta.label}
+                      </span>
+                      <span
+                        style={{
+                          background: isPaid ? 'rgba(46, 125, 50, 0.15)' : 'rgba(212, 166, 98, 0.15)',
+                          border: `1px solid ${isPaid ? 'rgba(46, 125, 50, 0.35)' : 'rgba(212, 166, 98, 0.35)'}`,
+                          color: isPaid ? 'var(--color-success)' : 'var(--color-warning)',
+                          borderRadius: '999px',
+                          padding: '4px 10px',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: '9px',
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          fontWeight: 700,
+                        }}
+                      >
+                        {isPaid ? 'Paid' : 'Pending Payment'}
                       </span>
                     </div>
                   </div>
 
-                  <div style={{ background: '#FDFBF7', padding: '16px 18px 0' }}>
-                    <div style={{ display: 'flex', gap: '8px', paddingBottom: '16px' }}>
-                      {previewItems.map((item, itemIndex) => (
-                        <div key={`${item.name || 'item'}-${itemIndex}`} style={{ position: 'relative', width: '54px', height: '64px', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(27,24,22,0.10)', background: '#F2EDE8' }}>
-                          <img src={item.image || item.primaryImage || ''} alt={item.name || 'Product'} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                  <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)' }} />
+
+                  {/* Items Preview */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                      {itemsList.slice(0, 4).map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <img
+                            src={item.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=500&q=80'}
+                            alt={item.name}
+                            style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px', background: 'var(--bg-surface-sunken)' }}
+                          />
                         </div>
                       ))}
-                      {extraItems > 0 ? (
-                        <div style={{ width: '54px', height: '64px', borderRadius: '10px', border: '1px solid rgba(27,24,22,0.10)', background: '#F1EAE3', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#6E6962', fontWeight: 600 }}>
-                          +{extraItems} more
+                      {itemsList.length > 4 && (
+                        <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-muted)', background: 'var(--bg-surface-sunken)', borderRadius: '8px', padding: '14px 10px', fontWeight: 600 }}>
+                          +{itemsList.length - 4} more
                         </div>
-                      ) : null}
+                      )}
                     </div>
-                    <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.10)' }} />
-                  </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', background: '#FDFBF7', padding: '16px 18px 18px' }}>
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#1B1816', fontWeight: 500 }}>{totalLabel} · {formatMoney(orderTotal)}</div>
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        go(`/account/orders/${orderId}`);
-                      }}
-                      style={{
-                        border: '1px solid rgba(27,24,22,0.18)',
-                        background: 'transparent',
-                        color: '#1B1816',
-                        borderRadius: '999px',
-                        padding: '10px 14px',
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: '10px',
-                        letterSpacing: '0.14em',
-                        textTransform: 'uppercase',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'transform 180ms ease, border-color 180ms ease',
-                      }}
-                      onMouseEnter={(event) => {
-                        event.currentTarget.style.transform = 'translateX(3px)';
-                        event.currentTarget.style.borderColor = 'rgba(27,24,22,0.45)';
-                      }}
-                      onMouseLeave={(event) => {
-                        event.currentTarget.style.transform = 'translateX(0)';
-                        event.currentTarget.style.borderColor = 'rgba(27,24,22,0.18)';
-                      }}
-                    >
-                      View Order <span aria-hidden="true">→</span>
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '20px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          {formatMoney(order.totalPrice)}
+                        </div>
+                        {order.totalPriceETB && (
+                          <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-muted)' }}>
+                            ~{Number(order.totalPriceETB).toLocaleString()} ETB
+                          </div>
+                        )}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          go(`/account/orders/${order._id}`);
+                        }}
+                        style={{
+                          border: '1px solid var(--border-default)',
+                          background: 'var(--bg-surface-raised)',
+                          color: 'var(--text-primary)',
+                          borderRadius: '999px',
+                          padding: '10px 18px',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: '10px',
+                          letterSpacing: '0.14em',
+                          textTransform: 'uppercase',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        View Details →
+                      </button>
+                    </div>
                   </div>
                 </article>
               );
@@ -417,75 +396,60 @@ export default function OrderHistoryPage({ go, currentPath }) {
           )}
         </div>
 
-        {filteredOrders.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap', paddingTop: '8px' }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#7A726C' }}>
-              Showing {filteredOrders.length === 0 ? 0 : startIndex}–{endIndex} of {filteredOrders.length} Orders
-            </div>
+        {/* Pagination Controls */}
+        {pagination.totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', marginTop: '16px' }}>
+            <button
+              type="button"
+              disabled={page <= 1}
+              onClick={() => handlePageChange(page - 1)}
+              style={{
+                border: '1px solid var(--border-default)',
+                background: page <= 1 ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
+                color: page <= 1 ? 'var(--text-muted)' : 'var(--text-primary)',
+                borderRadius: '999px',
+                padding: '8px 16px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '10px',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                cursor: page <= 1 ? 'not-allowed' : 'pointer',
+              }}
+            >
+              ← Previous
+            </button>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <button
-                type="button"
-                onClick={() => handlePageChange(safePage - 1)}
-                disabled={safePage <= 1}
-                style={{
-                  border: '1px solid rgba(27,24,22,0.18)',
-                  background: 'transparent',
-                  color: safePage <= 1 ? '#B6B0A9' : '#1B1816',
-                  borderRadius: '999px',
-                  padding: '10px 14px',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '10px',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  cursor: safePage <= 1 ? 'not-allowed' : 'pointer',
-                  opacity: safePage <= 1 ? 0.5 : 1,
-                }}
-              >
-                Previous
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePageChange(safePage + 1)}
-                disabled={safePage >= totalPages}
-                style={{
-                  border: '1px solid rgba(27,24,22,0.18)',
-                  background: 'transparent',
-                  color: safePage >= totalPages ? '#B6B0A9' : '#1B1816',
-                  borderRadius: '999px',
-                  padding: '10px 14px',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '10px',
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  cursor: safePage >= totalPages ? 'not-allowed' : 'pointer',
-                  opacity: safePage >= totalPages ? 0.5 : 1,
-                }}
-              >
-                Next
-              </button>
-            </div>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', margin: '0 8px' }}>
+              Page {pagination.currentPage} of {pagination.totalPages}
+            </span>
+
+            <button
+              type="button"
+              disabled={page >= pagination.totalPages}
+              onClick={() => handlePageChange(page + 1)}
+              style={{
+                border: '1px solid var(--border-default)',
+                background: page >= pagination.totalPages ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
+                color: page >= pagination.totalPages ? 'var(--text-muted)' : 'var(--text-primary)',
+                borderRadius: '999px',
+                padding: '8px 16px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '10px',
+                letterSpacing: '0.12em',
+                textTransform: 'uppercase',
+                cursor: page >= pagination.totalPages ? 'not-allowed' : 'pointer',
+              }}
+            >
+              Next →
+            </button>
           </div>
         )}
-      </section>
+      </div>
 
       <style>{`
-        @keyframes nsOrderFade {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 1023px) {
-          .ns-account-shell > div > div { grid-template-columns: 1fr !important; }
-          .ns-account-shell nav { display: flex !important; gap: 8px !important; overflow-x: auto; white-space: nowrap; }
-          .ns-account-shell nav button { min-width: max-content; }
-        }
-
-        @media (max-width: 767px) {
-          .ns-account-shell > div { padding-left: 18px !important; padding-right: 18px !important; }
-          .ns-account-shell main > section { gap: 12px !important; }
-          article > div:first-child > div { align-items: flex-start !important; }
-          article > div:first-child span:last-child { width: 100%; justify-content: flex-start; }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
         }
       `}</style>
     </AccountLayout>

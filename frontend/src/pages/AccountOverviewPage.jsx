@@ -1,7 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useCart } from '../context/CartContext';
-
-const DEFAULT_ADDRESS_KEY = 'novashop_default_address';
+import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useAuth } from '../context/AuthContext';
+import { userApi } from '../lib/api/userApi';
 
 const accountNav = [
   { key: 'overview', label: 'Overview', path: '/account' },
@@ -13,57 +12,34 @@ const accountNav = [
   { key: 'settings', label: 'Settings', path: '/account/settings' },
 ];
 
-import { useAuth } from '../context/AuthContext';
-
 function getStatusMeta(status) {
   const normalized = String(status || '').toLowerCase().replace(/\s+/g, '-');
   const map = {
-    processing: { label: 'Processing', tone: 'amber', chip: 'rgba(196, 142, 74, 0.12)', color: '#9A6A2D', border: 'rgba(196, 142, 74, 0.32)' },
-    confirmed: { label: 'Confirmed', tone: 'slate', chip: 'rgba(81, 85, 93, 0.10)', color: '#444A52', border: 'rgba(81, 85, 93, 0.20)' },
-    'in-transit': { label: 'In Transit', tone: 'amber', chip: 'rgba(196, 142, 74, 0.12)', color: '#9A6A2D', border: 'rgba(196, 142, 74, 0.32)' },
-    delivered: { label: 'Delivered', tone: 'green', chip: 'rgba(44, 105, 77, 0.10)', color: '#2A644D', border: 'rgba(44, 105, 77, 0.20)' },
-    cancelled: { label: 'Cancelled', tone: 'red', chip: 'rgba(120, 68, 59, 0.10)', color: '#7E423E', border: 'rgba(120, 68, 59, 0.20)' },
-    shipped: { label: 'Shipped', tone: 'amber', chip: 'rgba(196, 142, 74, 0.12)', color: '#9A6A2D', border: 'rgba(196, 142, 74, 0.32)' },
-    placed: { label: 'Processing', tone: 'amber', chip: 'rgba(196, 142, 74, 0.12)', color: '#9A6A2D', border: 'rgba(196, 142, 74, 0.32)' },
+    processing: { label: 'Processing', chip: 'rgba(212, 166, 98, 0.15)', color: 'var(--color-warning)', border: 'rgba(212, 166, 98, 0.35)' },
+    confirmed: { label: 'Confirmed', chip: 'rgba(128, 128, 128, 0.12)', color: 'var(--text-secondary)', border: 'var(--border-subtle)' },
+    'in-transit': { label: 'In Transit', chip: 'rgba(212, 166, 98, 0.15)', color: 'var(--color-warning)', border: 'rgba(212, 166, 98, 0.35)' },
+    delivered: { label: 'Delivered', chip: 'rgba(46, 125, 50, 0.15)', color: 'var(--color-success)', border: 'rgba(46, 125, 50, 0.35)' },
+    cancelled: { label: 'Cancelled', chip: 'rgba(217, 83, 79, 0.15)', color: 'var(--color-danger)', border: 'rgba(217, 83, 79, 0.35)' },
+    shipped: { label: 'Shipped', chip: 'rgba(212, 166, 98, 0.15)', color: 'var(--color-warning)', border: 'rgba(212, 166, 98, 0.35)' },
+    placed: { label: 'Processing', chip: 'rgba(212, 166, 98, 0.15)', color: 'var(--color-warning)', border: 'rgba(212, 166, 98, 0.35)' },
+    pending: { label: 'Pending Payment', chip: 'rgba(212, 166, 98, 0.15)', color: 'var(--color-warning)', border: 'rgba(212, 166, 98, 0.35)' },
   };
 
   return map[normalized] || {
-    label: 'Confirmed',
-    tone: 'slate',
-    chip: 'rgba(81, 85, 93, 0.10)',
-    color: '#444A52',
-    border: 'rgba(81, 85, 93, 0.20)',
-  };
-}
-
-function getSavedAddress(profileName) {
-  try {
-    const stored = localStorage.getItem(DEFAULT_ADDRESS_KEY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed && typeof parsed === 'object') return parsed;
-    }
-  } catch (error) {
-    console.warn('Unable to load saved address', error);
-  }
-
-  return {
-    fullName: profileName || 'Firaol Siraj',
-    street: 'Bole Sub-City',
-    street2: 'Bole Road, House 14',
-    city: 'Addis Ababa',
-    country: 'Ethiopia',
-    postalCode: '1000',
+    label: status ? String(status).toUpperCase() : 'Confirmed',
+    chip: 'rgba(128, 128, 128, 0.12)',
+    color: 'var(--text-secondary)',
+    border: 'var(--border-subtle)',
   };
 }
 
 function getInitials(fullName) {
-  return (fullName || 'FS')
+  return (fullName || 'U')
     .split(' ')
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part.charAt(0).toUpperCase())
-    .join('') || 'FS';
+    .join('') || 'U';
 }
 
 function formatMoney(value) {
@@ -74,88 +50,117 @@ function formatMoney(value) {
 }
 
 function AccountOverviewPage({ go, currentPath }) {
-  const { orders, wishlistItems } = useCart();
-  const { user, logout } = useAuth();
-  
-  const formattedUser = useMemo(() => {
-    if (!user) return null;
-    const firstName = user.name ? user.name.split(' ')[0] : 'Firaol';
-    const fullName = user.name || 'Firaol Siraj';
-    return {
-      firstName,
-      fullName,
-      email: user.email,
-      memberSince: user.createdAt || new Date(2026, 0, 1),
-    };
-  }, [user]);
+  const { user, isLoading: authLoading, logout } = useAuth();
+  const [overview, setOverview] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchOverview = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await userApi.getOverview();
+      if (res.success && res.data) {
+        setOverview(res.data);
+      } else {
+        throw new Error(res.message || 'Unable to load account overview');
+      }
+    } catch (err) {
+      if (err.status === 401 || err.response?.status === 401) {
+        sessionStorage.setItem('novashop_redirect_after_login', '/account');
+        go('/login');
+        return;
+      }
+      setError(err.response?.data?.message || err.message || 'Failed to fetch account overview.');
+    } finally {
+      setLoading(false);
+    }
+  }, [go]);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      sessionStorage.setItem('novashop_redirect_after_login', '/account');
+      go('/login');
+      return;
+    }
+
+    if (user) {
+      fetchOverview();
+    }
+  }, [user, authLoading, go, fetchOverview]);
 
   const activeKey = useMemo(() => {
     if (currentPath === '/account' || currentPath === '/account/') return 'overview';
     if (currentPath.startsWith('/account/orders')) return 'orders';
     if (currentPath.startsWith('/account/wishlist')) return 'wishlist';
     if (currentPath.startsWith('/account/addresses')) return 'addresses';
+    if (currentPath.startsWith('/account/payments')) return 'payments';
     if (currentPath.startsWith('/account/profile')) return 'profile';
     if (currentPath.startsWith('/account/settings')) return 'settings';
     return 'overview';
   }, [currentPath]);
 
-  const recentOrders = useMemo(() => {
-    return [...(orders || [])]
-      .sort((a, b) => new Date(b.createdAt || b.placedAt || 0) - new Date(a.createdAt || a.placedAt || 0))
-      .slice(0, 2);
-  }, [orders]);
-
-  const profileName = formattedUser?.fullName || 'Firaol Siraj';
-  const defaultAddress = getSavedAddress(profileName);
-  const greeting = formattedUser?.firstName || 'Firaol';
-  const memberSince = formattedUser?.memberSince ? new Date(formattedUser.memberSince).getFullYear() : 2026;
+  const profileName = overview?.user?.name || user?.name || 'Customer';
+  const greeting = overview?.user?.firstName || user?.name?.split(' ')[0] || 'Customer';
+  const memberSince = overview?.user?.memberSince
+    ? new Date(overview.user.memberSince).getFullYear()
+    : user?.createdAt
+    ? new Date(user.createdAt).getFullYear()
+    : new Date().getFullYear();
+  const defaultAddress = overview?.defaultAddress;
+  const recentOrders = overview?.recentOrders || [];
+  const stats = overview?.stats || { totalOrders: 0, ordersInProgress: 0, totalSpent: 0, wishlistCount: 0 };
 
   const handleNavAction = (item) => {
-    if (item.key === 'wishlist') {
-      go('/account/wishlist');
-      return;
-    }
     go(item.path);
   };
 
-  const handleSignOut = () => {
-    logout();
+  const handleSignOut = async () => {
+    await logout();
     go('/');
   };
 
   const quickLinkCards = [
-    { key: 'orders', title: 'Orders', subtext: 'View and track your purchases', href: '/account/orders', action: () => go('/account/orders') },
-    { key: 'wishlist', title: 'Wishlist', subtext: 'Your saved pieces', href: '/account/wishlist', action: () => go('/account/wishlist') },
-    { key: 'addresses', title: 'Addresses', subtext: 'Manage delivery addresses', href: '/account/addresses', action: () => go('/account/addresses') },
+    { key: 'orders', title: 'Orders', subtext: `${stats.totalOrders} total · ${stats.ordersInProgress} in progress`, href: '/account/orders', action: () => go('/account/orders') },
+    { key: 'wishlist', title: 'Wishlist', subtext: `${stats.wishlistCount} saved piece${stats.wishlistCount === 1 ? '' : 's'}`, href: '/account/wishlist', action: () => go('/account/wishlist') },
+    { key: 'addresses', title: 'Addresses', subtext: defaultAddress ? `${defaultAddress.city || 'Default'}, ${defaultAddress.country || 'Ethiopia'}` : 'Manage delivery addresses', href: '/account/addresses', action: () => go('/account/addresses') },
   ];
+
+  if (authLoading) {
+    return (
+      <div style={{ background: 'var(--bg-main)', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-muted)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Loading Account...</p>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
   return (
-    <div style={{ background: '#F6F1EA', minHeight: '100vh', color: '#1B1816' }} className="ns-account-shell">
+    <div style={{ background: 'var(--bg-main)', minHeight: '100vh', color: 'var(--text-primary)' }} className="ns-account-shell">
       <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '32px 40px 52px' }}>
-        <div style={{ marginBottom: '16px', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#7A726C' }}>
-          <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#7A726C', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
-          <span style={{ margin: '0 10px', color: '#B9B1AB' }}>/</span>
-          <span style={{ color: '#1B1816' }}>Account</span>
+        <div style={{ marginBottom: '16px', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
+          <span style={{ margin: '0 10px', color: 'var(--text-subtle)' }}>/</span>
+          <span style={{ color: 'var(--text-primary)' }}>Account</span>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'end', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
-            <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(32px, 3vw, 52px)', letterSpacing: '-0.04em', fontWeight: 500, color: '#1B1816', lineHeight: 1.05 }}>My Account</h1>
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(16px, 2vw, 24px)', fontStyle: 'italic', color: '#7A726C', fontWeight: 400 }}>Welcome back, {greeting}</span>
+            <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(32px, 3vw, 52px)', letterSpacing: '-0.04em', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.05 }}>My Account</h1>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 'clamp(16px, 2vw, 24px)', fontStyle: 'italic', color: 'var(--text-muted)', fontWeight: 400 }}>Welcome back, {greeting}</span>
           </div>
         </div>
 
-        <p style={{ margin: '0 0 18px', fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#6E6962', lineHeight: 1.7 }}>
-          Manage your orders, saved pieces, addresses, and account details.
+        <p style={{ margin: '0 0 18px', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+          Authoritative dashboard for your purchases, preferences, delivery addresses, and account details.
         </p>
 
-        <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)', marginBottom: '28px' }} />
+        <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', marginBottom: '28px' }} />
 
         <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: '36px', alignItems: 'start' }}>
           <aside style={{ paddingTop: '4px' }}>
-            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#7A726C', marginBottom: '14px' }}>
+            <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '14px' }}>
               Account
             </div>
 
@@ -174,11 +179,11 @@ function AccountOverviewPage({ go, currentPath }) {
                       width: '100%',
                       textAlign: 'left',
                       border: 'none',
-                      background: isActive ? '#F0E8DE' : 'transparent',
-                      borderLeft: isActive ? '2px solid #1B1816' : '2px solid transparent',
+                      background: isActive ? 'var(--bg-surface-raised)' : 'transparent',
+                      borderLeft: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
                       padding: '12px 12px 12px 14px',
                       cursor: 'pointer',
-                      color: isActive ? '#1B1816' : '#6E6962',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
                       transition: 'background 180ms ease, color 180ms ease',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '13px',
@@ -192,7 +197,7 @@ function AccountOverviewPage({ go, currentPath }) {
               })}
             </nav>
 
-            <div style={{ marginTop: '28px', paddingTop: '18px', borderTop: '1px solid rgba(27,24,22,0.1)' }}>
+            <div style={{ marginTop: '28px', paddingTop: '18px', borderTop: '1px solid var(--border-subtle)' }}>
               <button
                 type="button"
                 onClick={handleSignOut}
@@ -204,7 +209,7 @@ function AccountOverviewPage({ go, currentPath }) {
                   border: 'none',
                   padding: 0,
                   cursor: 'pointer',
-                  color: '#6E6962',
+                  color: 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '12px',
                   letterSpacing: '0.08em',
@@ -222,190 +227,243 @@ function AccountOverviewPage({ go, currentPath }) {
           </aside>
 
           <main style={{ display: 'grid', gap: '26px' }}>
-            <section style={{ background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.12)', borderRadius: '14px', padding: '22px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
-                <div style={{ width: '62px', height: '62px', borderRadius: '50%', background: '#EFE5DA', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-serif)', fontSize: '24px', color: '#1B1816' }}>
-                  {getInitials(profileName)}
-                </div>
-                <div>
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 500, color: '#1B1816', lineHeight: 1.1 }}>{profileName}</div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#6E6962', marginTop: '4px' }}>{formattedUser.email}</div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#9B9189', marginTop: '2px' }}>Member since {memberSince}</div>
-                </div>
-              </div>
-
-              <button type="button" onClick={() => go('/account/profile/edit')} style={{ border: '1px solid #1B1816', background: 'transparent', color: '#1B1816', borderRadius: '999px', padding: '11px 18px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                Edit Profile
-              </button>
-            </section>
-
-            <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }} className="ns-quick-links">
-              {quickLinkCards.map((card) => (
+            {error && (
+              <div style={{ background: 'rgba(217, 83, 79, 0.1)', border: '1px solid var(--color-danger)', borderRadius: '12px', padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '14px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--color-danger)' }}>{error}</span>
                 <button
-                  key={card.key}
                   type="button"
-                  onClick={card.action}
-                  style={{
-                    width: '100%',
-                    background: '#F7F2EA',
-                    border: '1px solid rgba(27,24,22,0.12)',
-                    borderRadius: '14px',
-                    textAlign: 'left',
-                    padding: '18px 18px 16px',
-                    cursor: 'pointer',
-                    color: '#1B1816',
-                    display: 'grid',
-                    gap: '12px',
-                  }}
+                  onClick={fetchOverview}
+                  style={{ border: '1px solid var(--color-danger)', background: 'transparent', color: 'var(--color-danger)', borderRadius: '999px', padding: '6px 14px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer' }}
                 >
-                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: '#1B1816', lineHeight: 1.1 }}>{card.title}</div>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#6E6962', lineHeight: 1.5 }}>{card.subtext}</div>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: '#1B1816' }}>
-                    {card.key === 'wishlist' ? 'View Wishlist' : card.key === 'orders' ? 'View Orders' : 'Manage Addresses'}
-                    <span style={{ transition: 'transform 180ms ease' }}>→</span>
-                  </div>
-                </button>
-              ))}
-            </section>
-
-            <section>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
-                <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '30px', color: '#1B1816', fontWeight: 500 }}>Recent Orders</h2>
-                <button type="button" onClick={() => go('/account/orders')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#1B1816', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
-                  View All Orders →
+                  Retry
                 </button>
               </div>
+            )}
 
-              <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)', marginBottom: '16px' }} />
-
-              {recentOrders.length === 0 ? (
-                <div style={{ background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.12)', borderRadius: '14px', padding: '28px 20px', textAlign: 'center' }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A726C', marginBottom: '8px' }}>No orders yet.</div>
-                  <button type="button" onClick={() => go('/shop')} style={{ border: 'none', background: '#1B1816', color: '#FDFBF7', borderRadius: '999px', padding: '12px 20px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                    Start Shopping
-                  </button>
+            {loading ? (
+              <div style={{ display: 'grid', gap: '20px' }}>
+                <div style={{ height: '100px', background: 'var(--skeleton-base)', borderRadius: '14px', animation: 'pulse 1.5s infinite' }} />
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
+                  <div style={{ height: '110px', background: 'var(--skeleton-base)', borderRadius: '14px' }} />
+                  <div style={{ height: '110px', background: 'var(--skeleton-base)', borderRadius: '14px' }} />
+                  <div style={{ height: '110px', background: 'var(--skeleton-base)', borderRadius: '14px' }} />
                 </div>
-              ) : (
-                <div style={{ display: 'grid', gap: '14px' }}>
-                  {recentOrders.map((order) => {
-                    const statusMeta = getStatusMeta(order.status);
-                    const firstItem = order.items?.[0];
-                    const itemCount = Math.max((order.items || []).length - 1, 0);
-                    const orderId = order.orderId || order.id || 'NV-0000';
-                    const productName = firstItem?.name || 'Tailored Double-Breasted Wool Blazer';
-                    const thumb = firstItem?.image || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=500&q=80';
-                    const orderDate = new Date(order.createdAt || order.placedAt || Date.now());
+                <div style={{ height: '180px', background: 'var(--skeleton-base)', borderRadius: '14px' }} />
+              </div>
+            ) : (
+              <>
+                {/* Profile Banner */}
+                <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '22px 22px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '18px', flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '18px' }}>
+                    <div style={{ width: '62px', height: '62px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-serif)', fontSize: '24px', color: 'var(--text-primary)', overflow: 'hidden' }}>
+                      {overview?.user?.avatar ? (
+                        <img src={overview.user.avatar} alt={profileName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        getInitials(profileName)
+                      )}
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: '26px', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.1 }}>{profileName}</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)', marginTop: '4px' }}>{overview?.user?.email || user.email}</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>Member since {memberSince}</div>
+                    </div>
+                  </div>
 
-                    return (
-                      <div key={orderId} style={{ background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.12)', borderRadius: '14px', padding: '18px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#6E6962' }}>
-                            <span style={{ color: '#1B1816', fontWeight: 600 }}>#{orderId}</span>
-                            <span>·</span>
-                            <span>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(orderDate)}</span>
-                            <span>·</span>
-                            <span>{formatMoney(order.total || order.summary?.totalPaid || 0)}</span>
-                          </div>
+                  <button type="button" onClick={() => go('/account/profile/edit')} style={{ border: '1px solid var(--border-default)', background: 'transparent', color: 'var(--text-primary)', borderRadius: '999px', padding: '11px 18px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                    Edit Profile
+                  </button>
+                </section>
 
-                          <span style={{
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '7px',
-                            borderRadius: '999px',
-                            background: statusMeta.chip,
-                            border: `1px solid ${statusMeta.border}`,
-                            color: statusMeta.color,
-                            padding: '6px 10px',
-                            fontFamily: 'var(--font-sans)',
-                            fontSize: '9px',
-                            letterSpacing: '0.12em',
-                            textTransform: 'uppercase',
-                            fontWeight: 700,
-                          }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusMeta.color, display: 'inline-block' }} />
-                            {statusMeta.label}
-                          </span>
-                        </div>
+                {/* Live Stats Row */}
+                <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '14px' }} className="ns-stats-grid">
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '16px 18px' }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Total Orders</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: 'var(--text-primary)', marginTop: '6px' }}>{stats.totalOrders}</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '16px 18px' }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>In Progress</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: 'var(--color-warning)', marginTop: '6px' }}>{stats.ordersInProgress}</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '16px 18px' }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Total Spent</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: 'var(--text-primary)', marginTop: '6px' }}>{formatMoney(stats.totalSpent)}</div>
+                  </div>
+                  <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '16px 18px' }}>
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Wishlist</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: 'var(--text-primary)', marginTop: '6px' }}>{stats.wishlistCount}</div>
+                  </div>
+                </section>
 
-                        <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)', marginBottom: '12px' }} />
+                {/* Quick Link Cards */}
+                <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }} className="ns-quick-links">
+                  {quickLinkCards.map((card) => (
+                    <button
+                      key={card.key}
+                      type="button"
+                      onClick={card.action}
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-default)',
+                        borderRadius: '14px',
+                        textAlign: 'left',
+                        padding: '18px 18px 16px',
+                        cursor: 'pointer',
+                        color: 'var(--text-primary)',
+                        display: 'grid',
+                        gap: '12px',
+                      }}
+                    >
+                      <div style={{ fontFamily: 'var(--font-serif)', fontSize: '22px', color: 'var(--text-primary)', lineHeight: 1.1 }}>{card.title}</div>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{card.subtext}</div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
+                        <span>Go to {card.title}</span>
+                        <span style={{ transition: 'transform 180ms ease' }}>→</span>
+                      </div>
+                    </button>
+                  ))}
+                </section>
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
-                            <img src={thumb} alt={productName} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '8px', background: '#EEE8E0' }} />
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#1B1816', fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{productName}</div>
-                              {itemCount > 0 && (
-                                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#7A726C', marginTop: '2px' }}>+ {itemCount} more</div>
-                              )}
+                {/* Recent Orders */}
+                <section>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '14px' }}>
+                    <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '30px', color: 'var(--text-primary)', fontWeight: 500 }}>Recent Orders</h2>
+                    <button type="button" onClick={() => go('/account/orders')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase' }}>
+                      View All Orders ({stats.totalOrders}) →
+                    </button>
+                  </div>
+
+                  <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', marginBottom: '16px' }} />
+
+                  {recentOrders.length === 0 ? (
+                    <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '28px 20px', textAlign: 'center' }}>
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>No orders yet.</div>
+                      <button type="button" onClick={() => go('/shop')} style={{ border: 'none', background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '12px 20px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                        Start Shopping
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gap: '14px' }}>
+                      {recentOrders.map((order) => {
+                        const statusMeta = getStatusMeta(order.status);
+                        const items = order.orderItems || [];
+                        const firstItem = items[0];
+                        const totalQty = items.reduce((sum, it) => sum + (Number(it.qty) || 1), 0);
+                        const otherItemsCount = Math.max(totalQty - (Number(firstItem?.qty) || 1), 0);
+                        const orderId = order.orderNumber || order._id;
+                        const productName = firstItem?.name || firstItem?.product?.name || 'NovaShop Item';
+                        const thumb = firstItem?.image || firstItem?.product?.images?.[0] || 'https://images.unsplash.com/photo-1529139574466-a303027c1d8b?auto=format&fit=crop&w=500&q=80';
+                        const orderDate = new Date(order.createdAt || Date.now());
+
+                        return (
+                          <div key={order._id} style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '18px 20px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', marginBottom: '12px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>#{orderId}</span>
+                                <span>·</span>
+                                <span>{new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(orderDate)}</span>
+                                <span>·</span>
+                                <span>{formatMoney(order.totalPrice)}</span>
+                              </div>
+
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '7px',
+                                borderRadius: '999px',
+                                background: statusMeta.chip,
+                                border: `1px solid ${statusMeta.border}`,
+                                color: statusMeta.color,
+                                padding: '6px 10px',
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: '9px',
+                                letterSpacing: '0.12em',
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                              }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: statusMeta.color, display: 'inline-block' }} />
+                                {statusMeta.label}
+                              </span>
+                            </div>
+
+                            <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', marginBottom: '12px' }} />
+
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0, flex: 1 }}>
+                                <img src={thumb} alt={productName} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '8px', background: 'var(--bg-surface-sunken)' }} />
+                                <div style={{ minWidth: 0 }}>
+                                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{productName}</div>
+                                  {otherItemsCount > 0 && (
+                                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>+ {otherItemsCount} more piece{otherItemsCount === 1 ? '' : 's'}</div>
+                                  )}
+                                </div>
+                              </div>
+
+                              <button type="button" onClick={() => go(`/account/orders/${order._id}`)} style={{ border: '1px solid var(--border-default)', background: 'transparent', color: 'var(--text-primary)', borderRadius: '999px', padding: '10px 14px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>
+                                View Order →
+                              </button>
                             </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
 
-                          <button type="button" onClick={() => go(`/account/orders/${orderId}`)} style={{ border: '1px solid rgba(27,24,22,0.18)', background: 'transparent', color: '#1B1816', borderRadius: '999px', padding: '10px 14px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>
-                            View Order →
-                          </button>
-                        </div>
+                {/* Default Address & Wishlist Snippet */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: '18px' }} className="ns-bottom-cards">
+                  <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '18px 18px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Default Shipping Address</span>
+                      {defaultAddress && <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>● Default</span>}
+                    </div>
+
+                    <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', marginBottom: '12px' }} />
+
+                    {defaultAddress ? (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-primary)', lineHeight: 1.8 }}>
+                        <div style={{ fontWeight: 700 }}>{defaultAddress.firstName} {defaultAddress.lastName} ({defaultAddress.label || 'Home'})</div>
+                        <div style={{ color: 'var(--text-secondary)' }}>{defaultAddress.street}</div>
+                        {defaultAddress.street2 && <div style={{ color: 'var(--text-secondary)' }}>{defaultAddress.street2}</div>}
+                        <div style={{ color: 'var(--text-secondary)' }}>{defaultAddress.city}, {defaultAddress.state || defaultAddress.city} {defaultAddress.postalCode}</div>
+                        <div style={{ color: 'var(--text-secondary)' }}>{defaultAddress.country} · {defaultAddress.phone}</div>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </section>
+                    ) : (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)', padding: '6px 0 6px' }}>No default delivery address saved yet.</div>
+                    )}
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1.05fr 0.95fr', gap: '18px' }} className="ns-bottom-cards">
-              <section style={{ background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.12)', borderRadius: '14px', padding: '18px 18px 14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A726C' }}>
-                  <span style={{ color: '#1B1816', fontWeight: 600 }}>Wishlist</span>
-                  <span>{wishlistItems.length} saved piece{wishlistItems.length === 1 ? '' : 's'}</span>
-                </div>
+                    <div style={{ marginTop: '16px' }}>
+                      <button type="button" onClick={() => go('/account/addresses')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                        {defaultAddress ? 'Manage Saved Addresses →' : '+ Add Address →'}
+                      </button>
+                    </div>
+                  </section>
 
-                <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)', marginBottom: '14px' }} />
+                  <section style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '14px', padding: '18px 18px 14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '12px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>Wishlist Pieces</span>
+                      <span>{stats.wishlistCount} saved</span>
+                    </div>
 
-                {wishlistItems.length === 0 ? (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#6E6962', padding: '6px 0 4px' }}>Nothing saved yet.</div>
-                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '10px' }}>
-                    {wishlistItems.slice(0, 3).map((item) => (
-                      <div key={item.id} style={{ minWidth: 0 }}>
-                        <img src={item.image} alt={item.name} style={{ width: '100%', aspectRatio: '0.8', objectFit: 'cover', borderRadius: '10px', background: '#EFE8DF', display: 'block' }} />
-                        <div style={{ marginTop: '8px', fontFamily: 'var(--font-sans)', fontSize: '12px', lineHeight: 1.3, color: '#1B1816', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</div>
-                        <div style={{ marginTop: '2px', fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#6E6962' }}>{formatMoney(item.price)}</div>
+                    <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', marginBottom: '14px' }} />
+
+                    {stats.wishlistCount === 0 ? (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)', padding: '6px 0 4px' }}>Nothing saved yet. Explore the latest collections.</div>
+                    ) : (
+                      <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-primary)', padding: '6px 0 4px' }}>
+                        You have {stats.wishlistCount} curated piece{stats.wishlistCount === 1 ? '' : 's'} in your personal wishlist.
                       </div>
-                    ))}
-                  </div>
-                )}
+                    )}
 
-                <div style={{ marginTop: '16px' }}>
-                  <button type="button" onClick={() => go('/account/wishlist')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#1B1816', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    View Wishlist →
-                  </button>
+                    <div style={{ marginTop: '16px' }}>
+                      <button type="button" onClick={() => go('/account/wishlist')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                        Open Wishlist →
+                      </button>
+                    </div>
+                  </section>
                 </div>
-              </section>
-
-              <section style={{ background: '#F7F2EA', border: '1px solid rgba(27,24,22,0.12)', borderRadius: '14px', padding: '18px 18px 14px' }}>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: '#7A726C', marginBottom: '12px' }}>
-                  Default Address
-                </div>
-
-                <div style={{ height: '1px', width: '100%', background: 'rgba(27,24,22,0.12)', marginBottom: '12px' }} />
-
-                {defaultAddress ? (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#1B1816', lineHeight: 1.8 }}>
-                    <div style={{ fontWeight: 700 }}>{defaultAddress.fullName || profileName}</div>
-                    <div style={{ color: '#6E6962' }}>{defaultAddress.street || 'Addis Ababa'}</div>
-                    {defaultAddress.street2 && <div style={{ color: '#6E6962' }}>{defaultAddress.street2}</div>}
-                    <div style={{ color: '#6E6962' }}>{defaultAddress.city || 'Addis Ababa'}, {defaultAddress.country || 'Ethiopia'} {defaultAddress.postalCode || ''}</div>
-                  </div>
-                ) : (
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#6E6962', padding: '6px 0 6px' }}>No address saved yet.</div>
-                )}
-
-                <div style={{ marginTop: '16px' }}>
-                  <button type="button" onClick={() => go('/account/addresses')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#1B1816', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>
-                    Manage Addresses →
-                  </button>
-                </div>
-              </section>
-            </div>
+              </>
+            )}
           </main>
         </div>
       </div>
@@ -430,11 +488,18 @@ function AccountOverviewPage({ go, currentPath }) {
           from { opacity: 0; transform: translateY(4px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
         @media (max-width: 1023px) {
           .ns-account-shell .ns-quick-links {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
           }
-          .ns-account-shell > div > div:nth-child(3) {
+          .ns-account-shell .ns-stats-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+          }
+          .ns-account-shell > div > div:nth-child(4) {
             grid-template-columns: 1fr !important;
           }
           .ns-account-shell .ns-bottom-cards {
@@ -446,7 +511,7 @@ function AccountOverviewPage({ go, currentPath }) {
             padding-left: 18px !important;
             padding-right: 18px !important;
           }
-          .ns-account-shell > div > div:nth-child(3) {
+          .ns-account-shell .ns-stats-grid {
             grid-template-columns: 1fr !important;
           }
           .ns-account-shell .ns-quick-links {
@@ -454,9 +519,6 @@ function AccountOverviewPage({ go, currentPath }) {
           }
           .ns-account-shell main {
             gap: 18px !important;
-          }
-          .ns-account-shell > div > div:nth-child(4) {
-            display: block !important;
           }
           .ns-account-shell aside {
             margin-bottom: 18px;
@@ -474,10 +536,6 @@ function AccountOverviewPage({ go, currentPath }) {
             border-bottom: 2px solid transparent !important;
             border-radius: 12px;
             background: transparent;
-          }
-          .ns-account-shell nav button[style*="border-left: 2px solid rgb(27, 24, 22)"] {
-            border-bottom: 2px solid #1B1816 !important;
-            border-left: 2px solid transparent !important;
           }
         }
       `}</style>

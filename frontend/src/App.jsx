@@ -23,12 +23,16 @@ import WishlistPage from './pages/WishlistPage';
 import PaymentsPage from './pages/PaymentsPage';
 import ForgotPasswordPage from './pages/ForgotPasswordPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
+import VerifyEmailPage from './pages/VerifyEmailPage';
 import HelpPage from './pages/HelpPage';
 import AboutPage from './pages/AboutPage';
 import ShippingReturnsPage from './pages/ShippingReturnsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import NotFoundPage from './pages/NotFoundPage';
 import CollectionsPage from './pages/CollectionsPage';
+import CollectionDetailPage from './pages/CollectionDetailPage';
+import NewsletterConfirmPage from './pages/NewsletterConfirmPage';
+import NewsletterUnsubscribePage from './pages/NewsletterUnsubscribePage';
 import TermsOfServicePage from './pages/TermsOfServicePage';
 
 // Admin authentication
@@ -53,6 +57,7 @@ import AdminCustomerDetailPage from './pages/admin/AdminCustomerDetailPage';
 import AdminCustomerEditPage from './pages/admin/AdminCustomerEditPage';
 
 import AdminInventoryPage from './pages/admin/AdminInventoryPage';
+import AdminNotificationsPage from './pages/admin/AdminNotificationsPage';
 
 import AdminDiscountsPage from './pages/admin/AdminDiscountsPage';
 import AdminDiscountEditPage from './pages/admin/AdminDiscountEditPage';
@@ -73,15 +78,27 @@ import AdminReturnsPage from './pages/admin/AdminReturn&RefundPage';
 import AdminReturnDetailPage from './pages/admin/AdminReturnDetailPage';
 
 import AdminShippingPage from './pages/admin/AdminShippingPage';
+import AdminShippingZoneFormPage from './pages/admin/AdminShippingZoneFormPage';
+import AdminShippingZoneRatesPage from './pages/admin/AdminShippingZoneRatesPage';
+import AdminShippingMethodFormPage from './pages/admin/AdminShippingMethodFormPage';
+import AdminShippingSettingsPage from './pages/admin/AdminShippingSettingsPage';
 
 import AdminPaymentsPage from './pages/admin/AdminPaymentsPage';
+import AdminPaymentDetailPage from './pages/admin/AdminPaymentDetailPage';
+import AdminPaymentSettingsPage from './pages/admin/AdminPaymentSettingsPage';
+import AdminPayoutFormPage from './pages/admin/AdminPayoutFormPage';
+import AdminPayoutDetailPage from './pages/admin/AdminPayoutDetailPage';
+import AdminNotFoundPage from './pages/admin/AdminNotFoundPage';
 
 // Shared admin shell
 import AdminLayout from './components/admin/AdminLayout';
 import AdminCustomerSupportPage from './pages/admin/AdminCustomerSupportPage';
 import AdminSettingsPage from './pages/admin/AdminSettingsPage';
+import AdminAcceptInvitePage from './pages/admin/AdminAcceptInvitePage';
+import AdminProfilePage from './pages/admin/AdminProfilePage';
 
 import { preloadGoogleIdentityServices } from './lib/googleIdentity';
+import { initTracker } from './lib/tracker';
 
 
 
@@ -128,6 +145,7 @@ export default function App() {
    */
   useEffect(() => {
     preloadGoogleIdentityServices().catch(() => {});
+    initTracker();
   }, []);
 
 
@@ -211,8 +229,22 @@ export default function App() {
       />
     );
 
+  } else if (path.startsWith('/collections/')) {
+    const slug = path.split('/')[2];
+    if (slug === 'all') {
+      page = <ShopPage go={go} search={search} />;
+    } else {
+      page = <CollectionDetailPage go={go} slug={slug} search={search} />;
+    }
+
   } else if (path === '/collections') {
     page = <CollectionsPage go={go} />;
+
+  } else if (path === '/newsletter/confirm') {
+    page = <NewsletterConfirmPage go={go} search={search} />;
+
+  } else if (path === '/newsletter/unsubscribe' || path === '/unsubscribe') {
+    page = <NewsletterUnsubscribePage go={go} search={search} />;
 
   } else if (path.startsWith('/category/')) {
     const category = path.split('/')[2];
@@ -348,6 +380,9 @@ export default function App() {
       />
     );
 
+  } else if (path === '/admin/accept-invite') {
+    page = <AdminAcceptInvitePage go={go} />;
+
 
   // =========================================================
   // ADMIN DASHBOARD
@@ -362,7 +397,7 @@ export default function App() {
   // =========================================================
 
   } else if (path === '/admin/orders') {
-    page = <AdminOrdersPage go={go} />;
+    page = <AdminOrdersPage go={go} search={search} />;
 
   } else if (path.startsWith('/admin/orders/')) {
     const orderId = path
@@ -421,7 +456,7 @@ export default function App() {
     );
 
   } else if (path === '/admin/customers') {
-    page = <AdminCustomersPage go={go} />;
+    page = <AdminCustomersPage go={go} search={search} />;
 
 
   // =========================================================
@@ -437,19 +472,32 @@ export default function App() {
     );
 
   } else if (
-    path === '/admin/products/cashmere-overcoat/edit'
+    path.startsWith('/admin/products/') &&
+    path.endsWith('/edit')
   ) {
+    const productId = path
+      .split('/')
+      .filter(Boolean)
+      .at(-2);
+
     page = (
       <AdminProductEditPage
+        productId={productId}
         go={go}
+        mode="edit"
       />
     );
 
-  } else if (path === '/admin/products') {
-    page = <AdminProductsPage go={go} />;
-
   } else if (path.startsWith('/admin/products/')) {
-    page = <AdminProductDetailPage go={go} />;
+    const productId = path
+      .split('/')
+      .filter(Boolean)
+      .at(-1);
+
+    page = <AdminProductDetailPage productId={productId} go={go} />;
+
+  } else if (path === '/admin/products') {
+    page = <AdminProductsPage go={go} search={search} />;
 
 
   // =========================================================
@@ -490,6 +538,14 @@ export default function App() {
 
   } else if (path === '/admin/inventory') {
     page = <AdminInventoryPage go={go} />;
+
+
+  // =========================================================
+  // ADMIN NOTIFICATIONS
+  // =========================================================
+
+  } else if (path === '/admin/notifications') {
+    page = <AdminNotificationsPage go={go} />;
 
 
   // =========================================================
@@ -568,25 +624,69 @@ export default function App() {
     );
 
   } else if(path ==='/admin/returns') {
-    page = <AdminReturnsPage go={go} />;
+    page = <AdminReturnsPage go={go} search={search} />;
 
      // =========================================================
   // Admin Shipping
   // =========================================================
-   } else if(path ==='/admin/shipping') {
+   } else if (path === '/admin/shipping/settings') {
+    page = <AdminShippingSettingsPage go={go} />;
+
+   } else if (path === '/admin/shipping/zones/new') {
+    page = <AdminShippingZoneFormPage go={go} />;
+
+   } else if (path.startsWith('/admin/shipping/zones/') && path.endsWith('/edit')) {
+    const parts = path.split('/').filter(Boolean);
+    const zoneId = parts[3];
+    page = <AdminShippingZoneFormPage zoneId={zoneId} go={go} />;
+
+   } else if (path.startsWith('/admin/shipping/zones/') && path.endsWith('/rates')) {
+    const parts = path.split('/').filter(Boolean);
+    const zoneId = parts[3];
+    page = <AdminShippingZoneRatesPage zoneId={zoneId} go={go} />;
+
+   } else if (path === '/admin/shipping/methods/new') {
+    page = <AdminShippingMethodFormPage go={go} />;
+
+   } else if (path.startsWith('/admin/shipping/methods/') && path.endsWith('/edit')) {
+    const parts = path.split('/').filter(Boolean);
+    const methodId = parts[3];
+    page = <AdminShippingMethodFormPage methodId={methodId} go={go} />;
+
+   } else if (path === '/admin/shipping') {
     page = <AdminShippingPage go={go} />;
 
      // =========================================================
-  // Accounts
+  // Admin Payments
   // =========================================================
-  } else if(path ==='/admin/payments') {
+  } else if (path === '/admin/payments/settings') {
+    page = <AdminPaymentSettingsPage go={go} />;
+
+  } else if (path === '/admin/payments/payouts/new') {
+    page = <AdminPayoutFormPage go={go} />;
+
+  } else if (path.startsWith('/admin/payments/payouts/')) {
+    const payoutId = path.split('/').filter(Boolean).at(-1);
+    page = <AdminPayoutDetailPage payoutId={payoutId} go={go} />;
+
+  } else if (path.startsWith('/admin/payments/') && path !== '/admin/payments') {
+    const paymentId = path.split('/').filter(Boolean).at(-1);
+    page = <AdminPaymentDetailPage paymentId={paymentId} go={go} />;
+
+  } else if (path === '/admin/payments') {
     page = <AdminPaymentsPage go={go} />;
 
      // =========================================================
   // Admin Support
   // =========================================================
   } else if(path ==='/admin/support') {
-    page = <AdminCustomerSupportPage go={go} />;
+    page = <AdminCustomerSupportPage go={go} search={search} />;
+
+     // =========================================================
+  // Admin Profile
+  // =========================================================
+  } else if(path === '/admin/profile') {
+    page = <AdminProfilePage go={go} />;
 
      // =========================================================
   // Admin Settings
@@ -602,6 +702,15 @@ export default function App() {
       <ResetPasswordPage
         go={go}
         search={search}
+      />
+    );
+
+  } else if (path === '/verify-email' || path.startsWith('/verify-email/')) {
+    page = (
+      <VerifyEmailPage
+        go={go}
+        search={search}
+        path={path}
       />
     );
 
@@ -676,6 +785,8 @@ export default function App() {
       />
     );
 
+  } else if (path.startsWith('/admin')) {
+    page = <AdminNotFoundPage go={go} />;
   } else {
     page = <NotFoundPage go={go} />;
   }
@@ -697,93 +808,18 @@ export default function App() {
   ].includes(path);
 
 
-  const isAdminPage = path.startsWith('/admin/');
-
+  const isAdminPage = path.startsWith('/admin') || path === '/admin';
+  const isAdminAuth = [
+    '/admin/login',
+    '/admin/forgot-password',
+    '/admin/reset-password',
+    '/admin/accept-invite',
+  ].includes(path);
 
   /*
-   * These are the admin routes that MUST use AdminLayout.
-   *
-   * This is the important part for your problem.
-   *
-   * Every page below gets:
-   *
-   *   AdminLayout
-   *      ├── shared sidebar
-   *      ├── shared topbar
-   *      └── page content
+   * All authenticated /admin/* pages use AdminLayout.
    */
-  const usesAdminLayout =
-    path === '/admin/dashboard' ||
-
-    // Orders
-    path === '/admin/orders' ||
-    path.startsWith('/admin/orders/') ||
-
-    // Products
-    path === '/admin/products' ||
-    path.startsWith('/admin/products/') ||
-
-    // Categories
-    path === '/admin/categories' ||
-    path.startsWith('/admin/categories/') ||
-
-    // Customers
-    path === '/admin/customers' ||
-    path.startsWith('/admin/customers/') ||
-
-    // Inventory
-    path === '/admin/inventory' ||
-    path.startsWith('/admin/inventory/') ||
-
-    // Discounts
-    path === '/admin/discounts' ||
-    path.startsWith('/admin/discounts/') ||
-
-    // Reviews
-    path === '/admin/reviews' ||
-    path.startsWith('/admin/reviews/') ||
-
-    //Analaytics
-    path === '/admin/analytics/overview'  ||
-    path.startsWith('/admin/analytics/overview' ) ||
-
-    path === '/admin/analytics/sales'  ||
-    path.startsWith('/admin/analytics/sales' ) ||
-
-    path === '/admin/analytics/products'  ||
-    path.startsWith( '/admin/analytics/products' ) ||
-
-    path === '/admin/analytics/customers'  ||
-    path.startsWith( '/admin/analytics/customers' ) ||
-
-    // Content
-    path === '/admin/content/homepage'  ||
-    path.startsWith( '/admin/content/homepage' ) ||
-
-    path === '/admin/content/hero'  ||
-    path.startsWith( '/admin/content/hero' ) ||
-
-    path === '/admin/content/media'  ||
-    path.startsWith( '/admin/content/media' ) ||
-
-    // Returns and refunds (list + detail)
-    path === '/admin/returns'  ||
-    path.startsWith( '/admin/returns' ) ||
-
-    //Shipping
-    path === '/admin/shipping'  ||
-    path.startsWith( '/admin/shipping' ) ||
-
-     //Payments
-    path === '/admin/payments'  ||
-    path.startsWith( '/admin/payments' ) ||
-    
-    // Support
-    path === '/admin/support' ||
-    path.startsWith('/admin/support') ||
-
-    // Settings
-    path.startsWith('/admin/settings');
+  const usesAdminLayout = isAdminPage && !isAdminAuth;
   /*
    * ---------------------------------------------------------
    * RENDER WITH CORRECT LAYOUT
@@ -792,7 +828,7 @@ export default function App() {
 
   const renderPage = () => {
     const isAccountPage = path.startsWith('/account') || path === '/checkout' || path.startsWith('/orders');
-    const isAdminProtected = isAdminPage && path !== '/admin/login' && path !== '/admin/forgot-password' && path !== '/admin/reset-password';
+    const isAdminProtected = isAdminPage && path !== '/admin/login' && path !== '/admin/forgot-password' && path !== '/admin/reset-password' && path !== '/admin/accept-invite';
 
     let content = page;
     if (isAdminProtected) {
@@ -899,6 +935,12 @@ export default function App() {
         // still highlight the "Returns and refunds" sidebar item.
         } else if (path.startsWith('/admin/returns')) {
           activePath = '/admin/returns';
+
+        } else if (path.startsWith('/admin/shipping')) {
+          activePath = '/admin/shipping';
+
+        } else if (path.startsWith('/admin/payments')) {
+          activePath = '/admin/payments';
 
         } else if (path === '/admin/dashboard') {
           activePath = '/admin/dashboard';

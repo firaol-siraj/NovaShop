@@ -11,24 +11,24 @@ export default function Select({
   return (
     <div className="w-full flex flex-col gap-1.5">
       {label && (
-        <label htmlFor={selectId} className="text-xs font-semibold uppercase tracking-wider text-stone-700">
+        <label htmlFor={selectId} className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
           {label}
         </label>
       )}
       <select
         id={selectId}
-        className={`w-full px-4 py-2.5 bg-[#FDFBF7] border border-stone-300 text-stone-900 text-sm focus:outline-none focus:border-stone-900 transition-colors rounded-none appearance-none cursor-pointer ${
-          error ? 'border-rose-600' : ''
+        className={`w-full px-4 py-2.5 bg-[var(--bg-input)] border border-[var(--border-input)] text-[var(--text-primary)] text-sm focus:outline-none focus:border-[var(--border-focus)] transition-colors rounded-none appearance-none cursor-pointer ${
+          error ? 'border-[var(--color-danger)]' : ''
         } ${className}`}
         {...props}
       >
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>
+          <option key={opt.value} value={opt.value} className="bg-[var(--bg-surface)] text-[var(--text-primary)]">
             {opt.label}
           </option>
         ))}
       </select>
-      {error && <span className="text-xs text-rose-600 font-medium">{error}</span>}
+      {error && <span className="text-xs text-[var(--color-danger)] font-medium">{error}</span>}
     </div>
   );
 }

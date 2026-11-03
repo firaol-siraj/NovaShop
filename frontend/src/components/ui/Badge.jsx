@@ -1,9 +1,9 @@
 export default function Badge({ children, variant = 'default', className = '' }) {
   const variants = {
-    default: 'bg-stone-100 text-stone-800 border-stone-200',
-    sale: 'bg-stone-900 text-stone-50 border-stone-900',
-    new: 'bg-amber-100 text-amber-900 border-amber-200',
-    outline: 'bg-transparent text-stone-700 border-stone-300',
+    default: 'bg-[var(--bg-surface-raised)] text-[var(--text-secondary)] border-[var(--border-subtle)]',
+    sale: 'bg-[var(--color-danger-soft)] text-[var(--color-danger)] border-[var(--color-danger)]',
+    new: 'bg-[var(--color-accent-soft)] text-[var(--color-accent)] border-[var(--color-accent)]',
+    outline: 'bg-transparent text-[var(--text-primary)] border-[var(--border-default)]',
   };
 
   return (

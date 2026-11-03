@@ -26,16 +26,16 @@ function clearRecent() {
 
 /* ── Design tokens ────────────────────────────────────── */
 const T = {
-  panelBg:    '#FFFFFF',           // white panel
-  bandBg:     '#F4F4F4',           // light gray input band
-  overlay:    'rgba(17,14,12,0.45)',
-  espresso:   '#1A1A1A',           // near-black text
-  muted:      '#888888',           // gray labels / subtitles
-  mutedLight: '#AAAAAA',
-  imgBg:      '#EEEBE6',           // neutral product image bg
-  border:     'rgba(0,0,0,0.08)',
-  highlight:  '#F0F0F0',
-  fontSans:   'var(--font-sans, Inter, "Plus Jakarta Sans", sans-serif)',
+  panelBg:    'var(--bg-surface)',
+  bandBg:     'var(--bg-surface-sunken)',
+  overlay:    'var(--bg-overlay)',
+  espresso:   'var(--text-primary)',
+  muted:      'var(--text-muted)',
+  mutedLight: 'var(--text-subtle)',
+  imgBg:      'var(--bg-surface-raised)',
+  border:     'var(--border-default)',
+  highlight:  'var(--bg-hover)',
+  fontSans:   'var(--font-sans)',
 };
 
 /* ── Close icon ───────────────────────────────────────── */

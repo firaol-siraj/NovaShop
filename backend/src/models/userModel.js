@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
+import { sanitizePhoneNumber } from "../utils/phone.js";
 
 const userSchema = new mongoose.Schema(
   {
@@ -8,8 +9,85 @@ const userSchema = new mongoose.Schema(
       type: String,
       required: [true, "Please add a name"],
       trim: true,
-      maxlength: [50, "Name can not be more than 50 characters"],
+      maxlength: [100, "Name can not be more than 100 characters"],
     },
+    firstName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    lastName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    phone: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    avatar: {
+      type: String,
+      default: '',
+    },
+    displayName: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    jobTitle: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    bio: {
+      type: String,
+      trim: true,
+      default: '',
+    },
+    dateOfBirth: {
+      type: String,
+      default: '',
+    },
+    settings: {
+      language: { type: String, default: 'English (US)' },
+      currency: { type: String, default: 'USD ($)' },
+      timezone: { type: String, default: 'Africa/Addis_Ababa' },
+      notifications: {
+        orderUpdates: { type: Boolean, default: true },
+        deliveryUpdates: { type: Boolean, default: true },
+        reviewUpdates: { type: Boolean, default: true },
+        promotionalEmails: { type: Boolean, default: false },
+      },
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+    },
+    status: {
+      type: String,
+      enum: ['active', 'deactivated', 'blocked', 'invited', 'inactive'],
+      default: 'active',
+    },
+    deactivatedAt: {
+      type: Date,
+      default: null,
+    },
+    internalNotes: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    marketingConsent: {
+      type: Boolean,
+      default: false,
+    },
+    isInvited: {
+      type: Boolean,
+      default: false,
+    },
+    inviteToken: String,
+    inviteExpires: Date,
     email: {
       type: String,
       required: [true, "Please add an email"],
@@ -32,6 +110,36 @@ const userSchema = new mongoose.Schema(
       enum: ["customer", "admin"],
       default: "customer",
     },
+    adminRole: {
+      type: String,
+      enum: ["owner", "admin", "manager", "support", "viewer"],
+      default: null,
+      index: true,
+    },
+    lastLoginAt: {
+      type: Date,
+      default: null,
+    },
+    lastLoginDevice: {
+      type: String,
+      default: '',
+    },
+    lastLoginIp: {
+      type: String,
+      default: '',
+    },
+    sessions: [
+      {
+        tokenHash: { type: String, select: false },
+        device: { type: String, default: 'Desktop Browser' },
+        browser: { type: String, default: 'Chrome' },
+        os: { type: String, default: 'Linux' },
+        ip: { type: String, default: '127.0.0.1' },
+        location: { type: String, default: 'Addis Ababa, ET' },
+        lastActive: { type: Date, default: Date.now },
+        createdAt: { type: Date, default: Date.now },
+      },
+    ],
     isVerified: {
       type: Boolean,
       default: false,
@@ -41,6 +149,8 @@ const userSchema = new mongoose.Schema(
 
     passwordResetToken: String,
     passwordResetExpires: Date,
+    adminResetOtp: { type: String, select: false },
+    adminResetOtpExpires: Date,
 
     refreshToken: {
       type: String,
@@ -57,18 +167,36 @@ const userSchema = new mongoose.Schema(
   },
 );
 
-// Mongoose Pre-Save Hook: Automatically hash password if modified
+// Mongoose Pre-Save Hook: Normalize names, phone, and hash password if modified
 userSchema.pre("save", async function () {
+  // Sync names accurately based on what was modified
+  if (this.isModified("name")) {
+    const parts = (this.name || '').trim().split(' ').filter(Boolean);
+    this.firstName = parts[0] || '';
+    this.lastName = parts.slice(1).join(' ') || '';
+  } else if (this.isModified("firstName") || this.isModified("lastName")) {
+    this.name = `${this.firstName || ''} ${this.lastName || ''}`.trim() || this.name;
+  } else if (!this.firstName && !this.lastName && this.name) {
+    const parts = (this.name || '').trim().split(' ').filter(Boolean);
+    this.firstName = parts[0] || '';
+    this.lastName = parts.slice(1).join(' ') || '';
+  }
+
+  // Sanitize phone
+  if (this.phone) {
+    this.phone = sanitizePhoneNumber(this.phone);
+  }
+
   if (!this.isModified("password")) {
     return;
   }
 
-  const salt = await bcrypt.genSalt(10); //this generate a random cryptographic salt string
+  const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
 
 // Instance method to generate and hash a Password Reset Token
-userSchema.methods.createPasswordResetToken = function () {
+userSchema.methods.createPasswordResetToken = function (expiresInMs = 60 * 60 * 1000) {
   const resetToken = crypto.randomBytes(32).toString('hex');
 
   this.passwordResetToken = crypto
@@ -76,7 +204,7 @@ userSchema.methods.createPasswordResetToken = function () {
     .update(resetToken)
     .digest('hex');
 
-  this.passwordResetExpires = new Date(Date.now() + 10 * 60 * 1000);
+  this.passwordResetExpires = new Date(Date.now() + expiresInMs);
 
   return resetToken;
 };

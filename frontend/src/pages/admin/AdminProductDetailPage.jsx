@@ -1,153 +1,359 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import adminApi from '../../lib/api/adminApi';
+import { formatCurrency, formatRelativeTime } from '../../lib/formatters';
 import './admin-product-detail.css';
-
-const media = [
-  'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=1200&q=85',
-  'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=360&q=80',
-  'https://images.unsplash.com/photo-1548126032-079a0fb0099d?auto=format&fit=crop&w=360&q=80',
-  'https://images.unsplash.com/photo-1591369822096-ffd140ec948f?auto=format&fit=crop&w=360&q=80',
-  'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=360&q=80',
-];
-
-const variants = [
-  { color: 'Camel', size: 'S', sku: 'NS-OC-0142-CAM-S', stock: 14, shade: '#B99C78' },
-  { color: 'Camel', size: 'M', sku: 'NS-OC-0142-CAM-M', stock: 18, shade: '#B99C78' },
-  { color: 'Camel', size: 'L', sku: 'NS-OC-0142-CAM-L', stock: 12, shade: '#B99C78' },
-  { color: 'Black', size: 'S', sku: 'NS-OC-0142-BLK-S', stock: 16, shade: '#272624', highlighted: true },
-  { color: 'Black', size: 'M', sku: 'NS-OC-0142-BLK-M', stock: 22, shade: '#272624' },
-  { color: 'Black', size: 'L', sku: 'NS-OC-0142-BLK-L', stock: 2, shade: '#272624' },
-];
-
-const orders = [
-  { id: 'NS-10482', customer: 'Sarah Mitchell', email: 'sarah.m@example.com', date: 'Oct 24, 2026', status: 'Delivered', total: '$1,450.00' },
-  { id: 'NS-10475', customer: 'James Okafor', email: 'james.o@example.com', date: 'Oct 23, 2026', status: 'Shipped', total: '$2,340.00' },
-  { id: 'NS-10469', customer: 'Amelia Chen', email: 'amelia.c@example.com', date: 'Oct 22, 2026', status: 'Processing', total: '$1,450.00' },
-  { id: 'NS-10461', customer: 'Lucas Meyer', email: 'lucas.m@example.com', date: 'Oct 21, 2026', status: 'Pending', total: '$2,900.00' },
-  { id: 'NS-10454', customer: 'Priya Raman', email: 'priya.r@example.com', date: 'Oct 20, 2026', status: 'Cancelled', total: '$1,450.00' },
-];
-
-const ratings = [
-  { stars: 5, count: 88 }, { stars: 4, count: 24 }, { stars: 3, count: 10 }, { stars: 2, count: 3 }, { stars: 1, count: 1 },
-];
 
 function DetailCard({ children, className = '' }) {
   return <section className={`admin-card product-detail-card ${className}`}>{children}</section>;
 }
 
 function CardHeading({ title, subtitle, action }) {
-  return <header className="pd-card-heading"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{action}</header>;
-}
-
-function Stars({ count = 5 }) {
-  return <span className="pd-stars" aria-label={`${count} out of 5 stars`}>{[1, 2, 3, 4, 5].map((star) => <span className={star <= count ? 'is-filled' : star - 0.5 <= count ? 'is-half' : ''} key={star}>★</span>)}</span>;
-}
-
-function SalesChart({ range }) {
-  const chartPaths = {
-    '7D': 'M45 185 C88 166 107 160 144 165 S200 122 238 138 S290 102 326 117 S380 84 414 95 S467 63 506 78 S560 43 598 54 S649 29 690 39',
-    '30D': 'M45 185 C82 158 107 173 144 143 S197 151 238 121 S282 131 326 103 S373 125 414 94 S464 114 506 76 S556 96 598 53 S650 70 690 39',
-    '90D': 'M45 185 C83 198 107 145 144 159 S199 111 238 134 S282 87 326 112 S375 84 414 99 S466 51 506 76 S557 48 598 59 S654 21 690 39',
-  };
   return (
-    <div className="pd-chart-wrap">
-      <svg className="pd-sales-chart" viewBox="0 0 720 235" role="img" aria-label={`Sales velocity over ${range}`}>
-        {[25, 78, 131, 184].map((y, index) => <g key={y}><line x1="45" y1={y} x2="690" y2={y} /><text x="0" y={y + 4}>{['$45k', '$30k', '$15k', '$0'][index]}</text></g>)}
-        <path className="pd-chart-area" d={`${chartPaths[range]} L690 184 L45 184 Z`} />
-        <path className="pd-chart-line" d={chartPaths[range]} />
-        <line className="pd-chart-guide" x1="414" y1="94" x2="414" y2="184" />
-        <circle className="pd-chart-point" cx="414" cy="94" r="4" />
-        <foreignObject x="355" y="29" width="168" height="48"><div xmlns="http://www.w3.org/1999/xhtml" className="pd-chart-tooltip">Sep 18 · 14 units · $20,300</div></foreignObject>
-        <text className="pd-chart-date" x="45" y="218">Sep 1</text><text className="pd-chart-date" x="365" y="218">Sep 15</text><text className="pd-chart-date" x="655" y="218">Sep 29</text>
-      </svg>
-    </div>
+    <header className="pd-card-heading">
+      <div>
+        <h2>{title}</h2>
+        {subtitle && <p>{subtitle}</p>}
+      </div>
+      {action}
+    </header>
   );
 }
 
-export default function AdminProductDetailPage({ go }) {
-  const [activeMedia, setActiveMedia] = useState(0);
-  const [range, setRange] = useState('30D');
-  const [specsOpen, setSpecsOpen] = useState(false);
-  const [descriptionOpen, setDescriptionOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
+export default function AdminProductDetailPage({ productId, go }) {
+  const [product, setProduct] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [selectedImage, setSelectedImage] = useState('');
   const [notice, setNotice] = useState('');
 
-  const notify = (message) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(''), 2200);
+  const notify = (msg) => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(''), 2600);
   };
+
+  useEffect(() => {
+    if (!productId) return;
+    setLoading(true);
+    setError('');
+
+    adminApi
+      .getProduct(productId)
+      .then((res) => {
+        if (res.data) {
+          setProduct(res.data);
+          const firstImg = res.data.image || (res.data.images && res.data.images[0]) || '';
+          setSelectedImage(firstImg);
+        }
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || err.message || 'Product not found.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [productId]);
+
+  const handleDelete = async () => {
+    if (!product) return;
+    if (!window.confirm(`Delete "${product.name}"? If it has paid orders, it will be safely archived instead.`)) {
+      return;
+    }
+    try {
+      const res = await adminApi.deleteProduct(product._id);
+      notify(res.message || 'Product deleted.');
+      window.setTimeout(() => go('/admin/products'), 500);
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to delete product.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-dashboard p-12 text-center text-xs text-[#8A847C]">
+        Loading product details from database…
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="admin-dashboard p-12 text-center">
+        <h2 className="text-base font-bold text-[#1B1816]">Item Not Found</h2>
+        <p className="text-xs text-[#8A847C] mt-1">{error || 'This item no longer exists in the catalog.'}</p>
+        <button
+          className="admin-action-button is-primary mt-4 inline-flex"
+          type="button"
+          onClick={() => go('/admin/products')}
+        >
+          Back to Products
+        </button>
+      </div>
+    );
+  }
+
+  const metrics = product.metrics || { unitsSold: 0, totalRevenue: 0, ordersCount: 0 };
+  const variants = product.variants || [];
+  const images = (product.images && product.images.length > 0 ? product.images : [product.image]).filter(Boolean);
 
   return (
     <div className="admin-dashboard product-detail-page">
-      <header className="pd-page-header">
-        <div className="pd-title-block">
-          <button className="pd-breadcrumb" type="button" onClick={() => go('/admin/products')}><AdminIcon name="left" size={14} /> Products</button>
-          <div className="pd-title-row"><h1>Cashmere Overcoat</h1><span className="products-status-pill active"><i /> ACTIVE</span></div>
-          <p>Outerwear · Updated 2 days ago</p>
+      {/* Header */}
+      <section className="admin-page-heading pd-page-heading">
+        <div className="pd-heading-text">
+          <div className="pd-breadcrumb">
+            <button type="button" onClick={() => go('/admin/products')}>
+              Products
+            </button>
+            <span>/</span>
+            <span>{product.name}</span>
+          </div>
+          <div className="pd-title-row">
+            <h1 className="admin-page-title">{product.name}</h1>
+            <span className={`products-status-pill ${product.status.toLowerCase()}`}>
+              <i />
+              {product.status.charAt(0).toUpperCase() + product.status.slice(1)}
+            </span>
+          </div>
+          <p className="pd-meta-line">
+            Category: <strong>{product.category?.name || 'Uncategorized'}</strong> · Brand: <strong>{product.brand}</strong> · Base Price: <strong>{formatCurrency(product.price)}</strong>
+          </p>
         </div>
-        <div className="pd-header-actions">
-          <div className="pd-menu-anchor"><button className="admin-action-button pd-overflow-button" type="button" aria-label="More product actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><AdminIcon name="more" size={17} /></button>{menuOpen && <div className="pd-overflow-menu"><button type="button" onClick={() => { setMenuOpen(false); notify('Product link copied.'); }}>Copy product link</button><button type="button" onClick={() => { setMenuOpen(false); notify('Product duplicated as a draft.'); }}>Duplicate product</button><button type="button" onClick={() => { setMenuOpen(false); notify('Product archived from the storefront.'); }}>Archive product</button></div>}</div>
-          <button className="admin-action-button" type="button" onClick={() => notify('Storefront preview opened.')}>View in store <span aria-hidden="true">↗</span></button>
-          <button className="admin-action-button is-primary" type="button" onClick={() => go('/admin/products/cashmere-overcoat/edit')}><span aria-hidden="true">✎</span> Edit product</button>
-        </div>
-      </header>
 
-      <DetailCard className="pd-performance-card">
-        <div className="pd-performance-heading"><h2>LAST 30 DAYS PERFORMANCE</h2><span>Sep 25 – Oct 24, 2026</span></div>
-        <div className="pd-performance-stats">
-          <div><span>Units sold <b className="pd-positive">+14%</b></span><strong>312</strong></div>
-          <div><span>Revenue <b className="pd-positive">+9%</b></span><strong>$452,400</strong></div>
-          <div><span>Conversion <b className="pd-negative">−0.4%</b></span><strong>3.8%</strong></div>
-          <div><span>In stock <b className="pd-variant-count">6 variants</b></span><strong>84</strong></div>
+        <div className="admin-page-actions pd-page-actions">
+          <button
+            className="admin-action-button"
+            type="button"
+            onClick={() => window.open(`/product/${product.slug || product._id}`, '_blank')}
+          >
+            <AdminIcon name="sliders" size={15} /> Storefront
+          </button>
+          <button
+            className="admin-action-button"
+            type="button"
+            onClick={handleDelete}
+          >
+            <AdminIcon name="close" size={14} /> Delete
+          </button>
+          <button
+            className="admin-action-button is-primary"
+            type="button"
+            onClick={() => go(`/admin/products/${product._id}/edit`)}
+          >
+            <AdminIcon name="pencil" size={14} /> Edit Product
+          </button>
         </div>
-      </DetailCard>
+      </section>
 
-      <div className="pd-content-columns">
-        <div className="pd-main-column">
-          <DetailCard className="pd-media-card">
-            <CardHeading title="Media (5 assets)" action={<button className="admin-text-link" type="button" onClick={() => notify('Media upload selected.')}>↑ Upload new</button>} />
-            <div className="pd-media-gallery">
-              <div className="pd-primary-media"><img src={media[activeMedia]} alt="Cashmere overcoat from the product catalog" /><span>PRIMARY VIEW</span></div>
-              <div className="pd-media-thumbnails" aria-label="Product media">
-                {media.slice(1).map((image, index) => <button type="button" key={image} className={activeMedia === index + 1 ? 'is-active' : ''} onClick={() => setActiveMedia(index + 1)} aria-label={`Show product image ${index + 2}`}><img src={image} alt="" />{index === 3 && <span>+2</span>}</button>)}
+      {/* KPI Cards */}
+      <section className="admin-stat-grid pd-stat-grid" aria-label="Product performance">
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Total Units Sold (Paid)</span>
+          </div>
+          <div className="admin-stat-value">{metrics.unitsSold}</div>
+          <span className="text-[11px] text-[#8A847C] font-medium">Across all completed orders</span>
+        </article>
+
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Total Revenue</span>
+          </div>
+          <div className="admin-stat-value">{formatCurrency(metrics.totalRevenue)}</div>
+          <span className="text-[11px] text-[#8A847C] font-medium">Paid orders volume</span>
+        </article>
+
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Available Inventory</span>
+          </div>
+          <div className="admin-stat-value">{product.countInStock}</div>
+          <span className="text-[11px] text-[#8A847C] font-medium">
+            {variants.length} active SKU variant{variants.length === 1 ? '' : 's'}
+          </span>
+        </article>
+
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Orders Count</span>
+          </div>
+          <div className="admin-stat-value">{metrics.ordersCount}</div>
+          <span className="text-[11px] text-[#8A847C] font-medium">Purchased in {metrics.ordersCount} order(s)</span>
+        </article>
+      </section>
+
+      {/* Product Content Grid */}
+      <div className="pd-grid">
+        {/* Left Column: Visuals & Variants */}
+        <div className="pd-main-column space-y-6">
+          {/* Gallery & Description */}
+          <DetailCard>
+            <CardHeading title="Product Overview" subtitle="Description & High-resolution Imagery" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+              <div>
+                <div className="aspect-[4/3] rounded-lg overflow-hidden border border-[#DDD6CC] bg-[#F7F5F0]">
+                  {selectedImage ? (
+                    <img src={selectedImage} alt={product.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-xs text-[#8A847C]">No image</div>
+                  )}
+                </div>
+                {images.length > 1 && (
+                  <div className="flex gap-2 mt-3 overflow-x-auto pb-1">
+                    {images.map((src, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setSelectedImage(src)}
+                        className={`w-14 h-14 rounded-md overflow-hidden border flex-shrink-0 ${selectedImage === src ? 'border-[#1B1816] ring-1 ring-[#1B1816]' : 'border-[#DDD6CC]'}`}
+                      >
+                        <img src={src} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <h3 className="text-xs font-bold text-[#1B1816] uppercase tracking-wider mb-2">Description</h3>
+                <p className="text-xs text-[#524C46] leading-relaxed whitespace-pre-wrap">{product.description}</p>
+                <div className="mt-6 border-t border-[#ECE7E0] pt-4 space-y-2 text-xs">
+                  <div className="flex justify-between py-1 border-b border-[#F5F2ED]">
+                    <span className="text-[#8A847C]">Slug</span>
+                    <span className="font-mono font-medium text-[#1B1816]">{product.slug}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#F5F2ED]">
+                    <span className="text-[#8A847C]">Base Price</span>
+                    <span className="font-bold text-[#1B1816]">{formatCurrency(product.price)}</span>
+                  </div>
+                  <div className="flex justify-between py-1 border-b border-[#F5F2ED]">
+                    <span className="text-[#8A847C]">Gender</span>
+                    <span className="capitalize font-medium text-[#1B1816]">{product.gender || 'Unisex'}</span>
+                  </div>
+                  <div className="flex justify-between py-1">
+                    <span className="text-[#8A847C]">Created Date</span>
+                    <span className="font-medium text-[#1B1816]">{new Date(product.createdAt).toLocaleDateString()}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </DetailCard>
 
-          <DetailCard className="pd-sales-card">
-            <CardHeading title="Sales Velocity" subtitle="Aggregate gross volume across retail channels" action={<div className="admin-segmented-control" role="group" aria-label="Sales chart range">{['7D', '30D', '90D'].map((option) => <button type="button" key={option} className={range === option ? 'is-active' : ''} aria-pressed={range === option} onClick={() => setRange(option)}>{option}</button>)}</div>} />
-            <SalesChart range={range} />
-          </DetailCard>
-
-          <DetailCard className="pd-variants-card">
-            <CardHeading title="Variants & Stock" subtitle="84 total pieces in stock across 6 SKUs" action={<span className="pd-sync-pill"><i /> Syncing inventory</span>} />
-            <div className="pd-table-scroll"><table className="pd-variants-table"><thead><tr><th>VARIANT</th><th>PRICE</th><th>INVENTORY LEVEL</th><th>STATUS</th></tr></thead><tbody>{variants.map((variant) => <tr key={variant.sku} className={variant.highlighted ? 'is-highlighted' : ''}><td><div className="pd-variant-name"><i style={{ background: variant.shade }} /><div><strong>{variant.color} / {variant.size}</strong><span>{variant.sku}</span></div></div></td><td>$1,450.00</td><td><div className="pd-stock-level"><span>{variant.stock} in stock</span><div><i style={{ width: `${Math.max(12, variant.stock / 22 * 100)}%` }} /></div><small>{variant.stock < 5 ? 'Low stock' : 'Healthy'}</small></div></td><td><span className="products-status-pill active"><i /> Active</span></td></tr>)}</tbody></table></div>
-          </DetailCard>
-
-          <DetailCard className="pd-orders-card">
-            <CardHeading title="Recent Orders" subtitle="Purchases containing this garment in the last 7 days" action={<button className="admin-text-link" type="button" onClick={() => notify('All product orders selected.')}>View all orders <span>→</span></button>} />
-            <div className="pd-table-scroll"><table className="pd-orders-table"><colgroup><col /><col /><col /><col /></colgroup><thead><tr><th>ORDER</th><th>CUSTOMER</th><th>STATUS</th><th>TOTAL</th></tr></thead><tbody>{orders.map((order) => <tr key={order.id}><td><div className="pd-order-copy"><strong>#{order.id}</strong><span>{order.date}</span></div></td><td><div className="pd-order-copy"><strong>{order.customer}</strong><span>{order.email}</span></div></td><td><span className={`admin-status-pill ${order.status.toLowerCase()}`}>{order.status}</span></td><td>{order.total}</td></tr>)}</tbody></table></div>
-          </DetailCard>
-
-          <DetailCard className="pd-feedback-card">
-            <CardHeading title="Customer Feedback" subtitle="Verified purchaser sentiment and sizing notes" action={<button className="admin-text-link" type="button" onClick={() => notify('All product reviews selected.')}>View all reviews <span>→</span></button>} />
-            <div className="pd-feedback-summary"><div className="pd-rating-total"><strong>4.8</strong><Stars count={4.5} /><span>126 verified reviews</span></div><div className="pd-rating-breakdown">{ratings.map(({ stars, count }) => <div key={stars}><span>{stars}★</span><div><i style={{ width: `${count / 88 * 100}%` }} /></div><b>{count}</b></div>)}</div></div>
-            <article className="pd-review-entry"><div className="pd-review-meta"><span className="pd-review-avatar">ER</span><div><strong>Elena Rostova</strong><span>Verified Buyer · Oct 14, 2026</span></div><Stars /></div><blockquote>“Exceptional weight and drape. The fabric has an understated sheen that speaks to the cashmere quality, and the tailored shoulders fit impeccably over a suit or fine knit.”</blockquote></article>
+          {/* Variants Table */}
+          <DetailCard>
+            <CardHeading
+              title="Variants & Real Stock"
+              subtitle="Stock levels, reservations, and stock health status"
+              action={
+                <button
+                  type="button"
+                  className="admin-action-button text-xs py-1"
+                  onClick={() => go('/admin/inventory')}
+                >
+                  Adjust in Inventory →
+                </button>
+              }
+            />
+            <div className="overflow-x-auto mt-4">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[#ECE7E0] text-[11px] uppercase tracking-wider text-[#766247]">
+                    <th className="py-2.5 px-3">SKU</th>
+                    <th className="py-2.5 px-3">Size</th>
+                    <th className="py-2.5 px-3">Color</th>
+                    <th className="py-2.5 px-3">On Hand</th>
+                    <th className="py-2.5 px-3">Reserved</th>
+                    <th className="py-2.5 px-3">Available</th>
+                    <th className="py-2.5 px-3">Status</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#F0ECE6]">
+                  {variants.map((v) => {
+                    const colorName = typeof v.color === 'object' ? v.color?.name : v.color || 'Default';
+                    const colorHex = typeof v.color === 'object' ? v.color?.hex : '#000000';
+                    const available = v.available != null ? v.available : Math.max(0, (v.stock || 0) - (v.reserved || 0));
+                    return (
+                      <tr key={v._id || v.sku} className="hover:bg-[#FAF8F5]">
+                        <td className="py-2.5 px-3 font-mono font-semibold text-[#1B1816]">{v.sku}</td>
+                        <td className="py-2.5 px-3 font-semibold">{v.size}</td>
+                        <td className="py-2.5 px-3">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-3 h-3 rounded-full border border-black/10 inline-block" style={{ backgroundColor: colorHex }} />
+                            {colorName}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3 font-medium text-[#1B1816]">{v.stock}</td>
+                        <td className="py-2.5 px-3 text-[#766247]">{v.reserved || 0}</td>
+                        <td className="py-2.5 px-3 font-bold text-[#1B1816]">{available}</td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                              available === 0
+                                ? 'bg-[#F9EEEB] text-[#B04F3D]'
+                                : v.stockStatus === 'critical' || v.stockStatus === 'low stock'
+                                ? 'bg-[#FDF6E2] text-[#8C6D23]'
+                                : 'bg-[#EBF5EE] text-[#2C6B4F]'
+                            }`}
+                          >
+                            {v.stockStatus ? v.stockStatus.toUpperCase() : available === 0 ? 'OUT OF STOCK' : 'IN STOCK'}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </DetailCard>
         </div>
 
-        <aside className="pd-side-column">
-          <DetailCard className="pd-storefront-card"><div className="pd-storefront-heading"><h2>STOREFRONT STATUS</h2><span className="products-status-pill active"><i /> Active</span></div><p>Visible in your store and indexed across all international catalogs.</p><div className="pd-storefront-links"><button type="button" onClick={() => notify('Storefront preview opened.')}>View in store ↗</button><button type="button" onClick={() => notify('Product archived from the storefront.')}>Archive</button></div></DetailCard>
-
-          <DetailCard className="pd-pricing-card"><h2>Pricing</h2><div className="pd-price-rows"><div><span>Retail price</span><strong>$1,450.00</strong></div><div><span>Compare-at price</span><strong className="pd-compare-price">$1,650.00</strong></div><div><span>Cost per item</span><strong>$620.00</strong></div></div><div className="pd-margin-row"><div><strong>Profit Margin</strong><span>Net per unit</span></div><div><b>57%</b><span>$830.00 profit</span></div></div></DetailCard>
-
-          <DetailCard className="pd-organization-card"><h2>Organization</h2><div className="pd-organization-field"><span>CATEGORY</span><strong>Outerwear</strong></div><div className="pd-organization-field"><span>COLLECTIONS</span><div className="pd-tags"><span>Autumn Winter</span><span>Best Sellers</span></div></div><div className="pd-organization-field"><span>TAGS</span><div className="pd-tags muted"><span>cashmere</span><span>coat</span><span>tailored</span></div></div></DetailCard>
-
-          <DetailCard className="pd-description-card"><h2>Description</h2><p>Double-faced cashmere overcoat with a notch lapel and concealed button closure. Fully lined with cupro silk and crafted from {descriptionOpen ? 'responsibly sourced Mongolian cashmere, finished with hand-stitched edges and a softly structured shoulder for enduring warmth and a refined silhouette.' : '…'}</p><button className="admin-text-link" type="button" aria-expanded={descriptionOpen} onClick={() => setDescriptionOpen((open) => !open)}>{descriptionOpen ? 'Show less ⌃' : 'Show more ⌄'}</button></DetailCard>
-
-          <DetailCard className="pd-specs-card"><button className="pd-accordion-trigger" type="button" aria-expanded={specsOpen} onClick={() => setSpecsOpen((open) => !open)}><h2>Garment Specifications</h2><AdminIcon name="chevron" size={15} /></button>{specsOpen && <dl className="pd-spec-list"><div><dt>Fabric composition</dt><dd>100% Grade-A Mongolian cashmere</dd></div><div><dt>Care instructions</dt><dd>Professional dry clean only</dd></div><div><dt>Fit notes</dt><dd>Relaxed tailored fit · true to size</dd></div><div><dt>Country of origin</dt><dd>Made in Italy</dd></div><div><dt>Weight</dt><dd>1.25 kg</dd></div></dl>}</DetailCard>
-        </aside>
+        {/* Right Column: Recent Orders for this Product */}
+        <div className="pd-side-column space-y-6">
+          <DetailCard>
+            <CardHeading title="Recent Orders" subtitle="Latest orders containing this product" />
+            <div className="mt-4 space-y-3">
+              {(product.recentOrders || []).length === 0 ? (
+                <p className="text-xs text-[#8A847C] py-6 text-center">No orders placed for this product yet.</p>
+              ) : (
+                (product.recentOrders || []).map((order) => (
+                  <div
+                    key={order._id}
+                    onClick={() => go(`/admin/orders/${order._id}`)}
+                    className="p-3 rounded-lg border border-[#EDE8E1] hover:border-[#DDD6CC] bg-[#FAF8F5] hover:bg-white cursor-pointer transition"
+                  >
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-mono font-bold text-[#1B1816]">
+                        #{order.orderNumber || order._id.slice(-6)}
+                      </span>
+                      <span className="text-[10px] text-[#8A847C]">
+                        {formatRelativeTime(order.createdAt)}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between mt-1 text-xs">
+                      <span className="text-[#6F6962] truncate max-w-[160px]">
+                        {order.customerEmail || 'Customer'}
+                      </span>
+                      <span className="font-bold text-[#1B1816]">
+                        {formatCurrency(order.totalPrice)}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex items-center justify-between">
+                      <span className={`products-status-pill text-[10px] ${order.status.toLowerCase()}`}>
+                        <i />
+                        {order.status}
+                      </span>
+                      {order.isPaid && (
+                        <span className="text-[10px] font-bold text-[#2C6B4F]">✓ Paid</span>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </DetailCard>
+        </div>
       </div>
+
       {notice && <div className="admin-toast" role="status">{notice}</div>}
     </div>
   );

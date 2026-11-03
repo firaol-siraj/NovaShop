@@ -1,431 +1,319 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { productApi } from "../../lib/api/productApi";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import adminApi from "../../lib/api/adminApi";
 import { AdminIcon } from "../../components/admin/AdminLayout";
+import AdminRowActionMenu from "../../components/admin/AdminRowActionMenu";
+import { formatCurrency, formatRelativeTime } from "../../lib/formatters";
 
-const toAdminProduct = (product) => {
-  const variants = Array.isArray(product.variants) ? product.variants : [];
-  const categoryName = product.category?.name || "Uncategorized";
-  const colors = [
-    ...new Set(variants.map((variant) => variant.color?.hex).filter(Boolean)),
-  ];
-  const status = String(product.status || "draft");
-  return {
-    id: String(product._id),
-    slug: product.slug,
-    name: product.name,
-    sku: variants[0]?.sku || product.slug || "—",
-    category: categoryName,
-    collection: categoryName,
-    price: Number(product.price) || 0,
-    stock: Number(product.countInStock) || 0,
-    variants: variants.length,
-    colors: colors.length ? colors : ["#B8AA98"],
-    status: status.charAt(0).toUpperCase() + status.slice(1),
-    image: product.image || (product.images && product.images[0]) || "",
-  };
-};
-
-const formatPrice = (price) =>
-  `$${Number(price).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-function ProductStatus({ status }) {
+function ProductStatusPill({ status }) {
+  const norm = String(status || "draft").toLowerCase();
   return (
-    <span className={`products-status-pill ${status.toLowerCase()}`}>
+    <span className={`products-status-pill ${norm}`}>
       <i />
-      {status}
+      {norm.charAt(0).toUpperCase() + norm.slice(1)}
     </span>
   );
 }
 
-function InventoryState({ stock }) {
-  if (stock === 0)
+function InventoryState({ stock, threshold = 5 }) {
+  const qty = Number(stock || 0);
+  if (qty === 0) {
     return (
       <span className="products-inventory-state out">
         <i />
         Out of stock
       </span>
     );
-  if (stock <= 15)
+  }
+  if (qty <= threshold) {
     return (
       <span className="products-inventory-state low">
         <i />
-        {stock} left
+        {qty} left
       </span>
     );
+  }
   return (
     <span className="products-inventory-state in">
       <i />
-      {stock} in stock
+      {qty} in stock
     </span>
   );
 }
 
-function ProductModal({ product, onClose, onSave }) {
-  const [name, setName] = useState(product?.name || "");
-  const [sku, setSku] = useState(product?.sku || "");
-  const [price, setPrice] = useState(product?.price || "");
-  const [stock, setStock] = useState(product?.stock ?? "");
-  const [category, setCategory] = useState(product?.category || "Outerwear");
-
-  const submit = (event) => {
-    event.preventDefault();
-    onSave({
-      ...product,
-      name: name.trim(),
-      sku: sku.trim(),
-      price: Number(price),
-      stock: Number(stock),
-      category,
-    });
-  };
-
-  return (
-    <div
-      className="admin-modal-backdrop"
-      role="presentation"
-      onMouseDown={(event) => event.target === event.currentTarget && onClose()}
-    >
-      <section
-        className="admin-order-modal products-edit-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="products-modal-title"
-      >
-        <div className="admin-modal-heading">
-          <div>
-            <span className="admin-modal-eyebrow">Catalog</span>
-            <h2 id="products-modal-title">
-              {product ? "Edit product" : "Add product"}
-            </h2>
-          </div>
-          <button
-            className="admin-icon-button"
-            type="button"
-            onClick={onClose}
-            aria-label="Close product editor"
-          >
-            <AdminIcon name="close" />
-          </button>
-        </div>
-        <form onSubmit={submit}>
-          <label>
-            Product name
-            <input
-              required
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder="Product name"
-            />
-          </label>
-          <label>
-            SKU
-            <input
-              required
-              value={sku}
-              onChange={(event) => setSku(event.target.value)}
-              placeholder="NS-XX-0000"
-            />
-          </label>
-          <div className="products-form-grid">
-            <label>
-              Price
-              <input
-                required
-                type="number"
-                min="0"
-                step="0.01"
-                value={price}
-                onChange={(event) => setPrice(event.target.value)}
-              />
-            </label>
-            <label>
-              Inventory
-              <input
-                required
-                type="number"
-                min="0"
-                value={stock}
-                onChange={(event) => setStock(event.target.value)}
-              />
-            </label>
-          </div>
-          <label>
-            Category
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-            >
-              {[
-                "Outerwear",
-                "Dresses",
-                "Accessories",
-                "Knitwear",
-                "Tailoring",
-                "Footwear",
-              ].map((option) => (
-                <option key={option}>{option}</option>
-              ))}
-            </select>
-          </label>
-          <button className="admin-action-button is-primary" type="submit">
-            <AdminIcon name="check" size={14} /> Save Product
-          </button>
-        </form>
-      </section>
-    </div>
-  );
-}
-
-export default function AdminProductsPage({ go }) {
+export default function AdminProductsPage({ go, search: searchProp }) {
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ total: 0, page: 1, limit: 10, totalPages: 1 });
+  const [stats, setStats] = useState({
+    totalProducts: 0,
+    activeProducts: 0,
+    lowStockProducts: 0,
+    outOfStockProducts: 0,
+    globalThreshold: 5,
+  });
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+
+  // Filters & Search
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState("All categories");
-  const [collection, setCollection] = useState("All collections");
-  const [status, setStatus] = useState("All statuses");
-  const [stockFilter, setStockFilter] = useState("All");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [category, setCategory] = useState(() => {
+    try {
+      const sp = new URLSearchParams(searchProp || window.location.search);
+      return sp.get("category") || sp.get("categoryId") || "All categories";
+    } catch {
+      return "All categories";
+    }
+  });
+  const [productFilter, setProductFilter] = useState(() => {
+    try {
+      const sp = new URLSearchParams(searchProp || window.location.search);
+      return sp.get("product") || sp.get("productId") || "";
+    } catch {
+      return "";
+    }
+  });
+  const [menuTarget, setMenuTarget] = useState(null);
+  const [status, setStatus] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [categoriesList, setCategoriesList] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  // Sync category and product filters when URL search params change
+  useEffect(() => {
+    try {
+      const sp = new URLSearchParams(searchProp || window.location.search);
+      const catParam = sp.get("category") || sp.get("categoryId") || "All categories";
+      if (catParam !== category) {
+        setCategory(catParam);
+        setPage(1);
+      }
+      const prodParam = sp.get("product") || sp.get("productId") || "";
+      if (prodParam !== productFilter) {
+        setProductFilter(prodParam);
+        setPage(1);
+      }
+    } catch {}
+  }, [searchProp]);
+
+  // Selection & Actions
   const [selectedIds, setSelectedIds] = useState([]);
   const [openMenu, setOpenMenu] = useState(null);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [toast, setToast] = useState("");
-  const [pageSize, setPageSize] = useState("10");
-  const [collectionMenu, setCollectionMenu] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const notify = (message) => {
     setToast(message);
-    window.setTimeout(() => setToast(""), 2300);
+    window.setTimeout(() => setToast(""), 2800);
   };
 
+  // Debounce search
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [search]);
+
+  // Load categories dropdown
+  useEffect(() => {
+    adminApi
+      .getCategories()
+      .then((res) => {
+        const list = Array.isArray(res.data) ? res.data : Array.isArray(res) ? res : [];
+        setCategoriesList(list);
+        if (category && category !== "All categories") {
+          const match = list.find(
+            (c) => c._id === category || c.slug === category || (c.name && c.name.toLowerCase() === category.toLowerCase())
+          );
+          if (match && match._id !== category) {
+            setCategory(match._id);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const activeCategoryName = useMemo(() => {
+    if (!category || category === "All categories") return null;
+    const match = categoriesList.find((c) => c._id === category || c.slug === category);
+    return match ? match.name : category;
+  }, [category, categoriesList]);
+
+  const activeProductName = useMemo(() => {
+    if (!productFilter) return null;
+    const match = products.find((p) => p._id === productFilter);
+    return match ? match.name : productFilter;
+  }, [productFilter, products]);
+
+  // Fetch products from backend
   const loadProducts = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
     try {
-      const response = await productApi.getAdminProducts({ pageSize: 200 });
-      setProducts(
-        (Array.isArray(response?.data) ? response.data : []).map(
-          toAdminProduct,
-        ),
-      );
-      setLoadError("");
-    } catch (requestError) {
-      setLoadError(requestError.message || "Unable to load products.");
+      const params = {
+        page,
+        limit: pageSize,
+        search: debouncedSearch.trim() || undefined,
+        category: category !== "All categories" ? category : undefined,
+        product: productFilter || undefined,
+        status: status !== "all" ? status : undefined,
+        stockState: stockFilter !== "all" ? stockFilter : undefined,
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      };
+
+      const res = await adminApi.getProducts(params);
+      if (res.data) {
+        setProducts(res.data);
+        if (res.pagination) setPagination(res.pagination);
+        if (res.stats) setStats(res.stats);
+      }
+    } catch (err) {
+      setLoadError(err.response?.data?.message || err.message || "Unable to load products.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page, pageSize, debouncedSearch, category, productFilter, status, stockFilter]);
 
   useEffect(() => {
-    let cancelled = false;
-    productApi
-      .getAdminProducts({ pageSize: 200 })
-      .then((response) => {
-        if (cancelled) return;
-        setProducts(
-          (Array.isArray(response?.data) ? response.data : []).map(
-            toAdminProduct,
-          ),
-        );
-        setLoadError("");
-      })
-      .catch((requestError) => {
-        if (!cancelled)
-          setLoadError(requestError.message || "Unable to load products.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+    loadProducts();
+  }, [loadProducts]);
 
-  const categoryOptions = useMemo(
-    () => [...new Set(products.map((product) => product.category))],
-    [products],
-  );
-
-  const filteredProducts = useMemo(
-    () =>
-      products.filter((product) => {
-        const query = search.trim().toLowerCase();
-        const matchesSearch =
-          !query ||
-          `${product.name} ${product.sku}`.toLowerCase().includes(query);
-        const matchesCategory =
-          category === "All categories" || product.category === category;
-        const matchesCollection =
-          collection === "All collections" || product.collection === collection;
-        const matchesStatus =
-          status === "All statuses" || product.status === status;
-        const matchesStock =
-          stockFilter === "All" ||
-          (stockFilter === "In stock" && product.stock > 15) ||
-          (stockFilter === "Low stock" &&
-            product.stock > 0 &&
-            product.stock <= 15) ||
-          (stockFilter === "Out of stock" && product.stock === 0);
-        return (
-          matchesSearch &&
-          matchesCategory &&
-          matchesCollection &&
-          matchesStatus &&
-          matchesStock
-        );
-      }),
-    [category, collection, products, search, status, stockFilter],
-  );
-
+  // Bulk Selection
   const allVisibleSelected =
-    filteredProducts.length > 0 &&
-    filteredProducts.every((product) => selectedIds.includes(product.id));
-  const toggleProduct = (id) =>
+    products.length > 0 && products.every((product) => selectedIds.includes(product._id));
+
+  const toggleProduct = (id) => {
     setSelectedIds((current) =>
-      current.includes(id)
-        ? current.filter((selectedId) => selectedId !== id)
-        : [...current, id],
+      current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
     );
-  const toggleVisible = () =>
+  };
+
+  const toggleVisible = () => {
     setSelectedIds((current) =>
       allVisibleSelected
-        ? current.filter(
-            (id) => !filteredProducts.some((product) => product.id === id),
-          )
-        : [
-            ...new Set([
-              ...current,
-              ...filteredProducts.map((product) => product.id),
-            ]),
-          ],
+        ? current.filter((id) => !products.some((product) => product._id === id))
+        : [...new Set([...current, ...products.map((product) => product._id)])]
     );
-  const updateSelected = async (updates) => {
-    const payload = {};
-    if (updates.status) payload.status = updates.status.toLowerCase();
-    if (!Object.keys(payload).length) {
-      notify("That bulk change is not supported yet.");
-      return;
-    }
-    try {
-      await Promise.all(
-        selectedIds.map((id) => productApi.updateProduct(id, payload)),
-      );
-      notify("Selected products updated.");
-    } catch (requestError) {
-      notify(requestError.message || "Unable to update products.");
-    }
-    await loadProducts();
-  };
-  const deleteProducts = async (ids) => {
-    if (
-      !window.confirm(
-        `Delete ${ids.length} product${ids.length === 1 ? "" : "s"}? This cannot be undone.`,
-      )
-    )
-      return;
-    let failure = "";
-    for (const id of ids) {
-      try {
-        await productApi.deleteProduct(id);
-      } catch (requestError) {
-        failure = requestError.message || "Unable to delete product.";
-      }
-    }
-    setSelectedIds((current) => current.filter((id) => !ids.includes(id)));
-    notify(failure || "Product removed from the catalog.");
-    await loadProducts();
   };
 
-  const saveProduct = async (productData) => {
-    if (!productData.id) return;
+  // Bulk Status Update
+  const handleBulkStatus = async (newStatus) => {
+    if (!selectedIds.length) return;
+    setActionLoading(true);
     try {
-      await productApi.updateProduct(productData.id, {
-        name: productData.name,
-        price: productData.price,
-        countInStock: productData.stock,
-      });
-      setEditingProduct(null);
-      notify("Product changes saved.");
+      await adminApi.bulkUpdateProductStatus(selectedIds, newStatus);
+      notify(`Updated ${selectedIds.length} product(s) to ${newStatus}.`);
+      setSelectedIds([]);
       await loadProducts();
-    } catch (requestError) {
-      notify(requestError.message || "Unable to save product.");
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || "Failed to update products.");
+    } finally {
+      setActionLoading(false);
     }
   };
 
-  const exportProducts = () => {
-    const rows = [
-      [
-        "Product",
-        "SKU",
-        "Category",
-        "Collection",
-        "Price",
-        "Inventory",
-        "Status",
-      ],
-      ...filteredProducts.map((product) => [
-        product.name,
-        product.sku,
-        product.category,
-        product.collection,
-        formatPrice(product.price),
-        product.stock,
-        product.status,
-      ]),
-    ];
-    const csv = rows
-      .map((row) =>
-        row
-          .map((value) => `"${String(value).replaceAll('"', '""')}"`)
-          .join(","),
-      )
-      .join("\n");
-    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-    const anchor = document.createElement("a");
-    anchor.href = url;
-    anchor.download = "novashop-product-catalog.csv";
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
-
+  // Row actions
   const handleMenuAction = async (action, product) => {
     setOpenMenu(null);
-    if (action === "Edit product") setEditingProduct(product);
-    else if (action === "Duplicate")
-      notify("Duplicating products is not supported yet.");
-    else if (action === "Archive") {
+
+    if (action === "Edit product") {
+      go(`/admin/products/${product._id}/edit`);
+    } else if (action === "View product") {
+      go(`/admin/products/${product._id}`);
+    } else if (action === "Duplicate") {
+      setActionLoading(true);
       try {
-        await productApi.updateProduct(product.id, { status: "archived" });
-        notify("Product archived.");
-      } catch (requestError) {
-        notify(requestError.message || "Unable to archive product.");
+        const res = await adminApi.duplicateProduct(product._id);
+        notify(`Duplicated as "${res.data?.name || "Product (Copy)"}".`);
+        await loadProducts();
+      } catch (err) {
+        notify(err.response?.data?.message || err.message || "Failed to duplicate product.");
+      } finally {
+        setActionLoading(false);
       }
-      await loadProducts();
-    } else if (action === "Delete") await deleteProducts([product.id]);
-    else go(`/product/${product.id}`);
+    } else if (action === "Archive" || action === "Restore") {
+      const nextStatus = action === "Archive" ? "archived" : "active";
+      try {
+        await adminApi.updateProductStatus(product._id, nextStatus);
+        notify(`Product ${action === "Archive" ? "archived" : "restored"}.`);
+        await loadProducts();
+      } catch (err) {
+        notify(err.response?.data?.message || err.message || "Failed to update product status.");
+      }
+    } else if (action === "Delete") {
+      if (!window.confirm(`Delete "${product.name}"? If it has order history, it will be safely archived instead.`)) {
+        return;
+      }
+      try {
+        const res = await adminApi.deleteProduct(product._id);
+        notify(res.message || "Product removed.");
+        setSelectedIds((curr) => curr.filter((id) => id !== product._id));
+        await loadProducts();
+      } catch (err) {
+        notify(err.response?.data?.message || err.message || "Failed to delete product.");
+      }
+    } else if (action === "View in store") {
+      window.open(`/product/${product.slug || product._id}`, "_blank");
+    }
+  };
+
+  // Export CSV
+  const exportProducts = () => {
+    const rows = [
+      ["Product Name", "SKU", "Category", "Base Price", "On Hand Stock", "Units Sold", "Status", "Created At"],
+      ...products.map((p) => {
+        const variants = p.variants || [];
+        const sku = variants[0]?.sku || p.slug || "—";
+        const cat = p.category?.name || "Uncategorized";
+        return [
+          p.name,
+          sku,
+          cat,
+          p.price,
+          p.countInStock,
+          p.unitsSold || 0,
+          p.status,
+          new Date(p.createdAt).toISOString().split("T")[0],
+        ];
+      }),
+    ];
+
+    const csv = rows
+      .map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(","))
+      .join("\n");
+
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = "novashop-products.csv";
+    anchor.click();
+    URL.revokeObjectURL(url);
+    notify("Products exported.");
   };
 
   const clearFilters = () => {
     setSearch("");
     setCategory("All categories");
-    setCollection("All collections");
-    setStatus("All statuses");
-    setStockFilter("All");
+    setStatus("all");
+    setStockFilter("all");
+    setPage(1);
   };
 
   return (
     <div className="admin-dashboard products-page">
+      {/* Page Heading */}
       <section className="admin-page-heading products-page-heading">
         <div>
           <h1 className="admin-page-title">Products</h1>
           <p className="admin-page-description">
-            Manage your catalog, pricing, and inventory.
+            Authoritative catalog, variant matrices, and live inventory.
           </p>
         </div>
         <div className="admin-page-actions">
-          <button
-            className="admin-action-button"
-            type="button"
-            onClick={exportProducts}
-          >
+          <button className="admin-action-button" type="button" onClick={exportProducts}>
             <AdminIcon name="download" size={15} /> Export
           </button>
           <button
@@ -438,138 +326,200 @@ export default function AdminProductsPage({ go }) {
         </div>
       </section>
 
-      <section
-        className="admin-stat-grid products-stat-grid"
-        aria-label="Catalog summary"
-      >
+      {/* KPI Stats */}
+      <section className="admin-stat-grid products-stat-grid" aria-label="Catalog summary">
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Total products</span>
           </div>
-          <div className="admin-stat-value">{products.length}</div>
+          <div className="admin-stat-value">{stats.totalProducts}</div>
         </article>
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Active products</span>
           </div>
-          <div className="admin-stat-value">
-            {products.filter((product) => product.status === "Active").length}
-          </div>
+          <div className="admin-stat-value">{stats.activeProducts}</div>
         </article>
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Low stock</span>
           </div>
-          <div className="admin-stat-value">
-            {
-              products.filter(
-                (product) => product.stock > 0 && product.stock <= 15,
-              ).length
-            }
-          </div>
+          <div className="admin-stat-value">{stats.lowStockProducts}</div>
         </article>
         <article className="admin-stat-card">
           <div className="admin-stat-heading">
             <span className="admin-stat-label">Out of stock</span>
           </div>
-          <div className="admin-stat-value">
-            {products.filter((product) => product.stock === 0).length}
-          </div>
+          <div className="admin-stat-value">{stats.outOfStockProducts}</div>
         </article>
       </section>
 
-      {loading && (
-        <p className="products-empty-state" role="status">
-          Loading products…
-        </p>
-      )}
-      {loadError && (
-        <p className="products-empty-state" role="alert">
-          {loadError}{" "}
-          <button
-            type="button"
-            onClick={() => {
-              setLoading(true);
-              void loadProducts();
-            }}
-          >
-            Retry
-          </button>
-        </p>
-      )}
-
-      <section
-        className="products-catalog-toolbar"
-        aria-label="Catalog filters"
-      >
+      {/* Toolbar & Filters */}
+      <section className="products-catalog-toolbar" aria-label="Catalog filters">
         <div className="products-filter-row">
           <label className="products-search-field">
             <AdminIcon name="search" size={16} />
             <input
               type="search"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by product name or SKU"
-              aria-label="Search by product name or SKU"
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search by product name, brand, or SKU…"
+              aria-label="Search products"
             />
           </label>
           <select
             value={category}
-            onChange={(event) => setCategory(event.target.value)}
+            onChange={(e) => {
+              setCategory(e.target.value);
+              setPage(1);
+            }}
             aria-label="Filter by category"
           >
             <option>All categories</option>
-            {categoryOptions.map((option) => (
-              <option key={option}>{option}</option>
+            {categoriesList.map((cat) => (
+              <option key={cat._id} value={cat._id}>
+                {cat.name}
+              </option>
             ))}
           </select>
           <select
-            value={collection}
-            onChange={(event) => setCollection(event.target.value)}
-            aria-label="Filter by collection"
-          >
-            <option>All collections</option>
-            {[...new Set(products.map((product) => product.collection))].map(
-              (option) => (
-                <option key={option}>{option}</option>
-              ),
-            )}
-          </select>
-          <select
             value={status}
-            onChange={(event) => setStatus(event.target.value)}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
             aria-label="Filter by status"
           >
-            <option>All statuses</option>
-            <option>Active</option>
-            <option>Draft</option>
-            <option>Archived</option>
+            <option value="all">All statuses</option>
+            <option value="active">Active</option>
+            <option value="draft">Draft</option>
+            <option value="archived">Archived</option>
           </select>
         </div>
-        <div
-          className="products-quick-filters"
-          role="group"
-          aria-label="Inventory filters"
-        >
-          {["All", "In stock", "Low stock", "Out of stock"].map((filter) => (
+
+        {activeCategoryName && (
+          <div className="products-active-chips" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '99px',
+              fontSize: '11px',
+              fontWeight: 600,
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}>
+              <span>Category: <strong>{activeCategoryName}</strong></span>
+              <button
+                type="button"
+                style={{
+                  background: 'transparent',
+                  border: 0,
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  fontWeight: 'bold',
+                  padding: '0 2px',
+                  fontSize: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+                onClick={() => {
+                  setCategory("All categories");
+                  setPage(1);
+                  if (go) go("/admin/products");
+                }}
+                aria-label="Clear category filter"
+              >
+                ✕
+              </button>
+            </span>
+          </div>
+        )}
+
+        {productFilter && (
+          <div className="products-active-chips" style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '2px 0' }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '4px 10px',
+              borderRadius: '99px',
+              fontSize: '11px',
+              fontWeight: 600,
+              background: 'var(--bg-surface-raised)',
+              border: '1px solid var(--border-default)',
+              color: 'var(--text-primary)',
+            }}>
+              <span>Product: <strong>{activeProductName}</strong></span>
+              <button
+                type="button"
+                style={{
+                  background: 'transparent',
+                  border: 0,
+                  cursor: 'pointer',
+                  color: 'var(--text-muted)',
+                  fontWeight: 'bold',
+                  padding: '0 2px',
+                  fontSize: '12px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                }}
+                onClick={() => {
+                  setProductFilter("");
+                  setPage(1);
+                  if (go) go("/admin/products");
+                }}
+                aria-label="Clear product filter"
+              >
+                ✕
+              </button>
+            </span>
+          </div>
+        )}
+
+        <div className="products-quick-filters" role="group" aria-label="Inventory filters">
+          {[
+            { label: "All", value: "all" },
+            { label: "In stock", value: "in_stock" },
+            { label: "Low stock", value: "low_stock" },
+            { label: "Out of stock", value: "out_of_stock" },
+          ].map((item) => (
             <button
-              key={filter}
+              key={item.value}
               type="button"
-              className={`products-quick-filter${stockFilter === filter ? " is-active" : ""}`}
-              onClick={() => setStockFilter(filter)}
-              aria-pressed={stockFilter === filter}
+              className={`products-quick-filter${stockFilter === item.value ? " is-active" : ""}`}
+              onClick={() => {
+                setStockFilter(item.value);
+                setPage(1);
+              }}
+              aria-pressed={stockFilter === item.value}
             >
-              {filter !== "All" && (
+              {item.value !== "all" && (
                 <i
-                  className={`products-filter-dot ${filter === "Low stock" ? "low" : filter === "Out of stock" ? "out" : "in"}`}
+                  className={`products-filter-dot ${
+                    item.value === "low_stock" ? "low" : item.value === "out_of_stock" ? "out" : "in"
+                  }`}
                 />
               )}
-              {filter}
+              {item.label}
             </button>
           ))}
         </div>
       </section>
 
+      {/* Error / Loading State */}
+      {loadError && (
+        <div className="p-4 mb-4 text-xs font-semibold text-[var(--color-danger)] bg-[var(--color-danger-soft)] border border-[var(--border-default)] rounded-lg flex items-center justify-between">
+          <span>{loadError}</span>
+          <button type="button" className="underline font-bold" onClick={loadProducts}>
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* Products Table Card */}
       <section className="products-table-card" aria-label="Product catalog">
         <div className="products-table-scroll">
           <table className="products-table">
@@ -587,151 +537,180 @@ export default function AdminProductsPage({ go }) {
                 <th>PRICE</th>
                 <th>INVENTORY</th>
                 <th>VARIANTS</th>
+                <th>PAID SALES</th>
                 <th>STATUS</th>
-                <th aria-label="Actions" />
+                <th>ACTIONS</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product) => (
-                <tr key={product.id}>
-                  <td className="products-checkbox-cell">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(product.id)}
-                      onChange={() => toggleProduct(product.id)}
-                      aria-label={`Select ${product.name}`}
-                    />
-                  </td>
-                  <td className="products-product-cell">
-                    <div className="products-product-info">
-                      {product.image ? (
-                        <img src={product.image} alt="" />
-                      ) : (
-                        <span
-                          className="products-img-placeholder"
-                          aria-hidden="true"
-                        />
-                      )}
-                      <div>
-                        {product.id === "p1" ? (
-                          <button
-                            className="pd-product-open-link"
-                            type="button"
-                            onClick={() =>
-                              go("/admin/products/cashmere-overcoat")
-                            }
-                          >
-                            {product.name}
-                          </button>
-                        ) : (
-                          <strong>{product.name}</strong>
-                        )}
-                        <span>{product.category}</span>
-                        <button
-                          className="products-sku-trigger"
-                          type="button"
-                          aria-label={`SKU ${product.sku}`}
-                          title={`SKU: ${product.sku} · Updated 2 days ago`}
-                        >
-                          {product.sku}
-                          <span>SKU: {product.sku} · Updated 2 days ago</span>
-                        </button>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="products-price-cell">
-                    {formatPrice(product.price)}
-                  </td>
-                  <td>
-                    <InventoryState stock={product.stock} />
-                  </td>
-                  <td>
-                    <div className="products-variants">
-                      <span className="products-swatch-stack">
-                        {product.colors.slice(0, 3).map((color, index) => (
-                          <i
-                            key={color}
-                            style={{ background: color, zIndex: 3 - index }}
-                          />
-                        ))}
-                      </span>
-                      <span>{product.variants} variants</span>
-                      {product.variants > 3 && (
-                        <small>+{product.variants - 3}</small>
-                      )}
-                    </div>
-                  </td>
-                  <td>
-                    <ProductStatus status={product.status} />
-                  </td>
-                  <td className="products-actions-cell">
-                    <div className="products-menu-anchor">
-                      <button
-                        className="products-row-menu-button"
-                        type="button"
-                        aria-label={`More actions for ${product.name}`}
-                        aria-expanded={openMenu === product.id}
-                        onClick={() =>
-                          setOpenMenu((current) =>
-                            current === product.id ? null : product.id,
-                          )
-                        }
-                      >
-                        <AdminIcon name="more" size={16} />
-                      </button>
-                      {openMenu === product.id && (
-                        <div className="products-row-menu">
-                          {[
-                            "Edit product",
-                            "Duplicate",
-                            "View in store",
-                            "Archive",
-                            "Delete",
-                          ].map((action) => (
-                            <button
-                              key={action}
-                              className={action === "Delete" ? "is-danger" : ""}
-                              type="button"
-                              onClick={() => handleMenuAction(action, product)}
-                            >
-                              {action}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan="8" className="py-16 text-center text-xs text-[var(--text-muted)]">
+                    Loading products from database…
                   </td>
                 </tr>
-              ))}
-              {filteredProducts.length === 0 && (
+              ) : products.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="products-empty-state">
-                    <AdminIcon name="searchSlash" size={20} />
-                    <strong>
-                      {products.length === 0 && !loading
-                        ? "No products yet. Click Add Product to create one."
-                        : "No products match these filters."}
-                    </strong>
+                  <td colSpan="8" className="products-empty-state">
+                    <AdminIcon name="searchSlash" size={24} />
+                    <strong>No products match your criteria.</strong>
                     <button type="button" onClick={clearFilters}>
                       Reset filters
                     </button>
                   </td>
                 </tr>
+              ) : (
+                products.map((product) => {
+                  const variants = product.variants || [];
+                  const primarySku = variants[0]?.sku || product.slug || "—";
+                  const primaryImg = product.image || (product.images && product.images[0]) || "";
+                  const categoryName = product.category?.name || "Uncategorized";
+
+                  return (
+                    <tr key={product._id}>
+                      <td className="products-checkbox-cell">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.includes(product._id)}
+                          onChange={() => toggleProduct(product._id)}
+                          aria-label={`Select ${product.name}`}
+                        />
+                      </td>
+                      <td className="products-product-cell">
+                        <div className="products-product-info">
+                          {primaryImg ? (
+                            <img src={primaryImg} alt={product.name} />
+                          ) : (
+                            <span className="products-img-placeholder" aria-hidden="true" />
+                          )}
+                          <div>
+                            <button
+                              className="pd-product-open-link text-left"
+                              type="button"
+                              onClick={() => go(`/admin/products/${product._id}`)}
+                            >
+                              {product.name}
+                            </button>
+                            <span className="text-[var(--text-muted)]">{categoryName}</span>
+                            <span className="text-[10px] text-[var(--text-subtle)] block font-mono">
+                              SKU: {primarySku}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="products-price-cell">{formatCurrency(product.price)}</td>
+                      <td>
+                        <InventoryState
+                          stock={product.countInStock}
+                          threshold={stats.globalThreshold}
+                        />
+                      </td>
+                      <td>
+                        <div className="products-variants">
+                          <span className="text-xs font-semibold text-[var(--text-secondary)]">
+                            {variants.length} variant{variants.length === 1 ? "" : "s"}
+                          </span>
+                        </div>
+                      </td>
+                      <td>
+                        <span className="text-xs font-bold text-[var(--text-primary)]">
+                          {product.unitsSold || 0} unit{(product.unitsSold || 0) === 1 ? "" : "s"}
+                        </span>
+                      </td>
+                      <td>
+                        <ProductStatusPill status={product.status} />
+                      </td>
+                      <td className="products-row-action-cell relative">
+                        <button
+                          className="admin-icon-button"
+                          type="button"
+                          aria-label="Product options"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const btn = e.currentTarget;
+                            setMenuTarget({ product, triggerRef: { current: btn } });
+                          }}
+                        >
+                          <AdminIcon name="more" size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Universal Portal Row Action Menu */}
+        <AdminRowActionMenu
+          isOpen={Boolean(menuTarget)}
+          onClose={() => setMenuTarget(null)}
+          triggerRef={menuTarget?.triggerRef}
+          header={{
+            title: menuTarget?.product?.name,
+            subtitle: `SKU: ${menuTarget?.product?.variants?.[0]?.sku || menuTarget?.product?.slug || '—'} · Stock: ${menuTarget?.product?.countInStock ?? 0}`,
+          }}
+          items={[
+            {
+              id: 'view',
+              label: 'View details',
+              icon: 'eye',
+              onClick: () => handleMenuAction("View product", menuTarget.product),
+            },
+            {
+              id: 'edit',
+              label: 'Edit product',
+              icon: 'edit',
+              onClick: () => handleMenuAction("Edit product", menuTarget.product),
+            },
+            {
+              id: 'duplicate',
+              label: 'Duplicate product',
+              icon: 'copy',
+              onClick: () => handleMenuAction("Duplicate", menuTarget.product),
+            },
+            {
+              id: 'store',
+              label: 'View in store',
+              icon: 'external',
+              onClick: () => handleMenuAction("View in store", menuTarget.product),
+            },
+            {
+              id: 'divider',
+              isDivider: true,
+            },
+            {
+              id: 'archive',
+              label: menuTarget?.product?.status === 'archived' ? 'Restore to Active' : 'Archive product',
+              icon: menuTarget?.product?.status === 'archived' ? 'check' : 'stop',
+              onClick: () => handleMenuAction(menuTarget?.product?.status === 'archived' ? 'Restore' : 'Archive', menuTarget.product),
+            },
+            {
+              id: 'delete',
+              label: 'Delete product',
+              icon: 'trash',
+              danger: true,
+              onClick: () => handleMenuAction("Delete", menuTarget.product),
+            },
+          ]}
+        />
+
+        {/* Server-Side Pagination */}
         <div className="products-pagination">
           <span>
-            Showing {filteredProducts.length === 0 ? 0 : 1}–
-            {Math.min(Number(pageSize), filteredProducts.length)} of{" "}
-            {filteredProducts.length} products
+            Showing {products.length === 0 ? 0 : (pagination.page - 1) * pagination.limit + 1}–
+            {Math.min(pagination.page * pagination.limit, pagination.total)} of {pagination.total}{" "}
+            products
           </span>
           <div className="products-pagination-controls">
             <label>
               <select
                 value={pageSize}
-                onChange={(event) => setPageSize(event.target.value)}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setPage(1);
+                }}
                 aria-label="Products per page"
               >
                 <option value="10">10 per page</option>
@@ -740,93 +719,65 @@ export default function AdminProductsPage({ go }) {
               </select>
               <AdminIcon name="chevron" size={12} />
             </label>
-            <button type="button" disabled aria-label="Previous page">
+            <button
+              type="button"
+              disabled={pagination.page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              aria-label="Previous page"
+            >
               Previous
             </button>
-            <button type="button" className="is-active">
-              1
-            </button>
-            <button type="button" disabled>
+            <span className="px-3 text-xs font-bold text-[var(--text-primary)]">
+              {pagination.page} / {pagination.totalPages}
+            </span>
+            <button
+              type="button"
+              disabled={pagination.page >= pagination.totalPages}
+              onClick={() => setPage((p) => p + 1)}
+              aria-label="Next page"
+            >
               Next
             </button>
           </div>
         </div>
       </section>
 
+      {/* Bulk Action Bar */}
       {selectedIds.length > 0 && (
         <div className="products-bulk-bar">
           <strong>{selectedIds.length} selected</strong>
           <button
             type="button"
-            onClick={() => updateSelected({ status: "Active" })}
+            disabled={actionLoading}
+            onClick={() => handleBulkStatus("active")}
           >
-            <AdminIcon name="check" size={14} /> Set as Active
+            Set Active
           </button>
           <button
             type="button"
-            onClick={() => updateSelected({ status: "Draft" })}
+            disabled={actionLoading}
+            onClick={() => handleBulkStatus("draft")}
           >
-            <AdminIcon name="document" size={14} /> Set as Draft
-          </button>
-          <div className="products-bulk-collection">
-            <button
-              type="button"
-              onClick={() => setCollectionMenu((open) => !open)}
-            >
-              <AdminIcon name="categories" size={14} /> Add to collection
-            </button>
-            {collectionMenu && (
-              <div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCollectionMenu(false);
-                    notify("Collections are not supported by the backend yet.");
-                  }}
-                >
-                  Autumn 2026
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCollectionMenu(false);
-                    notify("Collections are not supported by the backend yet.");
-                  }}
-                >
-                  Core Collection
-                </button>
-              </div>
-            )}
-          </div>
-          <i className="products-bulk-divider" />
-          <button
-            className="products-bulk-delete"
-            type="button"
-            onClick={() => deleteProducts(selectedIds)}
-          >
-            <AdminIcon name="warning" size={14} /> Delete
+            Set Draft
           </button>
           <button
-            className="products-bulk-clear"
             type="button"
+            disabled={actionLoading}
+            onClick={() => handleBulkStatus("archived")}
+          >
+            Set Archived
+          </button>
+          <button
+            type="button"
+            className="is-secondary"
             onClick={() => setSelectedIds([])}
-            aria-label="Clear selection"
           >
-            <AdminIcon name="close" size={16} />
+            Clear selection
           </button>
         </div>
       )}
 
-      {(createOpen || editingProduct) && (
-        <ProductModal
-          product={editingProduct}
-          onClose={() => {
-            setCreateOpen(false);
-            setEditingProduct(null);
-          }}
-          onSave={saveProduct}
-        />
-      )}
+      {/* Floating Toast Notification */}
       {toast && (
         <div className="admin-toast" role="status">
           {toast}

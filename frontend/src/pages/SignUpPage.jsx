@@ -78,9 +78,9 @@ export default function SignUpPage({ go }) {
   const inputBaseStyle = useMemo(
     () => ({
       width: '100%',
-      border: '1px solid rgba(27, 24, 22, 0.18)',
-      background: '#FDFBF7',
-      color: '#1B1816',
+      border: '1px solid var(--border-default)',
+      background: 'var(--bg-input)',
+      color: 'var(--text-primary)',
       borderRadius: '12px',
       padding: '16px 18px',
       fontSize: '14px',
@@ -200,7 +200,7 @@ export default function SignUpPage({ go }) {
         style={{
           display: 'flex',
           flex: 1,
-          background: '#F4EFE9',
+          background: 'var(--bg-main)',
         }}
       >
         <aside
@@ -298,7 +298,7 @@ export default function SignUpPage({ go }) {
           className="signup-form-panel"
           style={{
             flex: 1,
-            background: '#F4EFE9',
+            background: 'var(--bg-main)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -320,7 +320,7 @@ export default function SignUpPage({ go }) {
                   fontSize: 'clamp(38px, 4vw, 56px)',
                   lineHeight: 1.05,
                   letterSpacing: '-0.05em',
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                 }}
               >
                 Create your account
@@ -329,7 +329,7 @@ export default function SignUpPage({ go }) {
               <p
                 style={{
                   margin: '12px 0 0',
-                  color: '#6D655F',
+                  color: 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '15px',
                   lineHeight: 1.6,
@@ -347,7 +347,7 @@ export default function SignUpPage({ go }) {
                     htmlFor="signup-first-name"
                     style={{
                       display: 'block',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.18em',
@@ -369,12 +369,12 @@ export default function SignUpPage({ go }) {
                     autoComplete="given-name"
                     style={{
                       ...inputBaseStyle,
-                      borderColor: errors.firstName ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                      boxShadow: errors.firstName ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                      borderColor: errors.firstName ? 'var(--color-danger)' : 'var(--border-default)',
+                      boxShadow: errors.firstName ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                     }}
                   />
                   {errors.firstName && (
-                    <div role="alert" style={{ color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
+                    <div role="alert" style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
                       {errors.firstName}
                     </div>
                   )}
@@ -385,7 +385,7 @@ export default function SignUpPage({ go }) {
                     htmlFor="signup-last-name"
                     style={{
                       display: 'block',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.18em',
@@ -407,12 +407,12 @@ export default function SignUpPage({ go }) {
                     autoComplete="family-name"
                     style={{
                       ...inputBaseStyle,
-                      borderColor: errors.lastName ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                      boxShadow: errors.lastName ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                      borderColor: errors.lastName ? 'var(--color-danger)' : 'var(--border-default)',
+                      boxShadow: errors.lastName ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                     }}
                   />
                   {errors.lastName && (
-                    <div role="alert" style={{ color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
+                    <div role="alert" style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
                       {errors.lastName}
                     </div>
                   )}
@@ -424,7 +424,7 @@ export default function SignUpPage({ go }) {
                   htmlFor="signup-email"
                   style={{
                     display: 'block',
-                    color: '#1B1816',
+                    color: 'var(--text-primary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '10px',
                     letterSpacing: '0.18em',
@@ -449,8 +449,8 @@ export default function SignUpPage({ go }) {
                     style={{
                       ...inputBaseStyle,
                       paddingRight: '46px',
-                      borderColor: errors.email ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                      boxShadow: errors.email ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                      borderColor: errors.email ? 'var(--color-danger)' : 'var(--border-default)',
+                      boxShadow: errors.email ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                     }}
                   />
                   <div
@@ -459,7 +459,7 @@ export default function SignUpPage({ go }) {
                       right: '14px',
                       top: '50%',
                       transform: 'translateY(-50%)',
-                      color: '#7A726C',
+                      color: 'var(--text-secondary)',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -469,7 +469,7 @@ export default function SignUpPage({ go }) {
                   </div>
                 </div>
                 {errors.email && (
-                  <div role="alert" style={{ color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
+                  <div role="alert" style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
                     {errors.email}
                   </div>
                 )}
@@ -489,7 +489,7 @@ export default function SignUpPage({ go }) {
                     htmlFor="signup-password"
                     style={{
                       display: 'block',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.18em',
@@ -499,7 +499,7 @@ export default function SignUpPage({ go }) {
                   >
                     Password
                   </label>
-                  <span style={{ color: '#7A726C', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                     Min. 8 characters
                   </span>
                 </div>
@@ -517,8 +517,8 @@ export default function SignUpPage({ go }) {
                     style={{
                       ...inputBaseStyle,
                       paddingRight: '48px',
-                      borderColor: errors.password ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                      boxShadow: errors.password ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                      borderColor: errors.password ? 'var(--color-danger)' : 'var(--border-default)',
+                      boxShadow: errors.password ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                     }}
                   />
 
@@ -533,7 +533,7 @@ export default function SignUpPage({ go }) {
                       transform: 'translateY(-50%)',
                       border: 'none',
                       background: 'transparent',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -545,7 +545,7 @@ export default function SignUpPage({ go }) {
                   </button>
                 </div>
                 {errors.password && (
-                  <div role="alert" style={{ color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
+                  <div role="alert" style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
                     {errors.password}
                   </div>
                 )}
@@ -556,7 +556,7 @@ export default function SignUpPage({ go }) {
                   htmlFor="signup-confirm-password"
                   style={{
                     display: 'block',
-                    color: '#1B1816',
+                    color: 'var(--text-primary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '10px',
                     letterSpacing: '0.18em',
@@ -581,8 +581,8 @@ export default function SignUpPage({ go }) {
                     style={{
                       ...inputBaseStyle,
                       paddingRight: '48px',
-                      borderColor: errors.confirmPassword ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                      boxShadow: errors.confirmPassword ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                      borderColor: errors.confirmPassword ? 'var(--color-danger)' : 'var(--border-default)',
+                      boxShadow: errors.confirmPassword ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                     }}
                   />
 
@@ -597,7 +597,7 @@ export default function SignUpPage({ go }) {
                       transform: 'translateY(-50%)',
                       border: 'none',
                       background: 'transparent',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -609,7 +609,7 @@ export default function SignUpPage({ go }) {
                   </button>
                 </div>
                 {errors.confirmPassword && (
-                  <div role="alert" style={{ color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
+                  <div role="alert" style={{ color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '12px', marginTop: '8px' }}>
                     {errors.confirmPassword}
                   </div>
                 )}
@@ -617,18 +617,18 @@ export default function SignUpPage({ go }) {
 
               <div
                 style={{
-                  color: '#69615C',
+                  color: 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '12px',
                   lineHeight: 1.6,
                 }}
               >
                 By creating an account, you agree to our{' '}
-                <button type="button" onClick={() => go('/support')} style={{ background: 'transparent', border: 'none', padding: 0, color: '#1B1816', textDecoration: 'underline', cursor: 'pointer' }}>
+                <button type="button" onClick={() => go('/terms')} style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--text-primary)', textDecoration: 'underline', cursor: 'pointer' }}>
                   Terms of Service
                 </button>{' '}
                 and{' '}
-                <button type="button" onClick={() => go('/support')} style={{ background: 'transparent', border: 'none', padding: 0, color: '#1B1816', textDecoration: 'underline', cursor: 'pointer' }}>
+                <button type="button" onClick={() => go('/privacy')} style={{ background: 'transparent', border: 'none', padding: 0, color: 'var(--text-primary)', textDecoration: 'underline', cursor: 'pointer' }}>
                   Privacy Policy
                 </button>
                 .
@@ -638,7 +638,7 @@ export default function SignUpPage({ go }) {
                 <div
                   role="status"
                   style={{
-                    color: '#0F5E3B',
+                    color: 'var(--color-success)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '13px',
                     fontWeight: 600,
@@ -653,8 +653,8 @@ export default function SignUpPage({ go }) {
                 disabled={isSubmitting}
                 style={{
                   width: '100%',
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '999px',
                   minHeight: '54px',
@@ -676,10 +676,10 @@ export default function SignUpPage({ go }) {
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '18px', margin: '6px 0 0' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(27,24,22,0.12)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
                 <div
                   style={{
-                    color: '#7A726C',
+                    color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '10px',
                     letterSpacing: '0.18em',
@@ -689,7 +689,7 @@ export default function SignUpPage({ go }) {
                 >
                   Or
                 </div>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(27,24,22,0.12)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
               </div>
 
               <button
@@ -698,10 +698,10 @@ export default function SignUpPage({ go }) {
                 style={{
                   width: '100%',
                   padding: '16px 18px',
-                  border: '1px solid rgba(27, 24, 22, 0.22)',
+                  border: '1px solid var(--border-default)',
                   borderRadius: '999px',
-                  background: '#FDFBF7',
-                  color: '#1B1816',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -720,7 +720,7 @@ export default function SignUpPage({ go }) {
               {googleNotice && (
                 <div
                   style={{
-                    color: '#6F6862',
+                    color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '12px',
                     textAlign: 'center',
@@ -735,7 +735,7 @@ export default function SignUpPage({ go }) {
               style={{
                 textAlign: 'center',
                 marginTop: '26px',
-                color: '#5E5752',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '14px',
               }}
@@ -748,7 +748,7 @@ export default function SignUpPage({ go }) {
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                   textDecoration: 'underline',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -768,7 +768,7 @@ const linkStyle = {
   background: 'transparent',
   border: 'none',
   cursor: 'pointer',
-  color: '#7A726C',
+  color: 'var(--text-secondary)',
   padding: 0,
   fontFamily: 'var(--font-sans)',
   fontSize: '10px',

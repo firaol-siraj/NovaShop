@@ -1,15 +1,28 @@
 /* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authApi } from '../lib/api/authApi';
-import { clearAccessToken, setAccessToken } from '../lib/api/tokenManager';
+import { clearCustomerToken, setCustomerToken } from '../lib/api/tokenManager';
 
 const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
+const CUSTOMER_SESSION_KEY = 'nova_customer_session';
+
+const readSavedCustomerUser = () => {
+  try {
+    const raw = localStorage.getItem(CUSTOMER_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed?.user || null;
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(() => readSavedCustomerUser());
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(readSavedCustomerUser()));
   const [isLoading, setIsLoading] = useState(true);
 
   const loadUser = useCallback(async () => {
@@ -17,18 +30,20 @@ export const AuthProvider = ({ children }) => {
     try {
       const refreshResult = await authApi.refreshToken();
       if (refreshResult?.accessToken) {
-        setAccessToken(refreshResult.accessToken);
+        setCustomerToken(refreshResult.accessToken);
       }
-      const res = await authApi.getMe();
-      if (res.success && res.data) {
+      const res = await authApi.getMe('customer');
+      if (res.success && res.data && res.data.role !== 'admin') {
         setUser(res.data);
         setIsAuthenticated(true);
+        setCustomerToken(refreshResult?.accessToken, res.data);
       } else {
+        clearCustomerToken();
         setUser(null);
         setIsAuthenticated(false);
       }
     } catch {
-      clearAccessToken();
+      clearCustomerToken();
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -41,6 +56,7 @@ export const AuthProvider = ({ children }) => {
 
     const handleUpdate = () => loadUser();
     const handleExpired = () => {
+      clearCustomerToken();
       setUser(null);
       setIsAuthenticated(false);
       setIsLoading(false);
@@ -54,31 +70,15 @@ export const AuthProvider = ({ children }) => {
     };
   }, [loadUser]);
 
-  const login = async (credentials, isAdmin = false) => {
-    const res = isAdmin
-      ? await authApi.adminLogin(credentials)
-      : await authApi.login(credentials);
+  const login = async (credentials) => {
+    const res = await authApi.login(credentials);
 
     if (!res.success || !res.accessToken) {
       throw new Error('Invalid response');
     }
 
-    setAccessToken(res.accessToken);
-    let authenticatedUser = res.data;
-    if (isAdmin) {
-      try {
-        const profile = await authApi.getMe();
-        authenticatedUser = profile.data;
-        if (authenticatedUser?.role !== 'admin') {
-          throw new Error('Admin access is required.');
-        }
-      } catch (error) {
-        clearAccessToken();
-        await authApi.logout().catch(() => {});
-        throw error;
-      }
-    }
-    setUser(authenticatedUser);
+    setCustomerToken(res.accessToken, res.data);
+    setUser(res.data);
     setIsAuthenticated(true);
     window.dispatchEvent(new Event('novashop:user-updated'));
     return res;
@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
       throw new Error('Invalid response');
     }
 
-    setAccessToken(res.accessToken);
+    setCustomerToken(res.accessToken, res.data);
     setUser(res.data);
     setIsAuthenticated(true);
     window.dispatchEvent(new Event('novashop:user-updated'));
@@ -106,12 +106,18 @@ export const AuthProvider = ({ children }) => {
     try {
       await authApi.logout();
     } catch (error) {
-      console.warn('Logout server request failed:', error);
+      console.warn('Customer logout server request failed:', error);
     } finally {
-      clearAccessToken();
+      clearCustomerToken();
       setUser(null);
       setIsAuthenticated(false);
-      window.dispatchEvent(new Event('novashop:user-updated'));
+      setIsLoading(false);
+      try {
+        localStorage.removeItem(CUSTOMER_SESSION_KEY);
+      } catch {
+        // ignore
+      }
+      window.dispatchEvent(new Event('novashop:auth-expired'));
     }
   };
 

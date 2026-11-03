@@ -1,11 +1,12 @@
 import { useEffect } from 'react';
 
 const T = {
-  bg: '#FAF7F2',
-  bgAlt: '#F2EDE5',
-  espresso: '#231E1B',
-  muted: '#6E6962',
-  border: 'rgba(27,24,22,0.12)',
+  bg: 'var(--bg-main)',
+  bgAlt: 'var(--bg-surface)',
+  espresso: 'var(--text-primary)',
+  muted: 'var(--text-secondary)',
+  border: 'var(--border-default)',
+  terracotta: 'var(--color-accent, #9B4A3A)',
 };
 
 const SECTIONS = [
@@ -24,7 +25,7 @@ const SECTIONS = [
 function SectionHeading({ num, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-      <span style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', color: '#9B4A3A', opacity: 0.8 }}>{num}</span>
+      <span style={{ fontFamily: 'var(--font-serif)', fontSize: '24px', color: T.terracotta, opacity: 0.8 }}>{num}</span>
       <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(24px, 4vw, 32px)', fontWeight: 400, color: T.espresso }}>
         {children}
       </h2>
@@ -211,7 +212,7 @@ export default function TermsOfServicePage({ go }) {
                   <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '15px', lineHeight: 1.6, color: T.muted, maxWidth: '360px' }}>
                     Need help with an order or account question instead?
                   </p>
-                  <button onClick={() => go('/help')} style={{ background: T.espresso, color: '#FFF', border: 'none', padding: '14px 32px', fontFamily: 'var(--font-sans)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer' }}
+                  <button onClick={() => go('/help')} style={{ background: T.espresso, color: 'var(--color-primary-contrast)', border: 'none', padding: '14px 32px', fontFamily: 'var(--font-sans)', fontSize: '11px', fontWeight: 600, letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer' }}
                     onMouseEnter={e => (e.currentTarget.style.opacity = 0.8)}
                     onMouseLeave={e => (e.currentTarget.style.opacity = 1)}>
                     Visit Help Centre

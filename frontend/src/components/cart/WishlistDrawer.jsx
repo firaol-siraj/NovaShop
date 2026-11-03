@@ -1,5 +1,7 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '../../context/CartContext';
+import { useAuth } from '../../context/AuthContext';
 
 const overlayStyle = {
   position: 'fixed',
@@ -7,7 +9,7 @@ const overlayStyle = {
   background: 'rgba(17, 14, 12, 0.42)',
   zIndex: 120,
   opacity: 1,
-  transition: 'opacity 250ms ease',
+  transition: 'opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1)',
 };
 
 const panelStyle = {
@@ -16,15 +18,16 @@ const panelStyle = {
   right: 0,
   height: '100vh',
   width: 'min(480px, 100vw)',
-  background: '#F9F5F0',
-  borderLeft: '1px solid rgba(27, 24, 22, 0.12)',
-  boxShadow: '-18px 0 38px rgba(17, 14, 12, 0.08)',
+  background: 'var(--bg-surface)',
+  borderLeft: '1px solid var(--border-default)',
+  boxShadow: 'var(--shadow-lg)',
   transform: 'translateX(0)',
   opacity: 1,
   transition: 'transform 300ms cubic-bezier(0.25, 0.8, 0.25, 1), opacity 300ms cubic-bezier(0.25, 0.8, 0.25, 1)',
   zIndex: 130,
   display: 'flex',
   flexDirection: 'column',
+  color: 'var(--text-primary)',
 };
 
 const formatCurrency = (value) =>
@@ -35,10 +38,10 @@ const formatCurrency = (value) =>
 
 function StockPill({ stock }) {
   const map = {
-    'in-stock': { label: 'IN STOCK', bg: '#EDEAE4', color: '#1F2620' },
-    'low-stock': { label: 'LOW STOCK', bg: '#EEE6D9', color: '#5A4631' },
-    'out-of-stock': { label: 'SOLD OUT', bg: '#E8D4CF', color: '#8A3B32' },
-    waitlist: { label: 'WAITLIST', bg: '#E9E2DB', color: '#473F3A' },
+    'in-stock': { label: 'IN STOCK', bg: 'var(--color-success-soft)', color: 'var(--color-success)' },
+    'low-stock': { label: 'LOW STOCK', bg: 'var(--color-warning-soft)', color: 'var(--color-warning)' },
+    'out-of-stock': { label: 'SOLD OUT', bg: 'var(--color-danger-soft)', color: 'var(--color-danger)' },
+    waitlist: { label: 'WAITLIST', bg: 'var(--bg-surface-sunken)', color: 'var(--text-secondary)' },
   };
 
   const meta = map[stock] || map['in-stock'];
@@ -68,7 +71,7 @@ function StockPill({ stock }) {
 
 function HeartFilled() {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="#1B1816" stroke="#1B1816" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
     </svg>
   );
@@ -76,7 +79,7 @@ function HeartFilled() {
 
 function PersonIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1B1816" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M16 19v-1a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v1" />
       <circle cx="10" cy="7" r="4" />
       <path d="M20 19v-1a4 4 0 0 0-3-3.87" />
@@ -85,7 +88,7 @@ function PersonIcon() {
   );
 }
 
-export default function WishlistDrawer() {
+export default function WishlistDrawer({ go }) {
   const {
     wishlistItems,
     isWishlistOpen,
@@ -95,6 +98,7 @@ export default function WishlistDrawer() {
     moveAvailableToBag,
     clearWishlist,
   } = useCart();
+  const { isAuthenticated } = useAuth();
 
   const [exiting, setExiting] = useState(false);
   const [isOpening, setIsOpening] = useState(false);
@@ -140,58 +144,60 @@ export default function WishlistDrawer() {
     }, 220);
   };
 
-  const handleRemove = (id) => {
-    setRemovingIds((current) => [...current, id]);
+  const handleRemove = (productId) => {
+    setRemovingIds((prev) => [...prev, productId]);
     setTimeout(() => {
-      removeWishlistItem(id);
-      setRemovingIds((current) => current.filter((entry) => entry !== id));
+      removeWishlistItem(productId);
+      setRemovingIds((prev) => prev.filter((id) => id !== productId));
     }, 240);
   };
 
-  const handleAddToBag = async (item) => {
-    const soldOut = Number(item.stockTotal) === 0 || item.stock === 'out-of-stock';
-    if (soldOut) return;
-    setRemovingIds((current) => [...current, item.id]);
-    const result = await addWishlistItemToCart(item);
-    setRemovingIds((current) => current.filter((entry) => entry !== item.id));
-    if (result?.needsOptions) return;
-    if (result?.ok) {
-      const message = result.wasIncremented ? 'Added to bag — quantity updated' : 'Added to bag';
-      window.dispatchEvent(new CustomEvent('novashop:toast', { detail: { message } }));
-    }
+  const handleAddToBag = (item) => {
+    addWishlistItemToCart(item);
   };
 
-  const handleMoveAvailableToBag = async () => {
-    const count = await moveAvailableToBag();
-    if (count > 0) {
-      window.dispatchEvent(new CustomEvent('novashop:toast', { detail: { message: `${count} items moved to your bag` } }));
+  const handleMoveAvailableToBag = () => {
+    moveAvailableToBag();
+  };
+
+  const navigateToLogin = () => {
+    handleClose();
+    if (go) {
+      go('/login');
+    } else {
+      window.dispatchEvent(
+        new CustomEvent('novashop:navigate', {
+          detail: { path: '/login' },
+        })
+      );
     }
   };
 
   const isEmpty = wishlistItems.length === 0;
-
   const countLabel = useMemo(() => {
-    const count = wishlistItems.length;
-    return `${count} saved piece${count === 1 ? '' : 's'} reserved in your personal edit`;
-  }, [wishlistItems.length]);
+    if (isEmpty) return 'No saved pieces';
+    return `${wishlistItems.length} curated ${wishlistItems.length === 1 ? 'piece' : 'pieces'}`;
+  }, [wishlistItems.length, isEmpty]);
 
-  if (!isWishlistOpen) return null;
+  if (!isWishlistOpen && !exiting) return null;
 
   return (
     <>
       <div
+        role="presentation"
         aria-hidden="true"
         onClick={handleClose}
         style={{
           ...overlayStyle,
-          opacity: exiting ? 0 : isOpening ? 0 : 1,
+          opacity: exiting ? 0 : 1,
         }}
       />
 
       <aside
         ref={drawerRef}
+        role="dialog"
+        aria-modal="true"
         aria-label="Wishlist drawer"
-        onClick={(event) => event.stopPropagation()}
         style={{
           ...panelStyle,
           transform: exiting || isOpening ? 'translateX(100%)' : 'translateX(0)',
@@ -200,8 +206,8 @@ export default function WishlistDrawer() {
       >
         <header
           style={{
-            background: '#F9F5F0',
-            borderBottom: '1px solid rgba(27, 24, 22, 0.08)',
+            background: 'var(--bg-surface)',
+            borderBottom: '1px solid var(--border-subtle)',
             padding: '20px 22px 18px',
             position: 'sticky',
             top: 0,
@@ -216,7 +222,7 @@ export default function WishlistDrawer() {
                   fontSize: '10px',
                   letterSpacing: '0.16em',
                   textTransform: 'uppercase',
-                  color: '#7A726C',
+                  color: 'var(--text-muted)',
                   marginBottom: '8px',
                 }}
               >
@@ -230,7 +236,7 @@ export default function WishlistDrawer() {
                   lineHeight: 1.05,
                   letterSpacing: '-0.04em',
                   fontWeight: 400,
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                   fontStyle: 'italic',
                 }}
               >
@@ -241,7 +247,7 @@ export default function WishlistDrawer() {
                   margin: '8px 0 0',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '12px',
-                  color: '#7A726C',
+                  color: 'var(--text-muted)',
                   letterSpacing: '0.01em',
                 }}
               >
@@ -255,7 +261,7 @@ export default function WishlistDrawer() {
               style={{
                 border: 'none',
                 background: 'transparent',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
                 fontSize: '30px',
                 lineHeight: 1,
                 cursor: 'pointer',
@@ -282,8 +288,8 @@ export default function WishlistDrawer() {
                 onClick={clearWishlist}
                 style={{
                   background: 'transparent',
-                  border: '1px solid rgba(27,24,22,0.2)',
-                  color: '#1B1816',
+                  border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)',
                   borderRadius: '999px',
                   padding: '9px 12px',
                   fontFamily: 'var(--font-sans)',
@@ -299,8 +305,8 @@ export default function WishlistDrawer() {
               <button
                 onClick={handleMoveAvailableToBag}
                 style={{
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '999px',
                   padding: '9px 12px',
@@ -329,7 +335,7 @@ export default function WishlistDrawer() {
                 textAlign: 'center',
                 padding: '56px 24px 28px',
                 gap: '14px',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
               }}
             >
               <div
@@ -337,14 +343,14 @@ export default function WishlistDrawer() {
                   width: '70px',
                   height: '70px',
                   borderRadius: '50%',
-                  border: '1px solid rgba(27,24,22,0.14)',
+                  border: '1px solid var(--border-default)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  background: '#F3EFE8',
+                  background: 'var(--bg-surface-sunken)',
                 }}
               >
-                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#1B1816" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" style={{ color: 'var(--text-primary)' }} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z" />
                 </svg>
               </div>
@@ -366,7 +372,7 @@ export default function WishlistDrawer() {
                     margin: '10px 0 0',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '14px',
-                    color: '#6F6862',
+                    color: 'var(--text-muted)',
                     lineHeight: 1.6,
                   }}
                 >
@@ -374,10 +380,11 @@ export default function WishlistDrawer() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={handleClose}
                 style={{
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '999px',
                   padding: '12px 22px',
@@ -394,6 +401,44 @@ export default function WishlistDrawer() {
             </div>
           ) : (
             <>
+              {!isAuthenticated && (
+                <div
+                  style={{
+                    margin: '14px 22px 0',
+                    padding: '12px 16px',
+                    borderRadius: '12px',
+                    background: 'var(--bg-surface-sunken)',
+                    border: '1px solid var(--border-subtle)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '10px',
+                  }}
+                >
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-primary)' }}>
+                    Sign in to sync your wishlist across devices
+                  </span>
+                  <button
+                    type="button"
+                    onClick={navigateToLogin}
+                    style={{
+                      border: 'none',
+                      background: 'var(--color-primary)',
+                      color: 'var(--color-primary-contrast)',
+                      borderRadius: '999px',
+                      padding: '6px 14px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '9px',
+                      letterSpacing: '0.1em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    Sign In
+                  </button>
+                </div>
+              )}
               <div style={{ padding: '18px 22px 0' }}>
                 <div
                   style={{
@@ -404,8 +449,15 @@ export default function WishlistDrawer() {
                   }}
                 >
                   {wishlistItems.map((item) => {
-                    const isRemoving = removingIds.includes(item.id);
-                    const isSoldOut = Number(item.stockTotal) === 0 || item.stock === 'out-of-stock';
+                    const isRemoving =
+                      removingIds.includes(item.id) ||
+                      removingIds.includes(item.productId);
+                    const stockCount = Number(
+                      item.countInStock != null
+                        ? item.countInStock
+                        : (item.stockTotal != null ? item.stockTotal : item.stock)
+                    );
+                    const isSoldOut = Number.isFinite(stockCount) ? stockCount <= 0 : false;
 
                     return (
                       <div
@@ -421,15 +473,15 @@ export default function WishlistDrawer() {
                           overflow: 'hidden',
                         }}
                       >
-                        <div style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', background: '#EFEAE4' }}>
+                        <div style={{ position: 'relative', borderRadius: '14px', overflow: 'hidden', background: 'var(--bg-surface-sunken)' }}>
                           {item.sale && (
                             <span
                               style={{
                                 position: 'absolute',
                                 top: '10px',
                                 left: '10px',
-                                background: '#9B4A3A',
-                                color: '#FDFBF7',
+                                background: 'var(--color-danger)',
+                                color: 'var(--color-primary-contrast)',
                                 borderRadius: '999px',
                                 fontFamily: 'var(--font-sans)',
                                 fontSize: '8px',
@@ -446,7 +498,7 @@ export default function WishlistDrawer() {
                           <button
                             type="button"
                             aria-label={`Remove ${item.name} from wishlist`}
-                            onClick={() => handleRemove(item.id)}
+                            onClick={() => handleRemove(item.productId || item.id)}
                             style={{
                               position: 'absolute',
                               top: '10px',
@@ -455,14 +507,14 @@ export default function WishlistDrawer() {
                               height: '28px',
                               borderRadius: '50%',
                               border: 'none',
-                              background: '#1B1816',
-                              color: '#FDFBF7',
+                              background: 'var(--color-primary)',
+                              color: 'var(--color-primary-contrast)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               cursor: 'pointer',
                               zIndex: 2,
-                              boxShadow: '0 8px 18px rgba(17,14,12,0.18)',
+                              boxShadow: 'var(--shadow-md)',
                             }}
                           >
                             <HeartFilled />
@@ -470,7 +522,14 @@ export default function WishlistDrawer() {
                           <img
                             src={item.image}
                             alt={item.name}
-                            style={{ width: '100%', aspectRatio: '1 / 1.2', display: 'block', objectFit: 'cover' }}
+                            onClick={() => {
+                              handleClose();
+                              const productSlug = item.slug || item.productId || item.id || item._id;
+                              const productPath = item.path || `/products/${productSlug}`;
+                              if (go) go(productPath);
+                              else window.dispatchEvent(new CustomEvent('novashop:navigate', { detail: { path: productPath } }));
+                            }}
+                            style={{ width: '100%', aspectRatio: '1 / 1.2', display: 'block', objectFit: 'cover', cursor: 'pointer' }}
                           />
                         </div>
 
@@ -482,33 +541,41 @@ export default function WishlistDrawer() {
                               fontSize: '9px',
                               letterSpacing: '0.14em',
                               textTransform: 'uppercase',
-                              color: '#7A726C',
+                              color: 'var(--text-muted)',
                               fontWeight: 600,
                             }}
                           >
                             {item.category}
                           </div>
                           <div
+                            onClick={() => {
+                              handleClose();
+                              const productSlug = item.slug || item.productId || item.id || item._id;
+                              const productPath = item.path || `/products/${productSlug}`;
+                              if (go) go(productPath);
+                              else window.dispatchEvent(new CustomEvent('novashop:navigate', { detail: { path: productPath } }));
+                            }}
                             style={{
                               fontFamily: 'var(--font-sans)',
                               fontSize: '14px',
                               fontWeight: 700,
-                              color: '#1B1816',
+                              color: 'var(--text-primary)',
                               lineHeight: 1.35,
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
+                              cursor: 'pointer',
                             }}
                           >
                             {item.name}
                           </div>
 
                           <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px', flexWrap: 'wrap' }}>
-                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 700, color: '#1B1816' }}>
+                            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)' }}>
                               {formatCurrency(item.price)}
                             </span>
                             {item.sale && item.originalPrice > item.price && (
-                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#7A726C', textDecoration: 'line-through' }}>
+                              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-muted)', textDecoration: 'line-through' }}>
                                 {formatCurrency(item.originalPrice)}
                               </span>
                             )}
@@ -523,9 +590,9 @@ export default function WishlistDrawer() {
                             width: '100%',
                             padding: '11px 12px',
                             borderRadius: '999px',
-                            border: isSoldOut ? '1px solid rgba(27,24,22,0.2)' : 'none',
-                            background: isSoldOut ? 'transparent' : '#1B1816',
-                            color: isSoldOut ? '#8D837D' : '#FDFBF7',
+                            border: isSoldOut ? '1px solid var(--border-default)' : 'none',
+                            background: isSoldOut ? 'transparent' : 'var(--color-primary)',
+                            color: isSoldOut ? 'var(--text-muted)' : 'var(--color-primary-contrast)',
                             fontFamily: 'var(--font-sans)',
                             fontSize: '10px',
                             letterSpacing: '0.14em',
@@ -546,9 +613,9 @@ export default function WishlistDrawer() {
               <div style={{ padding: '18px 22px 24px' }}>
                 <div
                   style={{
-                    border: '1px solid rgba(27,24,22,0.12)',
+                    border: '1px solid var(--border-default)',
                     borderRadius: '16px',
-                    background: '#F3EFE8',
+                    background: 'var(--bg-surface-sunken)',
                     padding: '16px 14px',
                     display: 'flex',
                     alignItems: 'center',
@@ -563,12 +630,13 @@ export default function WishlistDrawer() {
                         width: '38px',
                         height: '38px',
                         borderRadius: '50%',
-                        background: '#FDFBF7',
+                        background: 'var(--bg-surface)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
-                        border: '1px solid rgba(27,24,22,0.12)',
+                        border: '1px solid var(--border-default)',
+                        color: 'var(--text-primary)',
                       }}
                     >
                       <PersonIcon />
@@ -579,7 +647,7 @@ export default function WishlistDrawer() {
                           fontFamily: 'var(--font-sans)',
                           fontSize: '13px',
                           fontWeight: 700,
-                          color: '#1B1816',
+                          color: 'var(--text-primary)',
                           lineHeight: 1.3,
                         }}
                       >
@@ -589,7 +657,7 @@ export default function WishlistDrawer() {
                         style={{
                           fontFamily: 'var(--font-sans)',
                           fontSize: '11px',
-                          color: '#6F6862',
+                          color: 'var(--text-muted)',
                           lineHeight: 1.45,
                           marginTop: '2px',
                         }}
@@ -604,14 +672,14 @@ export default function WishlistDrawer() {
                     onClick={() => window.open('https://example.com/advisor-booking', '_blank', 'noopener,noreferrer')}
                     style={{
                       background: 'transparent',
-                      border: '1px solid rgba(27,24,22,0.2)',
+                      border: '1px solid var(--border-default)',
                       borderRadius: '999px',
                       padding: '10px 14px',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '9px',
                       letterSpacing: '0.14em',
                       textTransform: 'uppercase',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                     }}
                   >

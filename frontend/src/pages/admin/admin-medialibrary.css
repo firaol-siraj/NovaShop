@@ -793,3 +793,170 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES
+========================================================= */
+
+[data-theme="dark"] .admin-trend-pill.is-neutral {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-filter-button {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-filter-button svg {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-filter-button.is-active {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-filter-menu {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .ml-filter-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .ml-filter-menu button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-view-toggle {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .ml-view-toggle button {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-view-toggle button.is-active {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-clear-filters {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .ml-quick-filter {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-quick-filter.is-active {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-tile {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .ml-tile-thumb {
+  background: var(--bg-surface-sunken, #181614) !important;
+}
+
+[data-theme="dark"] .ml-tile.is-selected .ml-tile-checkbox {
+  background: var(--text-primary, #FBF9F5);
+  border-color: var(--text-primary, #FBF9F5);
+  color: #141210;
+}
+
+[data-theme="dark"] .ml-tile-doc {
+  background: var(--bg-surface-raised, #24201D);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-tile-play {
+  background: var(--bg-surface-raised, #24201D);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-tile-menu-trigger {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-tile-menu {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .ml-tile-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .ml-tile-menu button svg {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-tile-meta strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-empty-state strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-empty-state button {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ml-list-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .ml-list-table th {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-list-table td {
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .ml-list-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .ml-list-checkbox-cell input {
+  border-color: var(--border-default, #3D3730);
+  background: var(--bg-surface-raised, #24201D);
+}
+
+[data-theme="dark"] .ml-usage-pill.is-unused {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ml-pagination-controls button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .ml-pagination-controls button.is-active {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}

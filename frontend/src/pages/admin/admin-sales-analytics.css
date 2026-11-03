@@ -331,6 +331,10 @@
   font-weight: 700;
 }
 
+.sales-chart-area {
+  fill: rgba(201, 194, 184, 0.12);
+}
+
 .sales-chart-line {
   fill: none;
   stroke-width: 2;
@@ -724,4 +728,196 @@
   .sales-heatmap-day {
     font-size: 7px;
   }
+}
+
+/* =========================================================
+   DARK MODE OVERRIDES
+========================================================= */
+
+[data-theme="dark"] .sales-range-button {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-range-button svg:first-child {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .sales-range-menu {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .sales-range-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-range-menu button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .sales-card-heading h2 {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-card-footer strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-text-link {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-legend-item {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-segmented-control {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .sales-segmented-control button {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .sales-segmented-control button.is-selected {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-status-top {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-status-top strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-bar-top {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-bar-top strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-discount-identity strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-discount-redemptions {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-discount-revenue {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-legend-item {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .sales-legend-item i.is-gross,
+[data-theme="dark"] .sales-chart-tooltip-row i.is-gross {
+  background: var(--chart-gross, #9E968E);
+}
+
+[data-theme="dark"] .sales-legend-item i.is-net,
+[data-theme="dark"] .sales-chart-tooltip-row i.is-net {
+  background: var(--chart-net, #F0ECE4);
+}
+
+[data-theme="dark"] .sales-segmented-control {
+  background: var(--bg-surface-sunken, #181614);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .sales-segmented-control button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .sales-segmented-control button:hover {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .sales-segmented-control button.is-selected {
+  background: var(--bg-surface-raised, #282420) !important;
+  border: none !important;
+  color: var(--text-primary, #FBF9F5) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .sales-chart-grid {
+  stroke: var(--chart-grid, #2D2722);
+  stroke-width: 1;
+}
+
+[data-theme="dark"] .sales-chart-axis-label {
+  fill: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .sales-chart-axis-label-x.is-active {
+  fill: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-chart-area {
+  fill: var(--chart-area-net, rgba(240, 236, 228, 0.06));
+}
+
+[data-theme="dark"] .sales-chart-line-net {
+  stroke: var(--chart-net, #F0ECE4);
+}
+
+[data-theme="dark"] .sales-chart-line-gross {
+  stroke: var(--chart-gross, #9E968E);
+}
+
+[data-theme="dark"] .sales-chart-guide {
+  stroke: var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .sales-chart-dot {
+  stroke: var(--bg-surface, #1E1B18);
+}
+
+[data-theme="dark"] .sales-chart-dot-net {
+  fill: var(--chart-net, #F0ECE4);
+}
+
+[data-theme="dark"] .sales-chart-dot-gross {
+  fill: var(--chart-gross, #9E968E);
+}
+
+[data-theme="dark"] .sales-chart-tooltip {
+  background: var(--bg-surface-raised, #282420);
+  border: 1px solid var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="dark"] .sales-chart-tooltip-head strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .sales-chart-tooltip-head span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .sales-chart-tooltip-row span {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .sales-chart-tooltip-row strong {
+  color: var(--text-primary, #FBF9F5);
 }

@@ -1,43 +1,47 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+/* eslint-disable react-hooks/set-state-in-effect */
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useCart } from "../../context/CartContext";
+import { useAuth } from "../../context/AuthContext";
+import { useCategories } from "../../context/CategoryContext";
+import { productApi } from "../../lib/api/productApi";
+import { normalizeCatalog, resolveImage } from "../../lib/catalog";
+import settingsApi from "../../lib/api/settingsApi";
+import { ThemeToggle } from "../../context/ThemeContext";
 
 /* ══════════════════════════════════════════════════════════
    DESIGN TOKENS
 ══════════════════════════════════════════════════════════ */
 const T = {
-  cream: "#FAF7F2",
-  ivory: "#FDFBF7",
-  espresso: "#231E1B",
-  muted: "#68625E",
-  border: "#E5E0D8",
-  sale: "#9B4A3A", // terracotta / muted red for Sale
+  cream: "var(--bg-main)",
+  ivory: "var(--bg-surface)",
+  espresso: "var(--text-primary)",
+  muted: "var(--text-muted)",
+  border: "var(--border-default)",
+  sale: "var(--color-danger)",
 };
 
-import { useAuth } from "../../context/AuthContext";
-import { useCategories } from "../../context/CategoryContext";
-
 /* ══════════════════════════════════════════════════════════
-   DROPDOWN DATA
+   FEATURED PRODUCTS SESSION CACHE
 ══════════════════════════════════════════════════════════ */
-const SHOP_LINKS = [
-  { label: "All Products", path: "/shop" },
-  { label: "New Arrivals", path: "/shop?filter=new-arrivals" },
-  { label: "Sale", path: "/shop?category=sale" },
-];
+let cachedFeaturedProducts = null;
+let featuredFetchPromise = null;
 
-function getCollectionLinks(categories = []) {
-  return categories
-    .filter((category) => category?.name && category?.slug)
-    .map((category) => ({
-      label: category.name,
-      path: `/shop?category=${encodeURIComponent(category.slug)}`,
-      thumb:
-        category.image ||
-        category.imageUrl ||
-        category.thumbnail ||
-        category.coverImage ||
-        "",
-    }));
+async function fetchFeaturedProducts() {
+  if (cachedFeaturedProducts) return cachedFeaturedProducts;
+  if (!featuredFetchPromise) {
+    featuredFetchPromise = productApi
+      .getProducts({ sort: "newest", pageSize: 3 })
+      .then((res) => {
+        const list = res.data?.data || res.data || [];
+        cachedFeaturedProducts = normalizeCatalog(list).slice(0, 3);
+        return cachedFeaturedProducts;
+      })
+      .catch((err) => {
+        console.error("Featured products fetch error:", err);
+        return [];
+      });
+  }
+  return featuredFetchPromise;
 }
 
 /* ══════════════════════════════════════════════════════════
@@ -107,7 +111,7 @@ const ChevronDown = ({ open }) => (
     aria-hidden="true"
     style={{
       display: "inline-block",
-      marginLeft: "4px",
+      marginLeft: "5px",
       verticalAlign: "middle",
       transition: "transform 0.22s ease",
       transform: open ? "rotate(180deg)" : "rotate(0deg)",
@@ -150,9 +154,10 @@ const MenuIcon = ({ open }) =>
   );
 
 /* ══════════════════════════════════════════════════════════
-   SMALL REUSABLES
+   BADGE & AVATAR
 ══════════════════════════════════════════════════════════ */
 function Badge({ count }) {
+  if (!count || count <= 0) return null;
   return (
     <span
       aria-hidden="true"
@@ -241,360 +246,7 @@ const iconBtn = {
 };
 
 /* ══════════════════════════════════════════════════════════
-   HOVER DROPDOWN — shared panel
-   Uses a close-delay timer so the mouse can move from
-   trigger → panel without the panel flickering shut.
-══════════════════════════════════════════════════════════ */
-function DropdownItem({ label, path, go }) {
-  return (
-    <button
-      onClick={() => go(path)}
-      style={{
-        display: "block",
-        width: "100%",
-        textAlign: "left",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "9px 24px",
-        fontSize: "12px",
-        fontFamily: "var(--font-sans)",
-        fontWeight: 500,
-        letterSpacing: "0.09em",
-        textTransform: "uppercase",
-        color: T.espresso,
-        transition: "background 0.15s, color 0.15s",
-        lineHeight: 1.3,
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "#F3EFE8";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {label}
-    </button>
-  );
-}
-
-function CollectionCard({ item, go }) {
-  return (
-    <button
-      onClick={() => go(item.path)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "14px",
-        width: "100%",
-        textAlign: "left",
-        background: "none",
-        border: "none",
-        cursor: "pointer",
-        padding: "12px 24px",
-        transition: "background 0.15s",
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.background = "#F3EFE8";
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.background = "transparent";
-      }}
-    >
-      {item.thumb && (
-        <img
-          src={item.thumb}
-          alt={item.label}
-          style={{
-            width: "56px",
-            height: "40px",
-            objectFit: "cover",
-            flexShrink: 0,
-          }}
-        />
-      )}
-      <span
-        style={{
-          fontSize: "12px",
-          fontFamily: "var(--font-sans)",
-          fontWeight: item.thumb ? 500 : 600,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          color: T.espresso,
-          lineHeight: 1.4,
-        }}
-      >
-        {item.label}
-      </span>
-    </button>
-  );
-}
-
-/* ─── Hover nav item with controlled dropdown ─────────────── */
-function NavItem({
-  label,
-  path,
-  items,
-  isCollection,
-  isActive,
-  go,
-  collectionLinks = [],
-}) {
-  const [open, setOpen] = useState(false);
-  const closeTimer = useRef(null);
-
-  const openMenu = useCallback(() => {
-    clearTimeout(closeTimer.current);
-    setOpen(true);
-  }, []);
-  const scheduleClose = useCallback(() => {
-    closeTimer.current = setTimeout(() => setOpen(false), 150);
-  }, []);
-  const cancelClose = useCallback(() => clearTimeout(closeTimer.current), []);
-
-  useEffect(() => () => clearTimeout(closeTimer.current), []);
-
-  const hasDropdown = !!items;
-
-  return (
-    <div
-      style={{ position: "relative" }}
-      onMouseEnter={hasDropdown ? openMenu : undefined}
-      onMouseLeave={hasDropdown ? scheduleClose : undefined}
-    >
-      {/* Trigger button */}
-      <button
-        onClick={() => go(path)}
-        aria-haspopup={hasDropdown ? "menu" : undefined}
-        aria-expanded={hasDropdown ? open : undefined}
-        aria-current={isActive ? "page" : undefined}
-        onFocus={hasDropdown ? openMenu : undefined}
-        style={{
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "4px 0",
-          fontSize: "11px",
-          fontFamily: "var(--font-sans)",
-          fontWeight: 500,
-          letterSpacing: "0.13em",
-          textTransform: "uppercase",
-          color: isActive ? T.espresso : "#4A4440",
-          borderBottom: isActive
-            ? `1px solid ${T.espresso}`
-            : "1px solid transparent",
-          transition: "color 0.18s, border-color 0.18s",
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0,
-          whiteSpace: "nowrap",
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.color = T.espresso)}
-        onMouseLeave={(e) =>
-          (e.currentTarget.style.color = isActive ? T.espresso : "#4A4440")
-        }
-      >
-        {label}
-        {hasDropdown && <ChevronDown open={open} />}
-      </button>
-
-      {/* Dropdown panel */}
-      {hasDropdown && (
-        <div
-          role="menu"
-          aria-label={`${label} menu`}
-          onMouseEnter={cancelClose}
-          onMouseLeave={scheduleClose}
-          style={{
-            position: "absolute",
-            top: "calc(100% + 16px)",
-            left: "50%",
-            transform: "translateX(-50%)",
-            minWidth: isCollection ? "260px" : "200px",
-            background: T.ivory,
-            boxShadow: "0 8px 32px rgba(35,30,27,0.13)",
-            borderTop: `2px solid ${T.espresso}`,
-            zIndex: 200,
-            opacity: open ? 1 : 0,
-            pointerEvents: open ? "auto" : "none",
-            transform: open
-              ? "translateX(-50%) translateY(0)"
-              : "translateX(-50%) translateY(-8px)",
-            transition: "opacity 0.2s ease, transform 0.2s ease",
-            overflow: "hidden",
-          }}
-        >
-          {/* Small notch/arrow */}
-          <div
-            style={{
-              position: "absolute",
-              top: "-6px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0,
-              height: 0,
-              borderLeft: "6px solid transparent",
-              borderRight: "6px solid transparent",
-              borderBottom: `6px solid ${T.espresso}`,
-            }}
-            aria-hidden="true"
-          />
-
-          <div style={{ paddingTop: "8px", paddingBottom: "8px" }}>
-            {isCollection
-              ? collectionLinks.map((item) => (
-                  <CollectionCard key={item.path} item={item} go={go} />
-                ))
-              : items.map((item) => (
-                  <DropdownItem key={item.path} go={go} {...item} />
-                ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   MOBILE ACCORDION ITEM
-══════════════════════════════════════════════════════════ */
-function MobileAccordion({
-  label,
-  items,
-  isCollection,
-  go,
-  collectionLinks = [],
-}) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div style={{ borderBottom: `1px solid ${T.border}` }}>
-      <button
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        style={{
-          width: "100%",
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          background: "none",
-          border: "none",
-          cursor: "pointer",
-          padding: "16px 0",
-          fontSize: "13px",
-          fontFamily: "var(--font-serif)",
-          fontWeight: 500,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
-          color: T.espresso,
-        }}
-      >
-        {label}
-        <ChevronDown open={open} />
-      </button>
-
-      <div
-        style={{
-          overflow: "hidden",
-          maxHeight: open ? "400px" : "0",
-          transition: "max-height 0.3s cubic-bezier(0.4,0,0.2,1)",
-        }}
-      >
-        <div style={{ paddingBottom: "12px" }}>
-          {isCollection && (
-            <button
-              onClick={() => go("/collections")}
-              style={{
-                display: "block",
-                width: "100%",
-                textAlign: "left",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: "4px 0 12px",
-                fontSize: "12px",
-                fontFamily: "var(--font-sans)",
-                fontWeight: 600,
-                letterSpacing: "0.09em",
-                textTransform: "uppercase",
-                color: T.espresso,
-              }}
-            >
-              View All Collections
-            </button>
-          )}
-          {isCollection
-            ? collectionLinks.map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => go(item.path)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "12px",
-                    width: "100%",
-                    textAlign: "left",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "8px 0",
-                  }}
-                >
-                  <img
-                    src={item.thumb}
-                    alt={item.label}
-                    style={{
-                      width: "48px",
-                      height: "34px",
-                      objectFit: "cover",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <span
-                    style={{
-                      fontSize: "12px",
-                      fontFamily: "var(--font-sans)",
-                      fontWeight: 500,
-                      letterSpacing: "0.08em",
-                      textTransform: "uppercase",
-                      color: T.espresso,
-                    }}
-                  >
-                    {item.label}
-                  </span>
-                </button>
-              ))
-            : items.map((item) => (
-                <button
-                  key={item.path}
-                  onClick={() => go(item.path)}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    textAlign: "left",
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "9px 0",
-                    fontSize: "12px",
-                    fontFamily: "var(--font-sans)",
-                    fontWeight: 500,
-                    letterSpacing: "0.09em",
-                    textTransform: "uppercase",
-                    color: item.sale ? T.sale : T.muted,
-                  }}
-                >
-                  {item.label}
-                </button>
-              ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/* ══════════════════════════════════════════════════════════
-   MAIN NAVBAR
+   MAIN NAVBAR COMPONENT
 ══════════════════════════════════════════════════════════ */
 export default function Navbar({
   go,
@@ -603,10 +255,38 @@ export default function Navbar({
 }) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeMenu, setActiveMenu] = useState(null); // 'shop' | 'collections' | null
+  const [featuredProducts, setFeaturedProducts] = useState(cachedFeaturedProducts || []);
+  const [featuredLoading, setFeaturedLoading] = useState(!cachedFeaturedProducts);
+  const [freeShippingThreshold, setFreeShippingThreshold] = useState(300);
+
+  useEffect(() => {
+    let isMounted = true;
+    settingsApi.getPublicSettings().then((res) => {
+      const val = res.data?.data?.freeShippingThreshold ?? res.data?.freeShippingThreshold;
+      if (isMounted && val != null) {
+        setFreeShippingThreshold(val);
+      }
+    }).catch(() => {});
+
+    const handleUpdate = () => {
+      settingsApi.getPublicSettings().then((res) => {
+        const val = res.data?.data?.freeShippingThreshold ?? res.data?.freeShippingThreshold;
+        if (val != null) {
+          setFreeShippingThreshold(val);
+        }
+      }).catch(() => {});
+    };
+
+    window.addEventListener('novashop:settings-updated', handleUpdate);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('novashop:settings-updated', handleUpdate);
+    };
+  }, []);
+
   const { user, isAuthenticated } = useAuth();
   const { categories = [] } = useCategories();
-
-  const COLLECTION_LINKS = getCollectionLinks(categories);
   const {
     distinctItemCount,
     wishlistCount,
@@ -618,24 +298,58 @@ export default function Navbar({
     closeWishlist,
     openSearch,
   } = useCart();
-  const shopLinks = [
-    ...SHOP_LINKS.slice(0, 2),
-    ...categories.map((category) => ({
-      label: category.name,
-      path: `/shop?category=${encodeURIComponent(category.slug)}`,
-    })),
-    SHOP_LINKS[2],
-  ];
 
+  const openTimerRef = useRef(null);
+  const closeTimerRef = useRef(null);
+
+  // Close mega menus & mobile drawer on route change
+  useEffect(() => {
+    setActiveMenu(null);
+    setMobileOpen(false);
+  }, [currentPath]);
+
+  // Load featured products once per session
+  useEffect(() => {
+    let active = true;
+    if (!cachedFeaturedProducts) {
+      fetchFeaturedProducts().then((data) => {
+        if (active) {
+          setFeaturedProducts(data);
+          setFeaturedLoading(false);
+        }
+      });
+    }
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Top-level categories (no parent) and subcategories lookup
+  const { topCategories, categoryChildrenMap } = useMemo(() => {
+    const list = Array.isArray(categories) ? categories : [];
+    const top = list
+      .filter((c) => c && !c.parent && !c.parentId)
+      .sort((a, b) => (a?.name || "").localeCompare(b?.name || ""));
+
+    const childrenMap = {};
+    list.forEach((cat) => {
+      if (cat && cat.parent) {
+        const parentId = typeof cat.parent === "object" ? cat.parent._id : cat.parent;
+        const key = String(parentId);
+        if (!childrenMap[key]) childrenMap[key] = [];
+        childrenMap[key].push(cat);
+      }
+    });
+
+    return { topCategories: top, categoryChildrenMap: childrenMap };
+  }, [categories]);
+
+  // Scroll detection for sticky header shadow
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
-
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [currentPath]);
 
   // Global Cmd+K / Ctrl+K → open search
   useEffect(() => {
@@ -649,6 +363,43 @@ export default function Navbar({
     return () => window.removeEventListener("keydown", handler);
   }, [openSearch]);
 
+  // Outside click & Esc key to close mega menus
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        setActiveMenu(null);
+        setMobileOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Hover intent handlers: ~120ms open delay, ~200ms close delay
+  const handleTriggerMouseEnter = (menuName) => {
+    clearTimeout(closeTimerRef.current);
+    openTimerRef.current = setTimeout(() => {
+      setActiveMenu(menuName);
+    }, 120);
+  };
+
+  const handleTriggerMouseLeave = () => {
+    clearTimeout(openTimerRef.current);
+    closeTimerRef.current = setTimeout(() => {
+      setActiveMenu(null);
+    }, 200);
+  };
+
+  const handlePanelMouseEnter = () => {
+    clearTimeout(closeTimerRef.current);
+  };
+
+  const handlePanelMouseLeave = () => {
+    closeTimerRef.current = setTimeout(() => {
+      setActiveMenu(null);
+    }, 200);
+  };
+
   const handleAccountNavigation = () => {
     if (isAuthenticated) {
       go("/account");
@@ -657,16 +408,24 @@ export default function Navbar({
     go("/login");
   };
 
+  const navigateTo = (path) => {
+    setActiveMenu(null);
+    setMobileOpen(false);
+    go(path);
+  };
+
   return (
     <>
-      {/* ══ ANNOUNCEMENT BAR ══════════════════════════════════ */}
+      {/* ══ ANNOUNCEMENT BAR ═══════════════════════════════════ */}
       {!hideAnnouncementBar && (
         <div
+          role="region"
+          aria-label="Announcement"
           style={{
             backgroundColor: T.cream,
             borderBottom: `1px solid ${T.border}`,
+            padding: "8px 16px",
             textAlign: "center",
-            padding: "9px 20px",
           }}
         >
           <p
@@ -681,7 +440,7 @@ export default function Navbar({
               lineHeight: 1.5,
             }}
           >
-            Complimentary Express Global Shipping on Orders Over $350
+            Complimentary Express Global Shipping on Orders Over ${freeShippingThreshold}
             &nbsp;&bull;&nbsp;Bespoke Packaging
           </p>
         </div>
@@ -706,7 +465,7 @@ export default function Navbar({
           style={{
             maxWidth: "1400px",
             margin: "0 auto",
-            padding: "20px 40px",
+            padding: "18px 40px",
             display: "grid",
             gridTemplateColumns: "1fr auto 1fr",
             alignItems: "center",
@@ -715,7 +474,7 @@ export default function Navbar({
         >
           {/* ─ LOGO ─ */}
           <button
-            onClick={() => go("/")}
+            onClick={() => navigateTo("/")}
             aria-label="NOVASHOP — return to homepage"
             style={{
               background: "none",
@@ -748,47 +507,100 @@ export default function Navbar({
             aria-label="Main navigation"
             style={{ display: "flex", alignItems: "center", gap: "36px" }}
           >
-            <NavItem
-              label="Shop"
-              path="/shop"
-              items={shopLinks}
-              isActive={
-                currentPath === "/shop" || currentPath.startsWith("/category/")
-              }
-              go={go}
-            />
-            <NavItem
-              label="Collections"
-              path="/collections"
-              items={[]}
-              isCollection
-              collectionLinks={COLLECTION_LINKS}
-              isActive={
-                currentPath.startsWith("/collections") ||
-                (typeof window !== "undefined" &&
-                  new URLSearchParams(window.location.search).has("collection"))
-              }
-              go={go}
-            />
+            {/* 1. Shop Mega-Menu Trigger */}
+            <div
+              style={{ position: "relative" }}
+              onMouseEnter={() => handleTriggerMouseEnter("shop")}
+              onMouseLeave={handleTriggerMouseLeave}
+            >
+              <button
+                onClick={() => navigateTo("/shop")}
+                onFocus={() => setActiveMenu("shop")}
+                aria-haspopup="true"
+                aria-expanded={activeMenu === "shop"}
+                aria-controls="ns-mega-menu-shop"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "6px 0",
+                  fontSize: "11px",
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: currentPath === "/shop" || activeMenu === "shop" ? T.espresso : T.muted,
+                  borderBottom:
+                    currentPath === "/shop" || activeMenu === "shop"
+                      ? `1px solid ${T.espresso}`
+                      : "1px solid transparent",
+                  transition: "color 0.18s, border-color 0.18s",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                Shop
+                <ChevronDown open={activeMenu === "shop"} />
+              </button>
+            </div>
+
+            {/* 2. Collections Mega-Menu Trigger */}
+            <div
+              style={{ position: "relative" }}
+              onMouseEnter={() => handleTriggerMouseEnter("collections")}
+              onMouseLeave={handleTriggerMouseLeave}
+            >
+              <button
+                onClick={() => navigateTo("/collections")}
+                onFocus={() => setActiveMenu("collections")}
+                aria-haspopup="true"
+                aria-expanded={activeMenu === "collections"}
+                aria-controls="ns-mega-menu-collections"
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "6px 0",
+                  fontSize: "11px",
+                  fontFamily: "var(--font-sans)",
+                  fontWeight: 500,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  color: currentPath.startsWith("/collections") || activeMenu === "collections" ? T.espresso : T.muted,
+                  borderBottom:
+                    currentPath.startsWith("/collections") || activeMenu === "collections"
+                      ? `1px solid ${T.espresso}`
+                      : "1px solid transparent",
+                  transition: "color 0.18s, border-color 0.18s",
+                  display: "inline-flex",
+                  alignItems: "center",
+                }}
+              >
+                Collections
+                <ChevronDown open={activeMenu === "collections"} />
+              </button>
+            </div>
+
+            {/* Static links */}
             {[
               { label: "About", path: "/about" },
               { label: "Help", path: "/help" },
             ].map((link) => (
               <button
                 key={link.path}
-                onClick={() => go(link.path)}
+                onClick={() => navigateTo(link.path)}
                 aria-current={currentPath === link.path ? "page" : undefined}
                 style={{
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  padding: "4px 0",
+                  padding: "6px 0",
                   fontSize: "11px",
                   fontFamily: "var(--font-sans)",
                   fontWeight: 500,
-                  letterSpacing: "0.13em",
+                  letterSpacing: "0.14em",
                   textTransform: "uppercase",
-                  color: currentPath === link.path ? T.espresso : "#4A4440",
+                  color: currentPath === link.path ? T.espresso : T.muted,
                   borderBottom:
                     currentPath === link.path
                       ? `1px solid ${T.espresso}`
@@ -796,11 +608,6 @@ export default function Navbar({
                   transition: "color 0.18s",
                   whiteSpace: "nowrap",
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = T.espresso)}
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.color =
-                    currentPath === link.path ? T.espresso : "#4A4440")
-                }
               >
                 {link.label}
               </button>
@@ -825,11 +632,9 @@ export default function Navbar({
               <SearchIcon />
             </button>
 
-            {/* Wishlist — hidden on mobile */}
+            {/* Wishlist */}
             <button
-              onClick={() =>
-                isWishlistOpen ? closeWishlist() : openWishlist()
-              }
+              onClick={() => (isWishlistOpen ? closeWishlist() : openWishlist())}
               aria-label={`Wishlist — ${wishlistCount} items`}
               style={{ ...iconBtn, position: "relative" }}
               className="ns-hide-mobile"
@@ -848,7 +653,10 @@ export default function Navbar({
               <Badge count={distinctItemCount} />
             </button>
 
-            {/* Account — hidden on mobile */}
+            {/* Theme Toggle */}
+            <ThemeToggle variant="button" className="storefront-theme-toggle" />
+
+            {/* Account */}
             <button
               onClick={handleAccountNavigation}
               aria-label="My account"
@@ -858,12 +666,10 @@ export default function Navbar({
               <AvatarCircle image={user?.avatar} />
             </button>
 
-            {/* Hamburger — mobile only */}
+            {/* Mobile Hamburger */}
             <button
               onClick={() => setMobileOpen((v) => !v)}
-              aria-label={
-                mobileOpen ? "Close navigation menu" : "Open navigation menu"
-              }
+              aria-label={mobileOpen ? "Close navigation menu" : "Open navigation menu"}
               aria-expanded={mobileOpen}
               aria-controls="ns-mobile-drawer"
               style={{ ...iconBtn, display: "none" }}
@@ -874,13 +680,565 @@ export default function Navbar({
           </div>
         </div>
 
-        {/* ══ MOBILE DRAWER ══════════════════════════════════ */}
+        {/* ══════════════════════════════════════════════════════
+            DESKTOP MEGA-MENU PANEL: SHOP
+        ══════════════════════════════════════════════════════ */}
+        <div
+          id="ns-mega-menu-shop"
+          role="region"
+          aria-label="Shop mega menu"
+          onMouseEnter={handlePanelMouseEnter}
+          onMouseLeave={handlePanelMouseLeave}
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            width: "100%",
+            backgroundColor: T.ivory,
+            borderTop: `1px solid ${T.border}`,
+            borderBottom: `1px solid ${T.border}`,
+            boxShadow: "0 20px 40px rgba(27,24,22,0.08)",
+            opacity: activeMenu === "shop" ? 1 : 0,
+            transform: activeMenu === "shop" ? "translateY(0)" : "translateY(-8px)",
+            pointerEvents: activeMenu === "shop" ? "auto" : "none",
+            transition: "opacity 0.22s ease, transform 0.22s ease",
+            maxHeight: "calc(100vh - 120px)",
+            overflowY: "auto",
+            zIndex: 250,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "1400px",
+              margin: "0 auto",
+              padding: "36px 40px 44px",
+              display: "grid",
+              gridTemplateColumns: "220px 1fr 280px",
+              gap: "48px",
+            }}
+          >
+            {/* Column 1: Quick Links */}
+            <div style={{ borderRight: `1px solid ${T.border}`, paddingRight: "32px" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "10px",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "#8A817B",
+                  fontWeight: 600,
+                  marginBottom: "18px",
+                }}
+              >
+                Quick Links
+              </div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/shop")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "12px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: T.espresso,
+                      fontWeight: 600,
+                      textAlign: "left",
+                    }}
+                  >
+                    All Products
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/shop?sort=newest")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "12px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: T.espresso,
+                      fontWeight: 500,
+                      textAlign: "left",
+                    }}
+                  >
+                    New Arrivals
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/shop?sort=bestselling")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "12px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: T.espresso,
+                      fontWeight: 500,
+                      textAlign: "left",
+                    }}
+                  >
+                    Best Sellers
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/collections")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "11px",
+                      letterSpacing: "0.14em",
+                      textTransform: "uppercase",
+                      color: "#7E7570",
+                      textAlign: "left",
+                      marginTop: "12px",
+                      textDecoration: "underline",
+                    }}
+                  >
+                    Browse All Categories →
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 2: Top-level Categories with Subcategories */}
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "10px",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "#8A817B",
+                  fontWeight: 600,
+                  marginBottom: "18px",
+                }}
+              >
+                Categories
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+                  gap: "28px",
+                }}
+              >
+                {topCategories.slice(0, 4).map((cat) => {
+                  const subcategories = categoryChildrenMap[String(cat._id)] || [];
+                  return (
+                    <div key={cat._id}>
+                      <button
+                        onClick={() => navigateTo(`/shop?category=${encodeURIComponent(cat.slug)}`)}
+                        style={{
+                          background: "none",
+                          border: "none",
+                          padding: "0 0 10px",
+                          cursor: "pointer",
+                          fontFamily: "var(--font-serif)",
+                          fontSize: "16px",
+                          fontStyle: "italic",
+                          color: T.espresso,
+                          fontWeight: 500,
+                          textAlign: "left",
+                          display: "block",
+                        }}
+                      >
+                        {cat.name}
+                      </button>
+
+                      {subcategories.length > 0 ? (
+                        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "8px" }}>
+                          {subcategories.slice(0, 6).map((sub) => (
+                            <li key={sub._id}>
+                              <button
+                                onClick={() => navigateTo(`/shop?category=${encodeURIComponent(sub.slug)}`)}
+                                style={{
+                                  background: "none",
+                                  border: "none",
+                                  padding: 0,
+                                  cursor: "pointer",
+                                  fontFamily: "var(--font-sans)",
+                                  fontSize: "11px",
+                                  letterSpacing: "0.08em",
+                                  textTransform: "uppercase",
+                                  color: T.muted,
+                                  textAlign: "left",
+                                  transition: "color 0.15s ease",
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.color = T.espresso)}
+                                onMouseLeave={(e) => (e.currentTarget.style.color = T.muted)}
+                              >
+                                {sub.name}
+                              </button>
+                            </li>
+                          ))}
+                          <li style={{ marginTop: "4px" }}>
+                            <button
+                              onClick={() => navigateTo(`/shop?category=${encodeURIComponent(cat.slug)}`)}
+                              style={{
+                                background: "none",
+                                border: "none",
+                                padding: 0,
+                                cursor: "pointer",
+                                fontFamily: "var(--font-sans)",
+                                fontSize: "10px",
+                                letterSpacing: "0.12em",
+                                textTransform: "uppercase",
+                                color: "#8A817B",
+                                textAlign: "left",
+                                textDecoration: "underline",
+                              }}
+                            >
+                              View all {cat.name}
+                            </button>
+                          </li>
+                        </ul>
+                      ) : (
+                        <p style={{ margin: 0, fontSize: "11px", color: "#8A817B", lineHeight: 1.4 }}>
+                          {cat.description || "Wardrobe staples"}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Column 3: Featured Products (Real backend data) */}
+            <div style={{ borderLeft: `1px solid ${T.border}`, paddingLeft: "32px" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "10px",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "#8A817B",
+                  fontWeight: 600,
+                  marginBottom: "18px",
+                }}
+              >
+                Featured New
+              </div>
+
+              {featuredLoading ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div style={{ height: "60px", background: "#EDE8DF", borderRadius: "2px" }} />
+                  <div style={{ height: "60px", background: "#EDE8DF", borderRadius: "2px" }} />
+                </div>
+              ) : featuredProducts.length > 0 ? (
+                <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                  {featuredProducts.slice(0, 2).map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => navigateTo(`/products/${item.slug || item.id}`)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "14px",
+                        background: "none",
+                        border: "none",
+                        cursor: "pointer",
+                        padding: 0,
+                        textAlign: "left",
+                      }}
+                    >
+                      <img
+                        src={item.primaryImage}
+                        alt={item.name}
+                        style={{
+                          width: "56px",
+                          height: "70px",
+                          objectFit: "cover",
+                          borderRadius: "2px",
+                          backgroundColor: "#EDE8DF",
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div>
+                        <div
+                          style={{
+                            fontFamily: "var(--font-serif)",
+                            fontSize: "14px",
+                            fontStyle: "italic",
+                            color: T.espresso,
+                            lineHeight: 1.2,
+                            marginBottom: "4px",
+                          }}
+                        >
+                          {item.name}
+                        </div>
+                        <div
+                          style={{
+                            fontFamily: "var(--font-sans)",
+                            fontSize: "11px",
+                            color: "#7E7570",
+                            letterSpacing: "0.06em",
+                          }}
+                        >
+                          ${item.price.toFixed(2)}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════
+            DESKTOP MEGA-MENU PANEL: COLLECTIONS
+        ══════════════════════════════════════════════════════ */}
+        <div
+          id="ns-mega-menu-collections"
+          role="region"
+          aria-label="Collections mega menu"
+          onMouseEnter={handlePanelMouseEnter}
+          onMouseLeave={handlePanelMouseLeave}
+          style={{
+            position: "absolute",
+            top: "100%",
+            left: 0,
+            width: "100%",
+            backgroundColor: T.ivory,
+            borderTop: `1px solid ${T.border}`,
+            borderBottom: `1px solid ${T.border}`,
+            boxShadow: "0 20px 40px rgba(27,24,22,0.08)",
+            opacity: activeMenu === "collections" ? 1 : 0,
+            transform: activeMenu === "collections" ? "translateY(0)" : "translateY(-8px)",
+            pointerEvents: activeMenu === "collections" ? "auto" : "none",
+            transition: "opacity 0.22s ease, transform 0.22s ease",
+            maxHeight: "calc(100vh - 120px)",
+            overflowY: "auto",
+            zIndex: 250,
+          }}
+        >
+          <div
+            style={{
+              maxWidth: "1400px",
+              margin: "0 auto",
+              padding: "36px 40px 44px",
+              display: "grid",
+              gridTemplateColumns: "220px 1fr",
+              gap: "48px",
+            }}
+          >
+            {/* Column 1: Curated Collections Links */}
+            <div style={{ borderRight: `1px solid ${T.border}`, paddingRight: "32px" }}>
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "10px",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "#8A817B",
+                  fontWeight: 600,
+                  marginBottom: "18px",
+                }}
+              >
+                Curated
+              </div>
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "14px" }}>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/collections")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "12px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: T.espresso,
+                      fontWeight: 600,
+                      textAlign: "left",
+                    }}
+                  >
+                    All Collections
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/shop?sort=newest")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "12px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: T.espresso,
+                      fontWeight: 500,
+                      textAlign: "left",
+                    }}
+                  >
+                    New Arrivals Showcase
+                  </button>
+                </li>
+                <li>
+                  <button
+                    onClick={() => navigateTo("/shop?sort=bestselling")}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontFamily: "var(--font-sans)",
+                      fontSize: "12px",
+                      letterSpacing: "0.12em",
+                      textTransform: "uppercase",
+                      color: T.espresso,
+                      fontWeight: 500,
+                      textAlign: "left",
+                    }}
+                  >
+                    Best Sellers Archive
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 2: Category Collections Grid */}
+            <div>
+              <div
+                style={{
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "10px",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  color: "#8A817B",
+                  fontWeight: 600,
+                  marginBottom: "18px",
+                }}
+              >
+                Category Collections
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+                  gap: "24px",
+                }}
+              >
+                {topCategories.map((cat) => (
+                  <button
+                    key={cat._id}
+                    onClick={() => navigateTo(`/shop?category=${encodeURIComponent(cat.slug)}`)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      background: T.cream,
+                      border: `1px solid ${T.border}`,
+                      borderRadius: "4px",
+                      padding: "12px 16px",
+                      cursor: "pointer",
+                      textAlign: "left",
+                      transition: "background 0.2s ease, border-color 0.2s ease",
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = T.ivory;
+                      e.currentTarget.style.borderColor = "var(--border-strong)";
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = T.cream;
+                      e.currentTarget.style.borderColor = T.border;
+                    }}
+                  >
+                    {cat.image ? (
+                      <img
+                        src={resolveImage(cat.image)}
+                        alt={cat.name}
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          objectFit: "cover",
+                          borderRadius: "2px",
+                          flexShrink: 0,
+                        }}
+                      />
+                    ) : (
+                      <div
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "2px",
+                          background: "#EBE5DB",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "12px",
+                          fontFamily: "var(--font-serif)",
+                          color: T.espresso,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {cat.name.charAt(0)}
+                      </div>
+                    )}
+                    <div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-serif)",
+                          fontSize: "14px",
+                          fontStyle: "italic",
+                          color: T.espresso,
+                          fontWeight: 500,
+                        }}
+                      >
+                        {cat.name}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: "var(--font-sans)",
+                          fontSize: "10px",
+                          letterSpacing: "0.12em",
+                          textTransform: "uppercase",
+                          color: "#8D837D",
+                          marginTop: "2px",
+                        }}
+                      >
+                        Explore →
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ══════════════════════════════════════════════════════
+            MOBILE DRAWER (Accordion for Shop & Collections)
+        ══════════════════════════════════════════════════════ */}
         <div
           id="ns-mobile-drawer"
           aria-hidden={!mobileOpen}
           style={{
             overflow: "hidden",
-            maxHeight: mobileOpen ? "600px" : "0",
+            maxHeight: mobileOpen ? "800px" : "0",
             transition: "max-height 0.38s cubic-bezier(0.4,0,0.2,1)",
             borderTop: `1px solid ${T.border}`,
             backgroundColor: T.ivory,
@@ -888,26 +1246,76 @@ export default function Navbar({
         >
           <nav
             aria-label="Mobile navigation"
-            style={{ padding: "8px 24px 28px" }}
+            style={{ padding: "12px 24px 32px" }}
           >
-            {/* Accordions for dropdown items */}
-            <MobileAccordion label="Shop" items={shopLinks} go={go} />
+            {/* Mobile Shop Accordion */}
+            <MobileAccordionSection
+              title="Shop"
+              onTitleClick={() => navigateTo("/shop")}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px" }}>
+                <button
+                  onClick={() => navigateTo("/shop")}
+                  style={mobileSubLink}
+                >
+                  All Products
+                </button>
+                <button
+                  onClick={() => navigateTo("/shop?sort=newest")}
+                  style={mobileSubLink}
+                >
+                  New Arrivals
+                </button>
+                <button
+                  onClick={() => navigateTo("/shop?sort=bestselling")}
+                  style={mobileSubLink}
+                >
+                  Best Sellers
+                </button>
+                {topCategories.map((cat) => (
+                  <button
+                    key={cat._id}
+                    onClick={() => navigateTo(`/shop?category=${encodeURIComponent(cat.slug)}`)}
+                    style={mobileSubLink}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </MobileAccordionSection>
 
-            <MobileAccordion
-              label="Collections"
-              isCollection
-              collectionLinks={COLLECTION_LINKS}
-              go={go}
-            />
+            {/* Mobile Collections Accordion */}
+            <MobileAccordionSection
+              title="Collections"
+              onTitleClick={() => navigateTo("/collections")}
+            >
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px" }}>
+                <button
+                  onClick={() => navigateTo("/collections")}
+                  style={{ ...mobileSubLink, fontWeight: 700 }}
+                >
+                  View All Collections
+                </button>
+                {topCategories.map((cat) => (
+                  <button
+                    key={cat._id}
+                    onClick={() => navigateTo(`/shop?category=${encodeURIComponent(cat.slug)}`)}
+                    style={mobileSubLink}
+                  >
+                    {cat.name}
+                  </button>
+                ))}
+              </div>
+            </MobileAccordionSection>
 
-            {/* Plain links */}
+            {/* Static pages */}
             {[
               { label: "About", path: "/about" },
               { label: "Help", path: "/help" },
             ].map((link) => (
               <button
                 key={link.path}
-                onClick={() => go(link.path)}
+                onClick={() => navigateTo(link.path)}
                 style={{
                   display: "block",
                   width: "100%",
@@ -950,7 +1358,7 @@ export default function Navbar({
                       handleAccountNavigation();
                       return;
                     }
-                    go(p);
+                    navigateTo(p);
                   }}
                   style={{
                     background: "none",
@@ -968,6 +1376,12 @@ export default function Navbar({
                   {l}
                 </button>
               ))}
+            </div>
+
+            {/* Mobile Theme Preference */}
+            <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+              <span style={{ fontSize: "11px", fontFamily: "var(--font-sans)", letterSpacing: "0.12em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>Theme</span>
+              <ThemeToggle variant="segmented" />
             </div>
           </nav>
         </div>
@@ -987,7 +1401,93 @@ export default function Navbar({
         @media (min-width: 768px) {
           .ns-show-mobile  { display: none !important; }
         }
+        @media (prefers-reduced-motion: reduce) {
+          #ns-mega-menu-shop,
+          #ns-mega-menu-collections {
+            transition: none !important;
+            transform: none !important;
+          }
+        }
       `}</style>
     </>
   );
 }
+
+/* ══════════════════════════════════════════════════════════
+   MOBILE ACCORDION HELPER
+══════════════════════════════════════════════════════════ */
+function MobileAccordionSection({ title, onTitleClick, children }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ borderBottom: `1px solid ${T.border}` }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "16px 0",
+        }}
+      >
+        <button
+          onClick={onTitleClick}
+          style={{
+            background: "none",
+            border: "none",
+            padding: 0,
+            cursor: "pointer",
+            fontSize: "13px",
+            fontFamily: "var(--font-serif)",
+            fontWeight: 500,
+            letterSpacing: "0.1em",
+            textTransform: "uppercase",
+            color: T.espresso,
+            textAlign: "left",
+          }}
+        >
+          {title}
+        </button>
+        <button
+          onClick={() => setOpen((v) => !v)}
+          aria-expanded={open}
+          style={{
+            background: "none",
+            border: "none",
+            padding: "4px 8px",
+            cursor: "pointer",
+            color: T.espresso,
+          }}
+          aria-label={`Toggle ${title} subcategories`}
+        >
+          <ChevronDown open={open} />
+        </button>
+      </div>
+
+      <div
+        style={{
+          overflow: "hidden",
+          maxHeight: open ? "600px" : "0",
+          transition: "max-height 0.3s cubic-bezier(0.4,0,0.2,1)",
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+const mobileSubLink = {
+  display: "block",
+  width: "100%",
+  textAlign: "left",
+  background: "none",
+  border: "none",
+  cursor: "pointer",
+  padding: "6px 0",
+  fontSize: "12px",
+  fontFamily: "var(--font-sans)",
+  fontWeight: 500,
+  letterSpacing: "0.08em",
+  textTransform: "uppercase",
+  color: "var(--text-muted)",
+};

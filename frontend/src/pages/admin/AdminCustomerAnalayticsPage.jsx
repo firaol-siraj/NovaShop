@@ -1,75 +1,16 @@
-import {  useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import {
+  useAdminCustomerAnalytics,
+  useAnalyticsUrlState,
+  resolveDateRangeBounds,
+} from '../../hooks/useAdminAnalytics';
+import adminApi from '../../lib/api/adminApi';
+import { formatCurrency, formatNumber } from '../../lib/formatters';
 import './admin-customer-analytics.css';
 
-/* =========================================================
-   MOCK DATA
-========================================================= */
-
-const KPI_STATS = [
-  { label: 'Total customers', value: '2,846', trend: '+6.2%', tone: 'positive' },
-  { label: 'New customers', value: '428', trend: '+12%', tone: 'positive' },
-  { label: 'Repeat purchase rate', value: '38%', trend: '−1.1%', tone: 'negative' },
-  { label: 'Customer lifetime value', value: '$4,860', trend: '+5.4%', tone: 'positive' },
-];
-
-const GROWTH_SERIES = [
-  { label: 'Aug 10', returning: 160, newCustomers: 70 },
-  { label: 'Aug 17', returning: 150, newCustomers: 85 },
-  { label: 'Aug 24', returning: 170, newCustomers: 95 },
-  { label: 'Aug 31', returning: 165, newCustomers: 100 },
-  { label: 'Sep 7', returning: 175, newCustomers: 90 },
-  { label: 'Sep 14', returning: 168, newCustomers: 112, highlight: true },
-  { label: 'Sep 21', returning: 180, newCustomers: 95 },
-  { label: 'Sep 28', returning: 190, newCustomers: 100 },
-];
-
-const NEW_VS_RETURNING = { returning: 698, new: 428 };
-
-const COHORTS = [
-  { label: 'Apr', count: 312, months: [100, 38, 32, 28, 24, 22] },
-  { label: 'May', count: 340, months: [100, 36, 30, 26, 21, null] },
-  { label: 'Jun', count: 388, months: [100, 39, 31, 24, null, null] },
-  { label: 'Jul', count: 412, months: [100, 41, 34, null, null, null] },
-  { label: 'Aug', count: 445, months: [100, 43, null, null, null, null] },
-  { label: 'Sep', count: 428, months: [100, null, null, null, null, null] },
-];
-
-const SELECTED_COHORT_CELL = { rowIndex: 2, monthIndex: 2 };
-
-const ORDERS_PER_CUSTOMER = [
-  { label: '1 order', percent: 62 },
-  { label: '2–3 orders', percent: 27 },
-  { label: '4–5 orders', percent: 8 },
-  { label: '6+ orders', percent: 3 },
-];
-
-const TOP_CUSTOMERS = [
-  { initials: 'AC', name: 'Amelia Chen', email: 'amelia.chen@email.com', orders: 15, spent: 21150, lastOrder: 'Sep 30, 2026', relative: '1 day ago', swatch: '#2B2723' },
-  { initials: 'SM', name: 'Sarah Mitchell', email: 'sarah.mitchell@email.com', orders: 12, spent: 14820, lastOrder: 'Sep 28, 2026', relative: '3 days ago', swatch: '#5C4B3A' },
-  { initials: 'SR', name: 'Sofia Rossi', email: 'sofia.rossi@email.com', orders: 9, spent: 11480, lastOrder: 'Sep 19, 2026', relative: '12 days ago', swatch: '#7C6B5C' },
-  { initials: 'JO', name: 'James Okafor', email: 'james.okafor@email.com', orders: 8, spent: 9340, lastOrder: 'Sep 24, 2026', relative: '7 days ago', swatch: '#4A3F33' },
-  { initials: 'PR', name: 'Priya Raman', email: 'priya.raman@email.com', orders: 6, spent: 7260, lastOrder: 'Aug 02, 2026', relative: '2 months ago', swatch: '#9A8E7E' },
-];
-
-const CUSTOMERS_BY_COUNTRY = [
-  { label: 'United States', customers: 1024 },
-  { label: 'United Kingdom', customers: 512 },
-  { label: 'Germany', customers: 301 },
-  { label: 'United Arab Emirates', customers: 244 },
-  { label: 'Singapore', customers: 198 },
-];
-
-const DATE_RANGES = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
+const DATE_RANGES = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This month', 'This year'];
 const CHART_GRANULARITY = ['Daily', 'Weekly', 'Monthly'];
-
-function formatCurrency(value) {
-  return `$${Number(value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
-}
-
-function formatNumber(value) {
-  return Number(value).toLocaleString('en-US');
-}
 
 function cohortLevel(percent) {
   if (percent === null || percent === undefined) return 'empty';
@@ -141,9 +82,21 @@ function RangeDropdown({ value, options, onChange }) {
    STACKED CUSTOMER GROWTH CHART (plain divs, no dependency)
 ========================================================= */
 
-function GrowthChart({ series }) {
-  const maxValue = 300;
-  const gridValues = [300, 200, 100, 0];
+function GrowthChart({ series = [] }) {
+  const maxVal = useMemo(() => {
+    const max = Math.max(...series.map((p) => (p.returning || 0) + (p.newCustomers || 0)), 0);
+    return max > 0 ? Math.ceil((max * 1.2) / 10) * 10 : 100;
+  }, [series]);
+
+  const gridValues = [maxVal, Math.round((maxVal * 2) / 3), Math.round(maxVal / 3), 0];
+
+  if (!series || series.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-[180px] text-[#8A847C] text-xs">
+        No customer activity in this period
+      </div>
+    );
+  }
 
   return (
     <div className="ca-growth-chart">
@@ -157,17 +110,17 @@ function GrowthChart({ series }) {
 
       <div className="ca-growth-bars">
         {series.map((point) => {
-          const total = point.returning + point.newCustomers;
-          const totalHeight = (total / maxValue) * 100;
-          const returningHeight = (point.returning / total) * 100;
-          const newHeight = (point.newCustomers / total) * 100;
+          const total = (point.returning || 0) + (point.newCustomers || 0);
+          const totalHeight = total > 0 ? (total / maxVal) * 100 : 0;
+          const returningHeight = total > 0 ? ((point.returning || 0) / total) * 100 : 0;
+          const newHeight = total > 0 ? ((point.newCustomers || 0) / total) * 100 : 0;
 
           return (
             <div className="ca-growth-column" key={point.label}>
-              {point.highlight && (
+              {point.highlight && total > 0 && (
                 <div className="ca-growth-tooltip">
-                  <strong>Week of {point.label}</strong>
-                  <span>New {point.newCustomers} · Returning {point.returning}</span>
+                  <strong>{point.label}</strong>
+                  <span>New {point.newCustomers || 0} · Returning {point.returning || 0}</span>
                 </div>
               )}
 
@@ -192,15 +145,15 @@ function GrowthChart({ series }) {
    NEW VS RETURNING DONUT
 ========================================================= */
 
-function ReturningDonut({ returning, newCustomers }) {
+function ReturningDonut({ returning = 0, newCustomers = 0 }) {
   const total = returning + newCustomers;
-  const returningPercent = Math.round((returning / total) * 100);
+  const returningPercent = total > 0 ? Math.round((returning / total) * 100) : 0;
 
   return (
     <div
       className="ca-donut"
       style={{
-        background: `conic-gradient(var(--admin-primary) 0% ${returningPercent}%, #EEE9E2 ${returningPercent}% 100%)`,
+        background: `conic-gradient(var(--chart-net, var(--admin-primary)) 0% ${returningPercent}%, var(--chart-track, #EEE9E2) ${returningPercent}% 100%)`,
       }}
     >
       <div className="ca-donut-hole">
@@ -216,59 +169,103 @@ function ReturningDonut({ returning, newCustomers }) {
 ========================================================= */
 
 export default function AdminCustomerAnalyticsPage({ go }) {
-  const [dateRange, setDateRange] = useState('Last 30 days');
-  const [granularity, setGranularity] = useState('Weekly');
-  const [notice, setNotice] = useState('');
+  const { dateRange, setDateRange, granularity, setGranularity } = useAnalyticsUrlState(
+    'Last 30 days',
+    'Weekly'
+  );
 
-  const maxCountryCustomers = Math.max(...CUSTOMERS_BY_COUNTRY.map((item) => item.customers));
-  const maxOrdersPercent = Math.max(...ORDERS_PER_CUSTOMER.map((item) => item.percent));
+  const { from, to } = useMemo(() => resolveDateRangeBounds(dateRange), [dateRange]);
+  const interval = granularity === 'Monthly' ? 'month' : granularity === 'Weekly' ? 'week' : 'day';
+
+  const { data, isLoading, isError, error, refetch } = useAdminCustomerAnalytics({
+    from,
+    to,
+    interval,
+  });
+
+  const [notice, setNotice] = useState('');
+  const [selectedCohort, setSelectedCohort] = useState(null);
 
   const notify = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(''), 2200);
+    window.setTimeout(() => setNotice(''), 2500);
   };
 
-  const goToCustomers = () => {
+  const navigateTo = (targetPath) => {
     if (go) {
-      go('/admin/customers');
-      return;
+      go(targetPath);
+    } else if (typeof window !== 'undefined') {
+      window.location.href = targetPath;
     }
-    notify('Opening customers…');
   };
 
-  const exportReport = () => {
-    const rows = [
-      ['Metric', 'Value', 'Trend'],
-      ...KPI_STATS.map((stat) => [stat.label, stat.value, stat.trend]),
-      [],
-      ['Customer', 'Email', 'Orders', 'Total spent', 'Last order'],
-      ...TOP_CUSTOMERS.map((customer) => [
-        customer.name,
-        customer.email,
-        customer.orders,
-        customer.spent,
-        customer.lastOrder,
-      ]),
-    ];
+  // Customers by country
+  const customersByCountry = data?.customersByCountry || [];
+  const maxCountryCustomers = Math.max(1, ...customersByCountry.map((item) => item.customers || 0));
 
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
-      .join('\n');
+  // Orders per customer
+  const ordersPerCustomer = data?.ordersPerCustomer || [
+    { label: '1 order', percent: 0 },
+    { label: '2–3 orders', percent: 0 },
+    { label: '4–5 orders', percent: 0 },
+    { label: '6+ orders', percent: 0 },
+  ];
+  const maxOrdersPercent = Math.max(1, ...ordersPerCustomer.map((item) => item.percent || 0));
 
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'novashop-customer-analytics.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+  // Cohorts
+  const cohorts = data?.cohorts || [];
+  const selectedCohortCell = selectedCohort || data?.selectedCohortCell || { rowIndex: 0, monthIndex: 1 };
 
-    notify('Customer report exported');
+  // Top customers
+  const topCustomers = data?.topCustomers || [];
+
+  // Export report
+  const exportReport = async () => {
+    try {
+      notify('Exporting customer report…');
+      const blob = await adminApi.exportAnalyticsCsv({ page: 'customers', from, to });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `novashop-customer-analytics-${dateRange.toLowerCase().replace(/\s+/g, '-')}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      notify('Customer report exported');
+    } catch {
+      notify('Failed to export CSV report');
+    }
   };
+
+  const kpiStats = [
+    {
+      label: 'Total customers',
+      value: isLoading ? '...' : data?.kpis?.totalCustomers?.formatted || '0',
+      trend: data?.kpis?.totalCustomers?.formattedTrend || '-',
+      tone: 'positive',
+    },
+    {
+      label: 'New customers',
+      value: isLoading ? '...' : data?.kpis?.newCustomers?.formatted || '0',
+      trend: data?.kpis?.newCustomers?.positive ? '+' : '-',
+      tone: 'positive',
+    },
+    {
+      label: 'Repeat purchase rate',
+      value: isLoading ? '...' : data?.kpis?.repeatPurchaseRate?.formatted || '0.0%',
+      trend: data?.kpis?.repeatPurchaseRate?.positive ? '+' : '-',
+      tone: data?.kpis?.repeatPurchaseRate?.positive ? 'positive' : 'negative',
+    },
+    {
+      label: 'Customer lifetime value',
+      value: isLoading ? '...' : data?.kpis?.customerLifetimeValue?.formatted || '$0.00',
+      trend: data?.kpis?.customerLifetimeValue?.positive ? '+' : '-',
+      tone: 'positive',
+    },
+  ];
 
   return (
     <div className="admin-dashboard ca-page">
-
-      {/* PAGE HEADER — shared admin-page-* classes, same as Inventory/Analytics */}
+      {/* PAGE HEADER */}
       <section className="admin-page-heading ca-page-heading">
         <div>
           <h1 className="admin-page-title">Customer Analytics</h1>
@@ -287,11 +284,13 @@ export default function AdminCustomerAnalyticsPage({ go }) {
         </div>
       </section>
 
-      <div className="ca-kpi-label">VS PREVIOUS 30 DAYS</div>
+      <div className="ca-kpi-label">
+        VS PREVIOUS {data?.durationDays || 30} DAYS
+      </div>
 
-      {/* KPI ROW — shared admin-stat-* classes */}
+      {/* KPI ROW */}
       <section className="admin-stat-grid ca-stat-grid">
-        {KPI_STATS.map((stat) => (
+        {kpiStats.map((stat) => (
           <article className="admin-stat-card" key={stat.label}>
             <div className="admin-stat-heading">
               <span className="admin-stat-label">{stat.label}</span>
@@ -338,7 +337,7 @@ export default function AdminCustomerAnalyticsPage({ go }) {
             </span>
           </div>
 
-          <GrowthChart series={GROWTH_SERIES} />
+          <GrowthChart series={data?.growthSeries || []} />
         </article>
 
         <article className="ca-card ca-split-card">
@@ -350,20 +349,20 @@ export default function AdminCustomerAnalyticsPage({ go }) {
           </div>
 
           <ReturningDonut
-            returning={NEW_VS_RETURNING.returning}
-            newCustomers={NEW_VS_RETURNING.new}
+            returning={data?.loyalty?.returning || 0}
+            newCustomers={data?.loyalty?.newCustomers || 0}
           />
 
           <div className="ca-split-legend">
             <div className="ca-split-legend-row">
               <span className="ca-legend-dot is-returning" />
               Returning customers
-              <strong>{NEW_VS_RETURNING.returning}</strong>
+              <strong>{data?.loyalty?.returning || 0}</strong>
             </div>
             <div className="ca-split-legend-row">
               <span className="ca-legend-dot is-new" />
               New customers
-              <strong>{NEW_VS_RETURNING.new}</strong>
+              <strong>{data?.loyalty?.newCustomers || 0}</strong>
             </div>
           </div>
         </article>
@@ -387,7 +386,7 @@ export default function AdminCustomerAnalyticsPage({ go }) {
               ))}
             </div>
 
-            {COHORTS.map((cohort, rowIndex) => (
+            {cohorts.map((cohort, rowIndex) => (
               <div className="ca-cohort-row" key={cohort.label}>
                 <div className="ca-cohort-label">
                   <strong>{cohort.label}</strong>
@@ -396,8 +395,8 @@ export default function AdminCustomerAnalyticsPage({ go }) {
 
                 {cohort.months.map((percent, monthIndex) => {
                   const isSelected =
-                    SELECTED_COHORT_CELL.rowIndex === rowIndex &&
-                    SELECTED_COHORT_CELL.monthIndex === monthIndex;
+                    selectedCohortCell.rowIndex === rowIndex &&
+                    selectedCohortCell.monthIndex === monthIndex;
 
                   return (
                     <span
@@ -405,6 +404,7 @@ export default function AdminCustomerAnalyticsPage({ go }) {
                       className={`ca-cohort-cell is-${cohortLevel(percent)}${
                         isSelected ? ' is-selected' : ''
                       }`}
+                      onClick={() => setSelectedCohort({ rowIndex, monthIndex })}
                     >
                       {percent === null ? '—' : `${percent}%`}
                     </span>
@@ -434,20 +434,24 @@ export default function AdminCustomerAnalyticsPage({ go }) {
           </div>
 
           <div className="ca-bar-list">
-            {ORDERS_PER_CUSTOMER.map((item) => (
+            {ordersPerCustomer.map((item) => (
               <div className="ca-bar-row" key={item.label}>
                 <div className="ca-bar-top">
                   <span>{item.label}</span>
                   <strong>{item.percent}%</strong>
                 </div>
                 <div className="ca-bar-track">
-                  <span style={{ width: `${(item.percent / maxOrdersPercent) * 100}%` }} />
+                  <span
+                    style={{
+                      width: `${maxOrdersPercent > 0 ? (item.percent / maxOrdersPercent) * 100 : 0}%`,
+                    }}
+                  />
                 </div>
               </div>
             ))}
           </div>
 
-          <p className="ca-note">Calculated across all historical lifetime profiles.</p>
+          <p className="ca-note">Calculated across verified order histories.</p>
         </article>
       </section>
 
@@ -460,7 +464,7 @@ export default function AdminCustomerAnalyticsPage({ go }) {
               <p>Who spends the most?</p>
             </div>
 
-            <button type="button" className="ca-text-link" onClick={goToCustomers}>
+            <button type="button" className="ca-text-link" onClick={() => navigateTo('/admin/customers')}>
               View all customers <span>→</span>
             </button>
           </div>
@@ -473,31 +477,37 @@ export default function AdminCustomerAnalyticsPage({ go }) {
               <span>Last order</span>
             </div>
 
-            {TOP_CUSTOMERS.map((customer) => (
-              <div className="ca-customers-row" key={customer.email}>
-                <div className="ca-customer-identity">
-                  <span
-                    className="ca-avatar"
-                    style={{ background: customer.swatch }}
-                  >
-                    {customer.initials}
-                  </span>
-                  <div>
-                    <strong>{customer.name}</strong>
-                    <small>{customer.email}</small>
-                  </div>
-                </div>
-
-                <span className="ca-customers-cell">{customer.orders}</span>
-                <span className="ca-customers-cell ca-customers-spent">
-                  {formatCurrency(customer.spent)}
-                </span>
-                <span className="ca-customers-cell ca-customers-last-order">
-                  {customer.lastOrder}
-                  <small>({customer.relative})</small>
-                </span>
+            {topCustomers.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No customer orders recorded yet
               </div>
-            ))}
+            ) : (
+              topCustomers.map((customer) => (
+                <div className="ca-customers-row" key={customer.email}>
+                  <div className="ca-customer-identity">
+                    <span
+                      className="ca-avatar"
+                      style={{ background: customer.swatch || '#2B2723' }}
+                    >
+                      {customer.initials}
+                    </span>
+                    <div>
+                      <strong>{customer.name}</strong>
+                      <small>{customer.email}</small>
+                    </div>
+                  </div>
+
+                  <span className="ca-customers-cell">{customer.orders}</span>
+                  <span className="ca-customers-cell ca-customers-spent">
+                    {formatCurrency(customer.spent)}
+                  </span>
+                  <span className="ca-customers-cell ca-customers-last-order">
+                    {customer.lastOrder}
+                    {customer.relative && <small>({customer.relative})</small>}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
@@ -510,24 +520,45 @@ export default function AdminCustomerAnalyticsPage({ go }) {
           </div>
 
           <div className="ca-bar-list ca-bar-list-compact">
-            {CUSTOMERS_BY_COUNTRY.map((item) => (
-              <div className="ca-bar-row" key={item.label}>
-                <div className="ca-bar-top">
-                  <span>{item.label}</span>
-                  <strong>{formatNumber(item.customers)} customers</strong>
-                </div>
-                <div className="ca-bar-track ca-bar-track-thin">
-                  <span
-                    style={{ width: `${(item.customers / maxCountryCustomers) * 100}%` }}
-                  />
-                </div>
+            {customersByCountry.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No regional customer distribution in this period
               </div>
-            ))}
+            ) : (
+              customersByCountry.map((item) => (
+                <div className="ca-bar-row" key={item.label}>
+                  <div className="ca-bar-top">
+                    <span>{item.label}</span>
+                    <strong>{formatNumber(item.customers)} customers</strong>
+                  </div>
+                  <div className="ca-bar-track ca-bar-track-thin">
+                    <span
+                      style={{
+                        width: `${maxCountryCustomers > 0 ? (item.customers / maxCountryCustomers) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <p className="ca-note">Based on primary shipping destination.</p>
         </article>
       </section>
+
+      {isError && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs flex items-center justify-between">
+          <span>{error || 'Failed to load customer analytics'}</span>
+          <button
+            type="button"
+            className="underline font-semibold ml-4"
+            onClick={() => refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div className="admin-toast" role="status">

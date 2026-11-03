@@ -1,7 +1,12 @@
 import apiClient from "./client";
 
 export const productApi = {
-  getProducts: (params) => apiClient.get("/products", { params }),
+  getProducts: (params, config = {}) =>
+    apiClient.get("/products", { params, ...config }),
+  getProductFilters: (params, config = {}) =>
+    apiClient.get("/products/filters", { params, ...config }),
+  getProductsByIds: (ids) =>
+    apiClient.post("/products/by-ids", { ids }),
   getAdminProducts: (params) =>
     apiClient.get("/products/admin/all", { params }),
   getProduct: (id) => apiClient.get(`/products/${id}`),

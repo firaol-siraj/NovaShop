@@ -2,11 +2,11 @@ import { useEffect, useRef } from 'react';
 
 /* ── Design tokens ─────────────────────────────────── */
 const T = {
-  bg: '#FAF7F2',
-  bgAlt: '#F2EDE5',
-  espresso: '#231E1B',
-  muted: '#6E6962',
-  border: 'rgba(27,24,22,0.12)',
+  bg: 'var(--bg-main)',
+  bgAlt: 'var(--bg-surface)',
+  espresso: 'var(--text-primary)',
+  muted: 'var(--text-secondary)',
+  border: 'var(--border-default)',
 };
 
 /* ── Curated editorial image list ─────────────────── */
@@ -82,7 +82,7 @@ function TextBlock({ eyebrow, heading, body, cta, go, center = false }) {
           onClick={() => go('/shop')}
           style={{
             marginTop: '8px',
-            background: T.espresso, color: '#FDFBF7',
+            background: T.espresso, color: 'var(--color-primary-contrast)',
             border: 'none', borderRadius: 0, cursor: 'pointer',
             fontFamily: 'var(--font-sans)', fontSize: '11px',
             letterSpacing: '0.16em', textTransform: 'uppercase',
@@ -113,7 +113,7 @@ function EditorialImage({ src, alt, caption, aspectRatio = '3/4' }) {
           {caption}
         </p>
       )}
-      <div style={{ width: '100%', aspectRatio, overflow: 'hidden', background: '#E8E2D9' }}>
+      <div style={{ width: '100%', aspectRatio, overflow: 'hidden', background: 'var(--bg-surface-sunken)' }}>
         <img
           src={src}
           alt={alt}
@@ -187,7 +187,7 @@ export default function AboutPage({ go }) {
         {/* dot-grid decorative bg */}
         <div aria-hidden="true" style={{
           position: 'absolute', inset: 0, pointerEvents: 'none',
-          backgroundImage: 'radial-gradient(circle, rgba(35,30,27,0.09) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(circle, var(--border-default) 1px, transparent 1px)',
           backgroundSize: '26px 26px', zIndex: 0,
         }} />
 
@@ -293,7 +293,7 @@ export default function AboutPage({ go }) {
               onClick={() => go('/shop')}
               style={{
                 marginTop: '8px',
-                background: T.espresso, color: '#FDFBF7',
+                background: T.espresso, color: 'var(--color-primary-contrast)',
                 border: 'none', borderRadius: 0, cursor: 'pointer',
                 fontFamily: 'var(--font-sans)', fontSize: '11px',
                 letterSpacing: '0.16em', textTransform: 'uppercase',

@@ -652,3 +652,103 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES
+========================================================= */
+
+[data-theme="dark"] .pa-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .pa-range-button {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-range-button svg:first-child {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pa-range-menu {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .pa-range-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-range-menu button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-card-heading h2 {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-text-link {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-bar-label {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-bar-value {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-restock-identity strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-segmented-control {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .pa-segmented-control button {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pa-segmented-control button.is-selected {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-performance-identity strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-performance-cell {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-performance-revenue {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-view-all {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-category-label {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-category-value {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pa-returns-copy span {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pa-returns-percent {
+  color: var(--text-primary, #FBF9F5);
+}

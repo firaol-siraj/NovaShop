@@ -13,14 +13,42 @@ const loadPopulatedCart = (cartId) =>
     .populate({ path: 'items.product', select: PRODUCT_SELECT })
     .populate({ path: 'items.variant', select: VARIANT_SELECT });
 
-// Removes cart lines whose product or variant was deleted, persisting the result.
+// Removes cart lines whose product or variant was deleted, and consolidates any duplicate lines.
 const pruneInvalidLines = async (cart) => {
   const originalLength = cart.items.length;
-  cart.items = cart.items.filter((item) => item.product && item.variant);
+  const validItems = cart.items.filter((item) => item.product && item.variant);
+
+  const consolidated = [];
+  for (const item of validItems) {
+    const itemProdId = item.product?._id ? item.product._id.toString() : item.product?.toString();
+    const itemVarId = item.variant?._id ? item.variant._id.toString() : item.variant?.toString();
+    const existing = consolidated.find((c) => {
+      const cProdId = c.product?._id ? c.product._id.toString() : c.product?.toString();
+      const cVarId = c.variant?._id ? c.variant._id.toString() : c.variant?.toString();
+      return cProdId === itemProdId && cVarId === itemVarId;
+    });
+    if (existing) {
+      existing.quantity = Math.min(existing.quantity + item.quantity, MAX_QTY_PER_LINE);
+    } else {
+      consolidated.push(item);
+    }
+  }
+
+  cart.items = consolidated;
   if (cart.items.length !== originalLength) {
     await cart.save();
   }
   return cart;
+};
+
+export const resolveEffectiveStock = (variant, product) => {
+  if (variant && typeof variant.stock === 'number') {
+    return Math.max(0, variant.stock);
+  }
+  if (product && typeof product.countInStock === 'number') {
+    return Math.max(0, product.countInStock);
+  }
+  return 0;
 };
 
 /**
@@ -42,7 +70,7 @@ export const buildCartResponse = (cart) => {
       const product = item.product;
       const variant = item.variant;
       const price = getUnitPrice(product, variant);
-      const stock = Number(variant.stock) || 0;
+      const stock = resolveEffectiveStock(variant, product);
       const maxQuantity = Math.min(stock, MAX_QTY_PER_LINE);
 
       let issue = null;
@@ -131,7 +159,7 @@ export const addCartItem = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, 'Selected variant does not belong to this product'));
   }
 
-  const stock = Number(variant.stock) || 0;
+  const stock = resolveEffectiveStock(variant, product);
   if (stock <= 0) {
     return next(new ApiError(409, 'This item is out of stock'));
   }
@@ -143,11 +171,14 @@ export const addCartItem = asyncHandler(async (req, res, next) => {
     cart = new Cart({ user: req.user._id, items: [] });
   }
 
-  const existingItem = cart.items.find(
-    (item) =>
-      item.product.toString() === productId &&
-      item.variant.toString() === variantId,
-  );
+  const targetProductId = productId.toString();
+  const targetVariantId = variant._id.toString();
+
+  const existingItem = cart.items.find((item) => {
+    const itemProdId = item.product?._id ? item.product._id.toString() : item.product?.toString();
+    const itemVarId = item.variant?._id ? item.variant._id.toString() : item.variant?.toString();
+    return itemProdId === targetProductId && itemVarId === targetVariantId;
+  });
 
   const newQuantity = (existingItem?.quantity || 0) + quantity;
   if (newQuantity > maxAllowed) {
@@ -156,7 +187,7 @@ export const addCartItem = asyncHandler(async (req, res, next) => {
         400,
         existingItem
           ? `This line already has ${existingItem.quantity} in your bag. You can have at most ${maxAllowed} of this item.`
-          : `Only ${maxAllowed} of this item can be added to your bag.`
+          : `You can add at most ${maxAllowed} of this item to your bag.`
       )
     );
   }
@@ -164,8 +195,26 @@ export const addCartItem = asyncHandler(async (req, res, next) => {
   if (existingItem) {
     existingItem.quantity = newQuantity;
   } else {
-    cart.items.push({ product: productId, variant: variantId, quantity });
+    cart.items.push({ product: productId, variant: variant._id, quantity });
   }
+
+  // Ensure any duplicate lines are consolidated into single line items
+  const consolidated = [];
+  for (const item of cart.items) {
+    const itemProdId = item.product?._id ? item.product._id.toString() : item.product?.toString();
+    const itemVarId = item.variant?._id ? item.variant._id.toString() : item.variant?.toString();
+    const existing = consolidated.find((c) => {
+      const cProdId = c.product?._id ? c.product._id.toString() : c.product?.toString();
+      const cVarId = c.variant?._id ? c.variant._id.toString() : c.variant?.toString();
+      return cProdId === itemProdId && cVarId === itemVarId;
+    });
+    if (existing) {
+      existing.quantity = Math.min(existing.quantity + item.quantity, MAX_QTY_PER_LINE);
+    } else {
+      consolidated.push(item);
+    }
+  }
+  cart.items = consolidated;
 
   await cart.save();
 
@@ -203,7 +252,7 @@ export const updateCartItem = asyncHandler(async (req, res, next) => {
     return next(new ApiError(404, 'Cart item no longer exists'));
   }
 
-  const stock = Number(variant.stock) || 0;
+  const stock = resolveEffectiveStock(variant);
   const maxAllowed = Math.min(stock, MAX_QTY_PER_LINE);
 
   if (stock <= 0) {
@@ -303,7 +352,7 @@ export const mergeCart = asyncHandler(async (req, res, next) => {
       continue;
     }
 
-    const stock = Number(variant.stock) || 0;
+    const stock = resolveEffectiveStock(variant, product);
     if (stock <= 0) {
       skipped.push({ productId, variantId, reason: 'out_of_stock' });
       continue;
@@ -311,11 +360,14 @@ export const mergeCart = asyncHandler(async (req, res, next) => {
 
     const maxAllowed = Math.min(stock, MAX_QTY_PER_LINE);
 
-    const existingItem = cart.items.find(
-      (item) =>
-        item.product.toString() === productId &&
-        item.variant.toString() === variantId,
-    );
+    const targetGuestProdId = productId.toString();
+    const targetGuestVarId = variantId.toString();
+
+    const existingItem = cart.items.find((item) => {
+      const itemProdId = item.product?._id ? item.product._id.toString() : item.product?.toString();
+      const itemVarId = item.variant?._id ? item.variant._id.toString() : item.variant?.toString();
+      return itemProdId === targetGuestProdId && itemVarId === targetGuestVarId;
+    });
 
     // Take the larger of server/guest quantities (never the sum) so merging
     // twice cannot double-add; always clamp to the available maximum.

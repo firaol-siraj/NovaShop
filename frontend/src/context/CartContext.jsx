@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components, react-hooks/set-state-in-effect */
 import {
   createContext,
   useCallback,
@@ -11,7 +12,9 @@ import { useAuth } from "./AuthContext";
 import { cartApi } from "../lib/api/cartApi";
 import { wishlistApi } from "../lib/api/wishlistApi";
 import { productApi } from "../lib/api/productApi";
+import { discountApi } from "../lib/api/discountApi";
 import { normalizeProduct, resolveImage } from "../lib/catalog";
+import { trackAddToCart } from "../lib/tracker";
 
 /**
  * Milestone 5: Cart & Wishlist
@@ -22,9 +25,10 @@ import { normalizeProduct, resolveImage } from "../lib/catalog";
 const CartContext = createContext(null);
 
 const CART_KEY = "novashop_guest_cart_v2";
-const WISHLIST_KEY = "novashop_guest_wishlist_v2";
+const WISHLIST_KEY = "novashop-wishlist";
+const WISHLIST_BACKUP_KEY = "novashop_guest_wishlist_v2";
 const SAVE_KEY_PREFIX = "novashop_saved_v2_";
-const LEGACY_KEYS = ["novashop_cart", "novashop_wishlist"];
+const LEGACY_KEYS = ["novashop_cart"];
 const MAX_QTY_PER_LINE = 10;
 
 const validPromoCodes = [];
@@ -131,15 +135,18 @@ function snapshotFromProduct(product) {
     price: Number(product?.price) || 0,
     image: product?.primaryImage || product?.image || "",
     category: product?.category || product?.collection || "General",
-    stock: product?.stockTotal ?? 0,
+    stock: product?.stockTotal ?? product?.countInStock ?? 0,
     size: product?.size || "One Size",
     color: product?.color || product?.variant || "Default",
     slug: product?.slug,
   };
 }
 
+
 function purchasableVariants(product) {
-  return (product?.variants || []).filter((variant) => Number(variant.stock) > 0);
+  return (product?.variants || []).filter(
+    (variant) => Number(variant.stock) > 0 || variant.available !== false
+  );
 }
 
 function variantKey(variant) {
@@ -192,10 +199,30 @@ export function CartProvider({ children }) {
   const [isWishlistOpen, setIsWishlistOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [appliedPromo, setAppliedPromo] = useState("");
+  const [promoDiscount, setPromoDiscount] = useState(0);
   const [promoMessage, setPromoMessage] = useState("");
+
+  const subtotal = useMemo(() => {
+    let sum = 0;
+    for (const item of items) {
+      if (item.issue) continue;
+      sum += (Number(item.price) || 0) * (Number(item.qty) || 1);
+    }
+    return Number(sum.toFixed(2));
+  }, [items]);
+
+  const total = Math.max(subtotal - promoDiscount, 0);
+  const totalItems = useMemo(
+    () => items.reduce((sum, item) => sum + (Number(item.qty) || 1), 0),
+    [items]
+  );
+  const distinctItemCount = items.length;
+  const wishlistCount = wishlistItems.length;
+  const hasCartIssues = items.some((line) => line.issue);
 
   const didMergeRef = useRef(false);
   const previousAuthRef = useRef(false);
+  const currentUserIdRef = useRef(user ? String(user._id) : null);
 
   const writeGuestCart = useCallback((lines) => {
     writeStoredValue(
@@ -211,24 +238,45 @@ export function CartProvider({ children }) {
           price: line.price,
           image: line.image,
           slug: line.slug,
+          stock: line.stock,
         },
       }))
     );
   }, []);
 
   const writeGuestWishlist = useCallback((list) => {
-    writeStoredValue(
-      WISHLIST_KEY,
-      list.map((item) => ({
-        productId: item.productId || item.id,
-        _snapshot: snapshotFromProduct(item),
-      }))
-    );
+    try {
+      const ids = list.map((item) => String(item.productId || item.id || item._id)).filter(Boolean);
+      localStorage.setItem("novashop-wishlist", JSON.stringify(ids));
+      writeStoredValue(
+        WISHLIST_KEY,
+        list.map((item) => ({
+          productId: String(item.productId || item.id || item._id),
+          _snapshot: snapshotFromProduct(item),
+        }))
+      );
+      writeStoredValue(
+        WISHLIST_BACKUP_KEY,
+        list.map((item) => ({
+          productId: String(item.productId || item.id || item._id),
+          _snapshot: snapshotFromProduct(item),
+        }))
+      );
+    } catch {
+      // storage unavailable
+    }
   }, []);
 
   const clearGuestStorage = useCallback(() => {
     removeStoredValue(CART_KEY);
     removeStoredValue(WISHLIST_KEY);
+    removeStoredValue(WISHLIST_BACKUP_KEY);
+    try {
+      localStorage.removeItem("novashop-wishlist");
+    } catch {
+      // ignore
+    }
+    removeLegacyKeys();
   }, []);
 
   const applyServerCart = useCallback((payload) => {
@@ -303,18 +351,31 @@ export function CartProvider({ children }) {
       }
     }
 
-    if (guestWishlist.length > 0) {
+    let guestWishlistIds = [];
+    try {
+      const rawNovashop = localStorage.getItem("novashop-wishlist");
+      if (rawNovashop) {
+        const parsed = JSON.parse(rawNovashop);
+        if (Array.isArray(parsed)) {
+          guestWishlistIds = parsed
+            .map((item) => (typeof item === 'string' ? item : (item.productId || item.id || item._id)))
+            .filter(Boolean);
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    if (guestWishlistIds.length === 0) {
+      const guestWishlist = readStoredArray(WISHLIST_KEY, []);
+      guestWishlistIds = guestWishlist.map((item) => item.productId).filter(Boolean);
+    }
+
+    if (guestWishlistIds.length > 0) {
       try {
-        const res = await wishlistApi.mergeGuestWishlist(
-          guestWishlist.map((item) => item.productId)
-        );
+        const res = await wishlistApi.mergeGuestWishlist(guestWishlistIds);
         if (res.data) {
           applyServerWishlist(res.data);
-          if (res.data.ignored?.length) {
-            toast(
-              `Wishlist merge skipped ${res.data.ignored.length} unavailable item(s)`
-            );
-          }
           merged = true;
         }
       } catch (error) {
@@ -329,36 +390,86 @@ export function CartProvider({ children }) {
 
   const addProductToBag = useCallback(
     async (product, meta = {}) => {
-      const { qty = 1, variantId, color, size } = meta;
+      const { qty = 1, variantId, color, size, openDrawer = true, toastMessage } = meta;
       const productId = product?.productId || product?.id || product?._id;
       if (!productId) {
         return { ok: false, message: "Unknown product" };
       }
-      if (Number(product?.stockTotal) === 0 && Array.isArray(product?.variants)) {
-        const noneInStock = product.variants.every((v) => Number(v.stock) <= 0);
+
+      let resolvedProduct = product;
+      let variants = Array.isArray(product?.variants) ? [...product.variants] : [];
+
+      if (!variantId && variants.length === 0) {
+        try {
+          const res = await productApi.getProduct(product?.slug || productId);
+          if (res?.data) {
+            resolvedProduct = normalizeProduct(res.data) || res.data;
+            variants = Array.isArray(resolvedProduct?.variants) ? resolvedProduct.variants : [];
+          }
+        } catch {
+          // fallback
+        }
+      }
+
+      if (Number(resolvedProduct?.stockTotal) === 0 && variants.length > 0) {
+        const noneInStock = variants.every((v) => Number(v.stock) <= 0);
         if (noneInStock) {
           toast("This item is sold out");
           return { ok: false, message: "Out of stock" };
         }
       }
 
-      const variants = product?.variants || [];
-      const purchasable = purchasableVariants(product);
+      const inStockVariants = variants.filter(
+        (v) => (Number(v.stock) > 0 || v.stock == null) && v.available !== false
+      );
+      const purchasable =
+        inStockVariants.length > 0
+          ? inStockVariants
+          : purchasableVariants(resolvedProduct).length > 0
+          ? purchasableVariants(resolvedProduct)
+          : variants;
 
-      if (purchasable.length > 1 && !variantId) {
-        navigate(product?.path || `/products/${product?.slug || productId}`);
-        return { ok: true, needsOptions: true, message: "Choose a colour and size" };
-      }
+      const chosenVariant =
+        (variantId && variants.find((v) => String(variantKey(v)) === String(variantId))) ||
+        purchasable[0] ||
+        variants[0] ||
+        null;
 
       const resolvedVariantId =
-        variantId || variantKey(purchasable[0]) || variantKey(variants[0]);
+        variantId || (chosenVariant ? variantKey(chosenVariant) : null);
 
-      if (!resolvedVariantId) {
-        navigate(product?.path || `/products/${product?.slug || productId}`);
-        return { ok: true, needsOptions: true, message: "Choose a colour and size" };
+      if (!resolvedVariantId && variants.length > 0) {
+        navigate(resolvedProduct?.path || `/products/${resolvedProduct?.slug || productId}`);
+        return { ok: false, needsOptions: true, message: "Choose a colour and size" };
       }
 
       const requestedQty = Math.max(1, Number(qty) || 1);
+      const chosenColor =
+        color ||
+        chosenVariant?.color ||
+        chosenVariant?.colorName ||
+        resolvedProduct?.color ||
+        resolvedProduct?.variant ||
+        "Default";
+      const chosenSize =
+        size ||
+        chosenVariant?.size ||
+        resolvedProduct?.size ||
+        "One Size";
+      const chosenPrice =
+        Number(chosenVariant?.price ?? resolvedProduct?.price ?? 0);
+      const chosenImage =
+        chosenVariant?.image ||
+        resolvedProduct?.primaryImage ||
+        resolvedProduct?.image ||
+        "";
+
+      trackAddToCart({
+        productId,
+        name: resolvedProduct?.name,
+        price: chosenPrice,
+        qty: requestedQty,
+      });
 
       if (isAuth) {
         try {
@@ -374,7 +485,10 @@ export function CartProvider({ children }) {
               String(line.variantId) === String(resolvedVariantId)
           );
           const wasIncremented = Number(existing?.quantity) > requestedQty;
-          toast(wasIncremented ? "Quantity updated" : "Added to bag");
+          toast(toastMessage || (wasIncremented ? "Quantity updated" : "Added to bag"));
+          if (openDrawer) {
+            setIsCartOpen(true);
+          }
           return { ok: true, wasIncremented, message: res.message };
         } catch (error) {
           toast(error?.message || "Could not add this item");
@@ -382,12 +496,12 @@ export function CartProvider({ children }) {
         }
       }
 
-      const lineId = `${productId}|${resolvedVariantId}`;
+      const lineId = resolvedVariantId ? `${productId}|${resolvedVariantId}` : String(productId);
       let wasIncremented = false;
       setItems((current) => {
         const existing = current.find((line) => line.id === lineId);
         const maxQty = Math.min(
-          Number(product?.stockTotal) || MAX_QTY_PER_LINE,
+          Number(chosenVariant?.stock ?? resolvedProduct?.stockTotal) || MAX_QTY_PER_LINE,
           MAX_QTY_PER_LINE
         );
         if (existing) {
@@ -409,23 +523,26 @@ export function CartProvider({ children }) {
           variantId: resolvedVariantId,
           qty: Math.min(requestedQty, maxQty),
           quantity: Math.min(requestedQty, maxQty),
-          name: product?.name,
-          color: color || product?.variant || "Default",
-          size: size || product?.size || "One Size",
-          price: Number(product?.price) || 0,
-          image: product?.primaryImage || product?.image || "",
-          slug: product?.slug,
-          stock: Number(product?.stockTotal) || 0,
+          name: resolvedProduct?.name || product?.name,
+          color: chosenColor,
+          size: chosenSize,
+          price: chosenPrice,
+          image: chosenImage,
+          slug: resolvedProduct?.slug || product?.slug,
+          stock: Number(chosenVariant?.stock ?? resolvedProduct?.stockTotal) || 0,
           available: true,
           issue: null,
           maxQuantity: maxQty,
         };
         return [...current, nextLine];
       });
-      toast(wasIncremented ? "Quantity updated" : "Added to bag");
+      toast(toastMessage || (wasIncremented ? "Quantity updated" : "Added to bag"));
+      if (openDrawer) {
+        setIsCartOpen(true);
+      }
       return { ok: true, wasIncremented };
     },
-    [isAuth, applyServerCart]
+    [isAuth, applyServerCart, setIsCartOpen]
   );
 
   const removeItem = useCallback(
@@ -447,26 +564,6 @@ export function CartProvider({ children }) {
   const updateQuantity = useCallback(
     (id, qty) => {
       const nextQty = Math.max(1, Number(qty) || 1);
-
-      if (!isAuth) {
-        setItems((current) => {
-          const line = current.find((item) => item.id === id);
-          if (!line) return current;
-          const maxQty = Math.min(
-            Number(line.maxQuantity || line.stock || MAX_QTY_PER_LINE),
-            MAX_QTY_PER_LINE
-          );
-          const clamped = Math.min(nextQty, maxQty);
-          if (clamped < nextQty) {
-            toast(`Only ${clamped} available — quantity adjusted`);
-          }
-          return current.map((item) =>
-            item.id === id ? { ...item, qty: clamped, quantity: clamped } : item
-          );
-        });
-        return;
-      }
-
       const line = items.find((item) => item.id === id);
       const maxQty = Math.min(
         Number(line?.maxQuantity || line?.stock || MAX_QTY_PER_LINE),
@@ -476,6 +573,16 @@ export function CartProvider({ children }) {
       if (clamped < nextQty) {
         toast(`Only ${clamped} available — quantity adjusted`);
       }
+
+      if (!isAuth) {
+        setItems((current) =>
+          current.map((item) =>
+            item.id === id ? { ...item, qty: clamped, quantity: clamped } : item
+          )
+        );
+        return;
+      }
+
       cartApi
         .updateItem(id, { quantity: clamped })
         .then((res) => applyServerCart(res.data))
@@ -523,6 +630,13 @@ export function CartProvider({ children }) {
         writeStoredValue(key, [...next, nextItem]);
         return [...next, nextItem];
       });
+      trackAddToCart({
+        productId,
+        name: resolvedProduct?.name,
+        price: chosenPrice,
+        qty: requestedQty,
+      });
+
       if (isAuth) {
         cartApi
           .removeItem(item.id)
@@ -545,8 +659,9 @@ export function CartProvider({ children }) {
         const next = current.filter(
           (saved) =>
             !(
-              saved.productId === productId &&
-              (variantId == null || saved.variantId === variantId)
+              (String(saved.productId) === String(productId) ||
+                String(saved.id) === String(productId)) &&
+              (variantId == null || String(saved.variantId) === String(variantId))
             )
         );
         writeStoredValue(key, next);
@@ -557,30 +672,51 @@ export function CartProvider({ children }) {
   );
 
   const moveToBag = useCallback(
-    (itemOrId) => {
+    async (itemOrId) => {
       const item =
         typeof itemOrId === "object"
           ? itemOrId
-          : savedItems.find((entry) => entry.id === itemOrId) ||
-            items.find((entry) => entry.id === itemOrId);
+          : savedItems.find(
+              (entry) =>
+                String(entry.id) === String(itemOrId) ||
+                String(entry.productId) === String(itemOrId) ||
+                `${entry.productId}|${entry.variantId}` === String(itemOrId)
+            ) ||
+            items.find((entry) => String(entry.id) === String(itemOrId));
       if (!item) return false;
-      addProductToBag(item, {
-        qty: Number(item.qty) || 1,
-        variantId: item.variantId,
+
+      const targetProductId = item.productId || item.id || item._id;
+      const targetVariantId = item.variantId;
+      const requestedQty = Number(item.qty || item.quantity) || 1;
+
+      const result = await addProductToBag(item, {
+        qty: requestedQty,
+        variantId: targetVariantId,
         color: item.color,
         size: item.size,
+        openDrawer: true,
+        toastMessage: "Moved to bag",
       });
-      removeSavedItem(item.productId, item.variantId);
-      return true;
+
+      if (result?.ok) {
+        removeSavedItem(targetProductId, targetVariantId);
+        setIsCartOpen(true);
+        return true;
+      }
+      return false;
     },
-    [savedItems, items, addProductToBag, removeSavedItem]
+    [savedItems, items, addProductToBag, removeSavedItem, setIsCartOpen]
   );
 
   const removeWishlistItem = useCallback(
     (productId) => {
       if (!isAuth) {
         setWishlistItems((current) =>
-          current.filter((item) => item.productId !== productId && item.id !== productId)
+          current.filter(
+            (item) =>
+              String(item.productId) !== String(productId) &&
+              String(item.id) !== String(productId)
+          )
         );
         return;
       }
@@ -628,6 +764,7 @@ export function CartProvider({ children }) {
         try {
           const res = await method(productId);
           applyServerWishlist(res.data);
+          toast(already ? "Removed from your wishlist" : "Added to your wishlist");
           return { ok: true, added: !already, removed: already };
         } catch (error) {
           toast(error?.message || "Could not update wishlist");
@@ -636,25 +773,41 @@ export function CartProvider({ children }) {
       }
 
       setWishlistItems((current) => {
-        if (current.some((item) => String(item.productId) === String(productId))) {
-          return current.filter((item) => String(item.productId) !== String(productId));
+        let next;
+        if (
+          current.some(
+            (item) =>
+              String(item.productId) === String(productId) ||
+              String(item.id) === String(productId)
+          )
+        ) {
+          next = current.filter(
+            (item) =>
+              String(item.productId) !== String(productId) &&
+              String(item.id) !== String(productId)
+          );
+        } else {
+          const nextItem = {
+            ...guestWishlistEntryToProduct({
+              productId,
+              _snapshot: snapshotFromProduct(product),
+            }),
+            variants: product?.variants || [],
+          };
+          next = [...current, nextItem];
         }
-        const nextItem = {
-          ...guestWishlistEntryToProduct({
-            productId,
-            _snapshot: snapshotFromProduct(product),
-          }),
-          variants: product?.variants || [],
-        };
-        return [...current, nextItem];
+        writeGuestWishlist(next);
+        return next;
       });
+
+      toast(already ? "Removed from your wishlist" : "Added to your wishlist");
       return { ok: true, added: !already, removed: already };
     },
-    [isAuth, isWishlisted, applyServerWishlist]
+    [isAuth, isWishlisted, applyServerWishlist, writeGuestWishlist]
   );
 
   const addWishlistItemToCart = useCallback(
-    async (product) => {
+    async (product, meta = {}) => {
       const productId = product?.productId || product?.id || product?._id;
       if (!productId) return { ok: false, message: "Unknown product" };
 
@@ -670,19 +823,24 @@ export function CartProvider({ children }) {
         }
       }
 
+      if (variants.length === 0 && Array.isArray(resolved?.variants) && resolved.variants.length > 0) {
+        variants = resolved.variants;
+      }
+
       if (variants.length === 0) {
         toast("This item is sold out");
         return { ok: false, message: "Out of stock" };
       }
-      if (variants.length > 1) {
-        navigate(resolved?.path || `/products/${resolved?.slug || productId}`);
-        return { ok: true, needsOptions: true, message: "Choose a colour and size" };
-      }
 
+      const chosenVariant = variants[0];
       const result = await addProductToBag(resolved, {
         qty: 1,
-        variantId: variantKey(variants[0]),
+        variantId: variantKey(chosenVariant),
+        color: chosenVariant?.color || chosenVariant?.colorName || resolved?.color,
+        size: chosenVariant?.size || resolved?.size,
+        openDrawer: meta.openDrawer !== false,
       });
+
       if (result.ok && !result.needsOptions) {
         await Promise.resolve(removeWishlistItem(productId));
       }
@@ -693,12 +851,16 @@ export function CartProvider({ children }) {
 
   const moveAvailableToBag = useCallback(async () => {
     let count = 0;
-    for (const item of wishlistItems) {
-      const result = await addWishlistItemToCart(item);
+    const itemsToMove = [...wishlistItems];
+    for (const item of itemsToMove) {
+      const result = await addWishlistItemToCart(item, { openDrawer: false });
       if (result.ok && !result.needsOptions) count += 1;
     }
+    if (count > 0) {
+      setIsCartOpen(true);
+    }
     return count;
-  }, [wishlistItems, addWishlistItemToCart]);
+  }, [wishlistItems, addWishlistItemToCart, setIsCartOpen]);
 
   const placeOrder = useCallback((orderPayload) => {
     setCurrentOrder(orderPayload);
@@ -710,41 +872,87 @@ export function CartProvider({ children }) {
     });
   }, []);
 
-  const applyPromoCode = useCallback(() => {
+  const applyPromoCode = useCallback(async (code) => {
+    if (!code || typeof code !== "string" || !code.trim()) {
+      setAppliedPromo("");
+      setPromoDiscount(0);
+      setPromoMessage("");
+      return { ok: false, message: "Please enter a promo code" };
+    }
+
+    const cleanCode = code.trim().toUpperCase();
+    try {
+      const res = await discountApi.validateDiscount({
+        code: cleanCode,
+        items,
+        subtotal,
+        shippingPrice: 0,
+        customerEmail: user?.email || '',
+      });
+
+      const payload = res.data?.data || res.data;
+      if (payload?.valid) {
+        setAppliedPromo(cleanCode);
+        setPromoDiscount(payload.discountAmount || 0);
+        setPromoMessage(payload.message || `Code ${cleanCode} applied!`);
+        return { ok: true, discountAmount: payload.discountAmount, discount: payload.discount };
+      }
+
+      setAppliedPromo("");
+      setPromoDiscount(0);
+      setPromoMessage(payload?.message || "Invalid discount code");
+      return { ok: false, message: payload?.message || "Invalid discount code" };
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || "Invalid discount code";
+      setAppliedPromo("");
+      setPromoDiscount(0);
+      setPromoMessage(msg);
+      return { ok: false, message: msg };
+    }
+  }, [items, subtotal, user]);
+
+  const removePromoCode = useCallback(() => {
     setAppliedPromo("");
-    setPromoMessage("Promo codes are not available yet");
-    return { ok: false, message: "Promo codes are not available yet" };
+    setPromoDiscount(0);
+    setPromoMessage("");
   }, []);
+
+  const resetCartState = useCallback(() => {
+    setItems([]);
+    setWishlistItems([]);
+    setSavedItems([]);
+    setOrders([]);
+    setCurrentOrder(null);
+    clearGuestStorage();
+    removeStoredValue("novashop_current_order");
+    currentUserIdRef.current = null;
+    previousAuthRef.current = false;
+    didMergeRef.current = false;
+    setCartLoading(false);
+  }, [clearGuestStorage]);
 
   useEffect(() => {
     if (isLoading) return;
 
-    if (!isAuthenticated) {
-      if (previousAuthRef.current) {
-        setItems(
-          readStoredArray(CART_KEY, []).map((line) => ({
-            productId: line.productId,
-            variantId: line.variantId,
-            quantity: Number(line.quantity) || 1,
-            qty: Number(line.quantity) || 1,
-            id: `${line.productId}|${line.variantId}`,
-            ...(line._snapshot || {}),
-            image: line._snapshot?.image || "",
-            price: Number(line._snapshot?.price) || 0,
-          }))
-        );
-        setWishlistItems(
-          readStoredArray(WISHLIST_KEY, []).map((entry) =>
-            guestWishlistEntryToProduct(entry)
-          )
-        );
+    const nextUserId = user ? String(user._id) : null;
+    const prevUserId = currentUserIdRef.current;
+
+    if (!isAuthenticated || !user) {
+      if (prevUserId || previousAuthRef.current) {
+        resetCartState();
       }
+      currentUserIdRef.current = null;
       previousAuthRef.current = false;
       didMergeRef.current = false;
       setCartLoading(false);
       return;
     }
 
+    if (prevUserId && prevUserId !== nextUserId) {
+      resetCartState();
+    }
+
+    currentUserIdRef.current = nextUserId;
     previousAuthRef.current = true;
 
     const bootstrap = async () => {
@@ -756,7 +964,18 @@ export function CartProvider({ children }) {
     };
 
     bootstrap();
-  }, [isAuthenticated, isLoading, mergeGuest, refreshCart, refreshWishlist]);
+  }, [isAuthenticated, isLoading, user, mergeGuest, refreshCart, refreshWishlist, resetCartState]);
+
+  useEffect(() => {
+    window.addEventListener("novashop:auth-expired", resetCartState);
+    return () => {
+      window.removeEventListener("novashop:auth-expired", resetCartState);
+    };
+  }, [resetCartState]);
+
+  useEffect(() => {
+    setSavedItems(readStoredArray(savedKeyForUser(userIdentity), []));
+  }, [userIdentity]);
 
   useEffect(() => {
     if (!isAuth) writeGuestCart(items);
@@ -766,32 +985,33 @@ export function CartProvider({ children }) {
     if (!isAuth) writeGuestWishlist(wishlistItems);
   }, [wishlistItems, isAuth, writeGuestWishlist]);
 
+  // Hydrate guest wishlist items from backend by IDs
   useEffect(() => {
-    setSavedItems(readStoredArray(savedKeyForUser(userIdentity), []));
-  }, [userIdentity]);
+    if (!isAuth) {
+      try {
+        const raw = localStorage.getItem("novashop-wishlist");
+        if (raw) {
+          const ids = JSON.parse(raw);
+          if (Array.isArray(ids) && ids.length > 0) {
+            productApi
+              .getProductsByIds(ids)
+              .then((res) => {
+                if (res?.data && Array.isArray(res.data) && res.data.length > 0) {
+                  setWishlistItems(res.data.map(normalizeProduct).filter(Boolean));
+                }
+              })
+              .catch(() => {});
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [isAuth]);
 
   useEffect(() => {
     removeLegacyKeys();
   }, []);
-
-  const subtotal = useMemo(() => {
-    let sum = 0;
-    for (const item of items) {
-      if (item.issue) continue;
-      sum += (Number(item.price) || 0) * (Number(item.qty) || 1);
-    }
-    return Number(sum.toFixed(2));
-  }, [items]);
-
-  const promoDiscount = 0;
-  const total = Math.max(subtotal - promoDiscount, 0);
-  const totalItems = useMemo(
-    () => items.reduce((sum, item) => sum + (Number(item.qty) || 1), 0),
-    [items]
-  );
-  const distinctItemCount = items.length;
-  const wishlistCount = wishlistItems.length;
-  const hasCartIssues = items.some((line) => line.issue);
 
   const value = useMemo(
     () => ({
@@ -819,6 +1039,7 @@ export function CartProvider({ children }) {
       moveAvailableToBag,
       placeOrder,
       applyPromoCode,
+      removePromoCode,
       orders,
       currentOrder,
       isAuth,
@@ -864,6 +1085,7 @@ export function CartProvider({ children }) {
       moveAvailableToBag,
       placeOrder,
       applyPromoCode,
+      removePromoCode,
       orders,
       currentOrder,
       isAuth,

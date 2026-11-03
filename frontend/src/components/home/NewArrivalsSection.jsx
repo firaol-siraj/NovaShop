@@ -1,12 +1,12 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useCart } from '../../context/CartContext';
 
 /* ─── SVG icons ──────────────────────────────────────────────────────────── */
 
 function HeartIcon({ filled }) {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill={filled ? '#1B1816' : 'none'}
-      stroke="#1B1816" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="17" height="17" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'}
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
     </svg>
   );
@@ -15,12 +15,12 @@ function HeartIcon({ filled }) {
 function BagIcon({ added }) {
   return added ? (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-      stroke="#1B1816" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <polyline points="20 6 9 17 4 12" />
     </svg>
   ) : (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-      stroke="#1B1816" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z" />
       <line x1="3" y1="6" x2="21" y2="6" />
       <path d="M16 10a4 4 0 0 1-8 0" />
@@ -31,7 +31,7 @@ function BagIcon({ added }) {
 function EyeIcon() {
   return (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none"
-      stroke="#1B1816" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
       <circle cx="12" cy="12" r="3" />
     </svg>
@@ -61,9 +61,10 @@ function IconBtn({ onClick, label, children }) {
         width: '38px',
         height: '38px',
         borderRadius: '50%',
-        border: 'none',
-        background: btnHovered ? '#EDE8DF' : '#FDFBF7',
-        boxShadow: btnHovered ? '0 8px 18px rgba(17, 14, 12, 0.12)' : '0 2px 10px rgba(0,0,0,0.08)',
+        border: '1px solid var(--border-default)',
+        background: btnHovered ? 'var(--bg-hover)' : 'var(--bg-surface)',
+        color: 'var(--text-primary)',
+        boxShadow: btnHovered ? 'var(--shadow-md)' : 'var(--shadow-sm)',
         cursor: 'pointer',
         display: 'flex',
         alignItems: 'center',
@@ -78,44 +79,68 @@ function IconBtn({ onClick, label, children }) {
   );
 }
 
+/* ─── Helper for Swatch Styling ─────────────────────────────────────────── */
+
+function getSwatchVisual(rawSwatch, isActive) {
+  const hex = (typeof rawSwatch === 'object' && rawSwatch !== null ? rawSwatch.hex : rawSwatch) || '';
+  const cleanHex = typeof hex === 'string' ? hex.trim().toLowerCase() : '';
+  const isValidHex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(cleanHex);
+  const isWhite = cleanHex === '#fff' || cleanHex === '#ffffff' || cleanHex === '#ffffffff' || cleanHex === 'white';
+
+  const useFallback = !isValidHex || isWhite;
+  const background = useFallback ? 'var(--bg-surface-raised)' : cleanHex;
+  const border = isActive
+    ? '2px solid var(--color-primary)'
+    : useFallback
+    ? '1.5px solid var(--border-strong)'
+    : '1.5px solid var(--border-subtle)';
+
+  return { background, border, title: cleanHex || 'Color swatch' };
+}
+
 /* ─── Product card ───────────────────────────────────────────────────────── */
 
-export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWishlistAlways = false, showCartIcon = true }) {
+export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showCartIcon = true }) {
   const { isWishlisted, toggleWishlist } = useCart();
   const [hovered, setHovered] = useState(false);
-  const [wishlisted, setWishlisted] = useState(isWishlisted(product.id || product.slug || product.name));
   const [cartAdded, setCartAdded] = useState(false);
   const [activeSwatch, setActiveSwatch] = useState(null); // index of active swatch
 
-  useEffect(() => {
-    setWishlisted(isWishlisted(product.productId || product.id));
-  }, [isWishlisted, product.productId, product.id]);
+  const wishlisted = isWishlisted(product.productId || product.id);
 
   const displayImage =
     activeSwatch !== null && product.swatches[activeSwatch]?.image
       ? product.swatches[activeSwatch].image
       : product.primaryImage;
 
-  const handleWishlist = useCallback((e) => {
+  const handleWishlist = useCallback(async (e) => {
     e.stopPropagation();
-    toggleWishlist(product);
-    setWishlisted((w) => !w);
-    onAddToWishlist?.(product);
+    const result = await toggleWishlist(product);
+    if (result?.ok) {
+      onAddToWishlist?.(product);
+    }
   }, [product, onAddToWishlist, toggleWishlist]);
 
-  const soldOut = Number(product.stockTotal) === 0;
+  const stockCount = Number(
+    product.countInStock != null
+      ? product.countInStock
+      : (product.stockTotal != null ? product.stockTotal : product.stock)
+  );
+  const soldOut = Number.isFinite(stockCount) ? stockCount <= 0 : false;
 
-  const handleCart = useCallback((e) => {
+  const handleCart = useCallback(async (e) => {
     e.stopPropagation();
     if (cartAdded || soldOut) return;
-    setCartAdded(true);
-    onAddToCart?.({ ...product, stock: product.stock || 'in-stock' });
-    setTimeout(() => setCartAdded(false), 1800);
+    const result = await onAddToCart?.({ ...product, stock: product.stock || 'in-stock' });
+    if (result?.ok) {
+      setCartAdded(true);
+      setTimeout(() => setCartAdded(false), 1800);
+    }
   }, [cartAdded, product, onAddToCart, soldOut]);
 
   const handleView = useCallback((e) => {
     e.stopPropagation();
-    go?.(product.path || `/product/${product.id}`);
+    go?.(product.path || `/products/${product.slug || product.id}`);
   }, [go, product]);
 
   const handleSwatchClick = useCallback((e, idx) => {
@@ -148,8 +173,8 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
           overflow: 'hidden',
           borderRadius: '4px',
           aspectRatio: '4 / 5',
-          backgroundColor: '#F0EBE0',
-          boxShadow: hovered ? '0 22px 44px rgba(27, 24, 22, 0.09)' : '0 10px 20px rgba(27, 24, 22, 0.03)',
+          backgroundColor: 'var(--bg-surface-sunken)',
+          boxShadow: hovered ? 'var(--shadow-md)' : 'var(--shadow-sm)',
           transition: 'box-shadow 320ms cubic-bezier(0.22, 1, 0.36, 1)',
           transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
           willChange: 'transform, box-shadow',
@@ -200,8 +225,8 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
               position: 'absolute',
               top: '12px',
               left: '12px',
-              background: '#1B1816',
-              color: '#FDFBF7',
+              background: 'var(--color-primary)',
+              color: 'var(--color-primary-contrast)',
               fontSize: '9px',
               fontFamily: 'var(--font-sans)',
               fontWeight: 600,
@@ -221,8 +246,8 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
               position: 'absolute',
               top: '12px',
               left: '12px',
-              background: '#1B1816',
-              color: '#FDFBF7',
+              background: 'var(--color-primary)',
+              color: 'var(--color-primary-contrast)',
               fontSize: '9px',
               fontFamily: 'var(--font-sans)',
               fontWeight: 600,
@@ -281,7 +306,7 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
             fontFamily: 'var(--font-serif)',
             fontStyle: 'italic',
             fontSize: '12px',
-            color: '#8F857D',
+            color: 'var(--text-muted)',
             lineHeight: 1.4,
           }}>
             {product.contextNote}
@@ -295,7 +320,7 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
             fontFamily: 'var(--font-sans)',
             fontSize: '14px',
             fontWeight: 500,
-            color: '#1B1816',
+            color: 'var(--text-primary)',
             lineHeight: 1.3,
             flex: 1,
             minWidth: 0,
@@ -310,10 +335,10 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
             fontFamily: 'var(--font-sans)',
             fontSize: '14px',
             fontWeight: 600,
-            color: '#1B1816',
+            color: 'var(--text-primary)',
             flexShrink: 0,
           }}>
-            {product.price}
+            {typeof product.price === 'number' ? `$${product.price.toFixed(2)}` : product.price}
           </p>
         </div>
 
@@ -323,7 +348,7 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
             margin: 0,
             fontFamily: 'var(--font-sans)',
             fontSize: '12px',
-            color: '#9B9189',
+            color: 'var(--text-muted)',
             letterSpacing: '0.01em',
           }}>
             {product.variant}
@@ -332,35 +357,37 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
 
         {/* Row 3: Swatches */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          {product.swatches.map((swatch, idx) => (
-            <button
-              key={idx}
-              onClick={(e) => handleSwatchClick(e, idx)}
-              aria-label={`Select colour swatch ${idx + 1}`}
-              title={swatch.hex}
-              style={{
-                width: '15px',
-                height: '15px',
-                borderRadius: '50%',
-                background: swatch.hex,
-                border: activeSwatch === idx
-                  ? '2px solid #1B1816'
-                  : '1.5px solid rgba(0,0,0,0.12)',
-                cursor: 'pointer',
-                padding: 0,
-                flexShrink: 0,
-                transition: 'border-color 0.15s, transform 0.15s',
-                transform: activeSwatch === idx ? 'scale(1.15)' : 'scale(1)',
-              }}
-            />
-          ))}
+          {(product.swatches || []).map((swatch, idx) => {
+            const visual = getSwatchVisual(swatch, activeSwatch === idx);
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={(e) => handleSwatchClick(e, idx)}
+                aria-label={`Select colour swatch ${idx + 1}`}
+                title={visual.title}
+                style={{
+                  width: '15px',
+                  height: '15px',
+                  borderRadius: '50%',
+                  background: visual.background,
+                  border: visual.border,
+                  cursor: 'pointer',
+                  padding: 0,
+                  flexShrink: 0,
+                  transition: 'border-color 0.15s, transform 0.15s',
+                  transform: activeSwatch === idx ? 'scale(1.15)' : 'scale(1)',
+                }}
+              />
+            );
+          })}
           <span style={{
             fontFamily: 'var(--font-sans)',
             fontSize: '11px',
-            color: '#9B9189',
+            color: 'var(--text-muted)',
             letterSpacing: '0.04em',
           }}>
-            {product.swatches.length} Shade{product.swatches.length !== 1 ? 's' : ''}
+            {product.swatches?.length || 1} Shade{(product.swatches?.length || 1) !== 1 ? 's' : ''}
           </span>
         </div>
       </div>
@@ -371,13 +398,11 @@ export function ProductCard({ product, go, onAddToCart, onAddToWishlist, showWis
 /* ─── Section ────────────────────────────────────────────────────────────── */
 
 export default function NewArrivalsSection({ go, products = [], loading = false, onAddToCart, onAddToWishlist }) {
-  const totalCount = products.length;
-
   return (
     <section
       aria-labelledby="new-arrivals-heading"
       style={{
-        backgroundColor: '#FDFBF7',
+        backgroundColor: 'var(--bg-main)',
         padding: '80px 0',
       }}
     >
@@ -405,7 +430,7 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
               fontWeight: 500,
               letterSpacing: '0.2em',
               textTransform: 'uppercase',
-              color: '#9B9189',
+              color: 'var(--text-muted)',
               marginBottom: '12px',
             }}>
               Seasonal Editions
@@ -419,7 +444,7 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
                 fontStyle: 'italic',
                 lineHeight: 1.0,
                 letterSpacing: '-0.02em',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
                 margin: '0 0 12px',
               }}
             >
@@ -429,7 +454,7 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
               fontFamily: 'var(--font-sans)',
               fontSize: '14px',
               fontWeight: 300,
-              color: '#9B9189',
+              color: 'var(--text-muted)',
               margin: 0,
               lineHeight: 1.5,
             }}>
@@ -439,8 +464,9 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
 
           {/* Right: View All link */}
           <button
-            onClick={() => go('/category/new')}
-            aria-label={`View all ${totalCount} new arrivals`}
+            type="button"
+            onClick={() => go('/shop?sort=newest')}
+            aria-label="View all new arrivals"
             style={{
               background: 'none',
               border: 'none',
@@ -454,10 +480,10 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
               fontWeight: 500,
               letterSpacing: '0.14em',
               textTransform: 'uppercase',
-              color: '#1B1816',
+              color: 'var(--text-primary)',
               whiteSpace: 'nowrap',
               flexShrink: 0,
-              borderBottom: '1px solid #1B1816',
+              borderBottom: '1px solid var(--text-primary)',
               paddingBottom: '2px',
               transition: 'opacity 0.2s',
             }}
@@ -465,7 +491,7 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
             onMouseLeave={e => (e.currentTarget.style.opacity = '1')}
             className="na-view-all"
           >
-            View All {totalCount} New Arrivals
+            View all new arrivals
             <ArrowIcon />
           </button>
         </div>
@@ -476,10 +502,10 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '28px' }} className="na-grid">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i}>
-                <div style={{ aspectRatio: '4/5', background: '#EDE8DF', borderRadius: '4px', animation: 'na-pulse 1.5s ease-in-out infinite' }} />
+                <div style={{ aspectRatio: '4/5', background: 'var(--skeleton-base)', borderRadius: '4px', animation: 'na-pulse 1.5s ease-in-out infinite' }} />
                 <div style={{ padding: '14px 2px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ height: '13px', background: '#EDE8DF', borderRadius: '2px', width: '70%', animation: 'na-pulse 1.5s ease-in-out infinite' }} />
-                  <div style={{ height: '11px', background: '#EDE8DF', borderRadius: '2px', width: '40%', animation: 'na-pulse 1.5s ease-in-out infinite' }} />
+                  <div style={{ height: '13px', background: 'var(--skeleton-base)', borderRadius: '2px', width: '70%', animation: 'na-pulse 1.5s ease-in-out infinite' }} />
+                  <div style={{ height: '11px', background: 'var(--skeleton-base)', borderRadius: '2px', width: '40%', animation: 'na-pulse 1.5s ease-in-out infinite' }} />
                 </div>
               </div>
             ))}
@@ -488,7 +514,7 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '28px' }} className="na-grid">
             {products.map((product) => (
               <ProductCard
-                key={product.id}
+                key={product.id || product.slug}
                 product={product}
                 go={go}
                 onAddToCart={onAddToCart}

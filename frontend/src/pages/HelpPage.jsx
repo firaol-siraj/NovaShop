@@ -1,5 +1,7 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useAuth } from '../context/AuthContext';
+import helpApi from '../lib/api/helpApi';
+import supportApi from '../lib/api/supportApi';
 
 /* ── Icons ─────────────────────────────────────────── */
 const SearchIcon = () => (
@@ -55,37 +57,42 @@ const CATEGORIES = [
   { id: 'security', Icon: LockIcon, title: 'Password & Security', desc: 'Reset your password or update your login credentials.', route: '/account/settings', protected: true },
 ];
 
-const FAQS = [
+const DEFAULT_FAQS = [
   {
     id: 'tracking',
     q: 'How can I track my order?',
-    a: 'Once your order ships, you\'ll receive a confirmation email with a tracking link. You can also view live status anytime by going to Account → Orders.',
+    a: "Once your order ships, you'll receive a confirmation email with a live tracking link. You can also view live status anytime by going to Account → Orders.",
   },
   {
     id: 'return',
     q: 'How do I request a return?',
-    a: 'Start a return from Account → Orders within 30 days of delivery. Select the item(s) you\'d like to return, print the prepaid label, and drop it at any partner courier point.',
+    a: "Start a return from Account → Orders within 14 days of delivery. Select the item(s) you'd like to return, print the prepaid label, and drop it at any partner courier point.",
+  },
+  {
+    id: 'shipping_threshold',
+    q: 'Do you offer free shipping?',
+    a: "Yes! We offer complimentary standard shipping on all qualifying orders over $300. Orders under $300 ship at standard flat rates calculated at checkout based on your destination.",
   },
   {
     id: 'details',
     q: 'How do I change my account details?',
-    a: 'Go to Account → Profile → Edit Profile to update your name, email address, or phone number. Changes take effect immediately.',
+    a: 'Go to Account → Profile to update your name, email address, or phone number. Changes take effect immediately.',
   },
   {
     id: 'password',
     q: 'How do I reset my password?',
-    a: 'Go to Account → Settings → Security and choose "Update Password". If you\'re signed out, use the "Forgot password?" link on the login screen and we\'ll email you a reset link.',
+    a: 'Go to Account → Settings and choose "Update Password". If you\'re signed out, use the "Forgot password?" link on the login screen and we\'ll email you a reset link.',
   },
 ];
 
 /* ── Styles / tokens ────────────────────────────────── */
 const T = {
-  bg: '#FAF7F2',
-  surface: '#FDFBF7',
-  border: 'rgba(27,24,22,0.12)',
-  espresso: '#231E1B',
-  muted: '#6E6962',
-  inputBg: '#F6F0E9',
+  bg: 'var(--bg-main)',
+  surface: 'var(--bg-surface)',
+  border: 'var(--border-default)',
+  espresso: 'var(--text-primary)',
+  muted: 'var(--text-secondary)',
+  inputBg: 'var(--bg-input)',
 };
 
 const inputBase = {
@@ -139,7 +146,13 @@ function FaqRow({ item }) {
 
 /* ── Contact modal ──────────────────────────────────── */
 function ContactModal({ onClose }) {
-  const [form, setForm] = useState({ name: '', email: '', order: '', message: '' });
+  const { user } = useAuth();
+  const [form, setForm] = useState({
+    name: user?.name || '',
+    email: user?.email || '',
+    order: '',
+    message: '',
+  });
   const [errors, setErrors] = useState({});
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
@@ -149,7 +162,7 @@ function ContactModal({ onClose }) {
     if (errors[key]) setErrors(er => ({ ...er, [key]: '' }));
   };
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     const next = {};
     if (!form.name.trim()) next.name = 'Name is required.';
@@ -157,24 +170,38 @@ function ContactModal({ onClose }) {
     if (!form.message.trim()) next.message = 'Message is required.';
     setErrors(next);
     if (Object.keys(next).length) return;
+
     setSending(true);
-    setTimeout(() => { setSending(false); setSent(true); }, 900);
+    try {
+      await supportApi.submitContactForm({
+        name: form.name.trim(),
+        email: form.email.trim(),
+        order: form.order.trim(),
+        message: form.message.trim(),
+      });
+      setSent(true);
+    } catch (err) {
+      console.error('Failed to submit support contact form:', err);
+      setErrors({ form: err.response?.data?.message || 'Failed to submit message. Please try again.' });
+    } finally {
+      setSending(false);
+    }
   };
 
   const fieldStyle = (err) => ({
     ...inputBase, padding: '12px 14px', borderRadius: 0,
-    borderColor: err ? '#B55247' : T.border,
-    boxShadow: err ? '0 0 0 3px rgba(181,82,71,0.08)' : 'none',
+    borderColor: err ? 'var(--color-danger)' : T.border,
+    boxShadow: err ? '0 0 0 3px rgba(217,83,79,0.1)' : 'none',
   });
 
   const labelStyle = {
     display: 'block', marginBottom: '8px',
     fontFamily: 'var(--font-sans)', fontSize: '10px',
     letterSpacing: '0.15em', textTransform: 'uppercase',
-    fontWeight: 600, color: '#7A726C',
+    fontWeight: 600, color: 'var(--text-muted)',
   };
 
-  const errStyle = { marginTop: '6px', color: '#B55247', fontFamily: 'var(--font-sans)', fontSize: '12px' };
+  const errStyle = { marginTop: '6px', color: 'var(--color-danger)', fontFamily: 'var(--font-sans)', fontSize: '12px' };
 
   return (
     <div
@@ -187,12 +214,13 @@ function ContactModal({ onClose }) {
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       {/* backdrop */}
-      <div style={{ position: 'absolute', inset: 0, background: 'rgba(27,24,22,0.45)', backdropFilter: 'blur(3px)' }} onClick={onClose} />
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)' }} onClick={onClose} />
 
       <div style={{
         position: 'relative', zIndex: 1,
         background: T.surface, width: '100%', maxWidth: '480px',
-        padding: '36px', boxShadow: '0 24px 64px rgba(0,0,0,0.18)',
+        padding: '36px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+        border: `1px solid ${T.border}`,
         animation: 'hpFadeUp 0.28s ease',
       }}>
         <button
@@ -211,7 +239,7 @@ function ContactModal({ onClose }) {
 
         {sent ? (
           <div style={{ textAlign: 'center', padding: '24px 0' }}>
-            <div style={{ fontSize: '36px', marginBottom: '14px' }}>✓</div>
+            <div style={{ fontSize: '36px', marginBottom: '14px', color: 'var(--color-success)' }}>✓</div>
             <p style={{ fontFamily: 'var(--font-serif)', fontSize: '18px', color: T.espresso, margin: '0 0 8px' }}>Message sent</p>
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: T.muted, margin: 0 }}>
               We'll get back to you within 1 business day.
@@ -219,6 +247,7 @@ function ContactModal({ onClose }) {
           </div>
         ) : (
           <form onSubmit={submit} noValidate style={{ display: 'grid', gap: '18px' }}>
+            {errors.form && <div style={{ color: 'var(--color-danger)', fontSize: '13px', textAlign: 'center' }}>{errors.form}</div>}
             <div>
               <label style={labelStyle} htmlFor="c-name">Name</label>
               <input id="c-name" type="text" value={form.name} onChange={set('name')} style={fieldStyle(errors.name)} placeholder="Your name" autoComplete="name" />
@@ -246,7 +275,7 @@ function ContactModal({ onClose }) {
               type="submit" disabled={sending}
               style={{
                 width: '100%', minHeight: '46px',
-                background: T.espresso, color: '#FDFBF7',
+                background: 'var(--color-primary)', color: 'var(--color-primary-contrast)',
                 border: 'none', borderRadius: 0, cursor: sending ? 'wait' : 'pointer',
                 fontFamily: 'var(--font-sans)', fontSize: '11px',
                 letterSpacing: '0.14em', textTransform: 'uppercase',
@@ -268,9 +297,46 @@ function ContactModal({ onClose }) {
 ══════════════════════════════════════════════════════ */
 export default function HelpPage({ go }) {
   const { isAuthenticated } = useAuth();
+  const [faqs, setFaqs] = useState(DEFAULT_FAQS);
+  const [settings, setSettings] = useState({
+    supportEmail: 'support@novashop.com',
+    supportHours: 'Monday – Friday',
+    returnWindowDays: 14,
+    freeShippingThreshold: 300,
+  });
   const [query, setQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
   const searchRef = useRef(null);
+
+  // Fetch live FAQs and settings from backend
+  useEffect(() => {
+    let isMounted = true;
+    helpApi.getFaqs()
+      .then(res => {
+        if (!isMounted) return;
+        const items = Array.isArray(res) ? res : res?.data;
+        if (items && items.length > 0) {
+          setFaqs(items);
+        }
+      })
+      .catch(err => console.warn('Could not load dynamic FAQs:', err.message));
+
+    helpApi.getSettings()
+      .then(res => {
+        if (!isMounted) return;
+        if (res) {
+          setSettings({
+            supportEmail: res.supportEmail || 'support@novashop.com',
+            supportHours: res.supportHours || 'Monday – Friday',
+            returnWindowDays: res.returnWindowDays || 14,
+            freeShippingThreshold: res.freeShippingThreshold || 300,
+          });
+        }
+      })
+      .catch(err => console.warn('Could not load dynamic help settings:', err.message));
+
+    return () => { isMounted = false; };
+  }, []);
 
   const handleCategoryClick = (category) => {
     if (category.protected && !isAuthenticated) {
@@ -293,10 +359,28 @@ export default function HelpPage({ go }) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const dynamicFaqs = useMemo(() => {
+    return faqs.map(item => {
+      if (item.id === 'shipping_threshold') {
+        return {
+          ...item,
+          a: `Yes! We offer complimentary standard shipping on all qualifying orders over $${settings.freeShippingThreshold}. Orders under $${settings.freeShippingThreshold} ship at standard flat rates calculated at checkout based on your destination.`
+        };
+      }
+      if (item.id === 'return') {
+        return {
+          ...item,
+          a: `Start a return from Account → Orders within ${settings.returnWindowDays} days of delivery. Select the item(s) you'd like to return, print the prepaid label, and drop it at any partner courier point.`
+        };
+      }
+      return item;
+    });
+  }, [faqs, settings.freeShippingThreshold, settings.returnWindowDays]);
+
   const q = query.trim().toLowerCase();
   const filteredFaqs = q
-    ? FAQS.filter(f => f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q))
-    : FAQS;
+    ? dynamicFaqs.filter(f => f.q.toLowerCase().includes(q) || f.a.toLowerCase().includes(q))
+    : dynamicFaqs;
 
   const isMac = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform);
 
@@ -307,7 +391,7 @@ export default function HelpPage({ go }) {
           from { opacity: 0; transform: translateY(12px); }
           to   { opacity: 1; transform: translateY(0); }
         }
-        .hp-cat-card:hover { border-color: rgba(27,24,22,0.4) !important; }
+        .hp-cat-card:hover { border-color: var(--border-strong) !important; }
         .hp-cat-card:hover .hp-arrow { transform: translateX(3px); }
         .hp-arrow { transition: transform 200ms ease; }
 
@@ -348,18 +432,18 @@ export default function HelpPage({ go }) {
                 padding: '15px 80px 15px 48px',
                 borderRadius: '0',
                 fontSize: '15px',
-                background: '#fff',
-                border: `1px solid rgba(27,24,22,0.18)`,
-                boxShadow: '0 2px 12px rgba(27,24,22,0.06)',
+                background: T.inputBg,
+                border: `1px solid ${T.border}`,
+                boxShadow: 'none',
               }}
-              onFocus={e => { e.target.style.borderColor = T.espresso; e.target.style.boxShadow = '0 0 0 3px rgba(27,24,22,0.07)'; }}
-              onBlur={e => { e.target.style.borderColor = 'rgba(27,24,22,0.18)'; e.target.style.boxShadow = '0 2px 12px rgba(27,24,22,0.06)'; }}
+              onFocus={e => { e.target.style.borderColor = 'var(--border-focus)'; e.target.style.boxShadow = '0 0 0 2px var(--color-accent-subtle, rgba(212,166,98,0.2))'; }}
+              onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; }}
             />
 
             {/* keyboard hint */}
             <span style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', display: 'flex', gap: '4px', alignItems: 'center', pointerEvents: 'none' }}>
               {[isMac ? '⌘' : 'Ctrl', 'K'].map(k => (
-                <span key={k} style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: T.muted, border: `1px solid ${T.border}`, borderRadius: '3px', padding: '2px 5px', background: '#f0ece5', lineHeight: 1.5 }}>{k}</span>
+                <span key={k} style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: T.muted, border: `1px solid ${T.border}`, borderRadius: '3px', padding: '2px 5px', background: 'var(--bg-surface-sunken)', lineHeight: 1.5 }}>{k}</span>
               ))}
             </span>
           </div>
@@ -428,7 +512,7 @@ export default function HelpPage({ go }) {
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: '60px' }}>
             <div style={{
               width: '100%', maxWidth: '480px',
-              background: '#F0EBE2', border: `1px solid ${T.border}`,
+              background: T.surface, border: `1px solid ${T.border}`,
               padding: '36px 32px', textAlign: 'center',
             }}>
               <h2 style={{ margin: '0 0 10px', fontFamily: 'var(--font-serif)', fontSize: '24px', fontWeight: 400, color: T.espresso }}>
@@ -438,13 +522,13 @@ export default function HelpPage({ go }) {
                 Our team is here to assist with any questions.
               </p>
               <p style={{ margin: '0 0 24px', fontFamily: 'var(--font-sans)', fontSize: '11px', color: T.muted, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-                support@novashop.com · Monday – Friday
+                {settings.supportEmail || 'support@novashop.com'} · {settings.supportHours || 'Monday – Friday'}
               </p>
               <button
                 type="button"
                 onClick={() => setShowModal(true)}
                 style={{
-                  background: T.espresso, color: '#FDFBF7',
+                  background: T.espresso, color: 'var(--color-primary-contrast)',
                   border: 'none', borderRadius: 0, cursor: 'pointer',
                   fontFamily: 'var(--font-sans)', fontSize: '11px',
                   letterSpacing: '0.14em', textTransform: 'uppercase',

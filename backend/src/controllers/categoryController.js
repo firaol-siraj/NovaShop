@@ -85,6 +85,7 @@ export const createCategory = asyncHandler(async (req, res, next) => {
   });
 
   await clearCachePattern('categories');
+  await clearCachePattern('products');
 
   res.status(201).json({
     success: true,
@@ -144,6 +145,7 @@ export const updateCategory = asyncHandler(async (req, res, next) => {
 
   const updatedCategory = await category.save();
   await clearCachePattern('categories');
+  await clearCachePattern('products');
 
   res.status(200).json({
     success: true,
@@ -174,6 +176,7 @@ export const deleteCategory = asyncHandler(async (req, res, next) => {
 
   await category.deleteOne();
   await clearCachePattern('categories');
+  await clearCachePattern('products');
 
   res.status(200).json({
     success: true,

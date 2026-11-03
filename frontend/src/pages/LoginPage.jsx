@@ -61,9 +61,9 @@ export default function LoginPage({ go }) {
   const inputBaseStyle = useMemo(
     () => ({
       width: '100%',
-      border: '1px solid rgba(27, 24, 22, 0.18)',
-      background: '#FDFBF7',
-      color: '#1B1816',
+      border: '1px solid var(--border-default)',
+      background: 'var(--bg-input)',
+      color: 'var(--text-primary)',
       borderRadius: '12px',
       padding: '16px 18px',
       fontSize: '14px',
@@ -131,7 +131,7 @@ export default function LoginPage({ go }) {
           display: 'flex',
           flex: 1,
           flexDirection: 'column',
-          background: '#F4EFE9',
+          background: 'var(--bg-main)',
           position: 'relative'
         }}
       >
@@ -142,14 +142,14 @@ export default function LoginPage({ go }) {
               top: '20px',
               left: '50%',
               transform: 'translateX(-50%)',
-              background: '#0F5E3B',
-              color: '#FFF',
+              background: 'var(--color-success)',
+              color: 'var(--color-primary-contrast)',
               padding: '12px 24px',
               fontFamily: 'var(--font-sans)',
               fontSize: '12px',
               fontWeight: 600,
               zIndex: 50,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
               animation: 'nsFadeIn 0.3s ease-out'
             }}
           >
@@ -241,7 +241,7 @@ export default function LoginPage({ go }) {
         <main
           style={{
             flex: 1,
-            background: '#F4EFE9',
+            background: 'var(--bg-main)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -253,7 +253,7 @@ export default function LoginPage({ go }) {
             <div style={{ marginBottom: '18px' }}>
               <div
                 style={{
-                  color: '#7A726C',
+                  color: 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '10px',
                   letterSpacing: '0.18em',
@@ -273,7 +273,7 @@ export default function LoginPage({ go }) {
                   fontSize: 'clamp(38px, 4vw, 56px)',
                   lineHeight: 1.05,
                   letterSpacing: '-0.05em',
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                 }}
               >
                 Welcome back
@@ -282,7 +282,7 @@ export default function LoginPage({ go }) {
               <p
                 style={{
                   margin: '12px 0 0',
-                  color: '#6D655F',
+                  color: 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '15px',
                   lineHeight: 1.6,
@@ -308,7 +308,7 @@ export default function LoginPage({ go }) {
                     htmlFor="login-email"
                     style={{
                       display: 'block',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.18em',
@@ -318,7 +318,7 @@ export default function LoginPage({ go }) {
                   >
                     Email Address
                   </label>
-                  <span style={{ color: '#7A726C', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                  <span style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
                     Required
                   </span>
                 </div>
@@ -334,8 +334,8 @@ export default function LoginPage({ go }) {
                   autoComplete="email"
                   style={{
                     ...inputBaseStyle,
-                    borderColor: error ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                    boxShadow: error ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                    borderColor: error ? 'var(--color-danger)' : 'var(--border-default)',
+                    boxShadow: error ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                   }}
                 />
               </div>
@@ -354,7 +354,7 @@ export default function LoginPage({ go }) {
                     htmlFor="login-password"
                     style={{
                       display: 'block',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.18em',
@@ -371,7 +371,7 @@ export default function LoginPage({ go }) {
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      color: '#6F6862',
+                      color: 'var(--text-secondary)',
                       textDecoration: 'underline',
                       cursor: 'pointer',
                       padding: 0,
@@ -396,8 +396,8 @@ export default function LoginPage({ go }) {
                     style={{
                       ...inputBaseStyle,
                       paddingRight: '48px',
-                      borderColor: error ? '#B55247' : 'rgba(27, 24, 22, 0.18)',
-                      boxShadow: error ? '0 0 0 3px rgba(181, 82, 71, 0.08)' : 'none',
+                      borderColor: error ? 'var(--color-danger)' : 'var(--border-default)',
+                      boxShadow: error ? '0 0 0 3px rgba(217, 83, 79, 0.15)' : 'none',
                     }}
                   />
 
@@ -412,7 +412,7 @@ export default function LoginPage({ go }) {
                       transform: 'translateY(-50%)',
                       border: 'none',
                       background: 'transparent',
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
@@ -430,7 +430,7 @@ export default function LoginPage({ go }) {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '10px',
-                  color: '#4C4744',
+                  color: 'var(--text-secondary)',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '14px',
                   cursor: 'pointer',
@@ -441,7 +441,7 @@ export default function LoginPage({ go }) {
                   checked={rememberSession}
                   onChange={(event) => setRememberSession(event.target.checked)}
                   aria-label="Remember this client session"
-                  style={{ width: '16px', height: '16px', accentColor: '#1B1816', cursor: 'pointer' }}
+                  style={{ width: '16px', height: '16px', accentColor: 'var(--color-primary)', cursor: 'pointer' }}
                 />
                 Remember this client session
               </label>
@@ -450,7 +450,7 @@ export default function LoginPage({ go }) {
                 <div
                   role="alert"
                   style={{
-                    color: '#B55247',
+                    color: 'var(--color-danger)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '13px',
                     marginTop: '-4px',
@@ -465,8 +465,8 @@ export default function LoginPage({ go }) {
                 disabled={isSubmitting}
                 style={{
                   width: '100%',
-                  background: '#1B1816',
-                  color: '#FDFBF7',
+                  background: 'var(--color-primary)',
+                  color: 'var(--color-primary-contrast)',
                   border: 'none',
                   borderRadius: '999px',
                   minHeight: '54px',
@@ -483,15 +483,15 @@ export default function LoginPage({ go }) {
                   opacity: isSubmitting ? 0.8 : 1,
                 }}
               >
-                Sign In 
+                Sign In
                 <ArrowRightIcon />
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '18px', margin: '6px 0 0' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(27,24,22,0.12)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
                 <div
                   style={{
-                    color: '#7A726C',
+                    color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '10px',
                     letterSpacing: '0.18em',
@@ -501,7 +501,7 @@ export default function LoginPage({ go }) {
                 >
                   Or Continue Via
                 </div>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(27,24,22,0.12)' }} />
+                <div style={{ flex: 1, height: '1px', background: 'var(--border-default)' }} />
               </div>
 
               <button
@@ -510,10 +510,10 @@ export default function LoginPage({ go }) {
                 style={{
                   width: '100%',
                   padding: '16px 18px',
-                  border: '1px solid rgba(27, 24, 22, 0.22)',
+                  border: '1px solid var(--border-default)',
                   borderRadius: '999px',
-                  background: '#FDFBF7',
-                  color: '#1B1816',
+                  background: 'var(--bg-surface)',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -532,7 +532,7 @@ export default function LoginPage({ go }) {
               {googleNotice && (
                 <div
                   style={{
-                    color: '#6F6862',
+                    color: 'var(--text-secondary)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '12px',
                     textAlign: 'center',
@@ -547,7 +547,7 @@ export default function LoginPage({ go }) {
               style={{
                 textAlign: 'center',
                 marginTop: '26px',
-                color: '#5E5752',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '14px',
               }}
@@ -560,7 +560,7 @@ export default function LoginPage({ go }) {
                   background: 'transparent',
                   border: 'none',
                   padding: 0,
-                  color: '#1B1816',
+                  color: 'var(--text-primary)',
                   textDecoration: 'underline',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -574,7 +574,7 @@ export default function LoginPage({ go }) {
               style={{
                 textAlign: 'center',
                 marginTop: '22px',
-                color: '#7A726C',
+                color: 'var(--text-secondary)',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '10px',
                 letterSpacing: '0.18em',
@@ -589,7 +589,7 @@ export default function LoginPage({ go }) {
                   background: 'transparent',
                   border: 'none',
                   cursor: 'pointer',
-                  color: '#7A726C',
+                  color: 'var(--text-secondary)',
                   padding: 0,
                   textDecoration: 'underline',
                 }}

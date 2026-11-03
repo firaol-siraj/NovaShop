@@ -7,174 +7,9 @@ import {
 } from 'react';
 
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import adminApi from '../../lib/api/adminApi';
+import AdminRowActionMenu from '../../components/admin/AdminRowActionMenu';
 import './admin-reviews.css';
-
-/* =========================================================
-   INITIAL REVIEWS
-========================================================= */
-
-const INITIAL_REVIEWS = [
-  {
-    id: 1,
-    rating: 5,
-    title: 'Beautiful quality',
-    body: 'The cashmere is incredibly soft and the fit is perfect.',
-    product: 'Cashmere Overcoat',
-    productIcon: 'package',
-    customer: 'Sarah Mitchell',
-    date: 'Sep 29, 2026',
-    age: '2 days ago',
-    verified: true,
-    status: 'approved',
-    order: '#NS-10482',
-    reviewCode: 'REV-2041',
-    starred: false,
-  },
-  {
-    id: 2,
-    rating: 4,
-    title: 'Runs slightly small',
-    body: 'Lovely fabric, but I would size up next time.',
-    product: 'Silk Slip Dress',
-    productIcon: 'inventory',
-    customer: 'Amelia Chen',
-    date: 'Sep 28, 2026',
-    age: '3 days ago',
-    verified: true,
-    status: 'pending',
-    order: '#NS-10476',
-    reviewCode: 'REV-2040',
-    starred: false,
-  },
-  {
-    id: 3,
-    rating: 5,
-    title: 'Worth every penny',
-    body: 'Sturdy leather and a great size for daily use.',
-    product: 'Leather Tote Bag',
-    productIcon: 'package',
-    customer: 'James Okafor',
-    date: 'Sep 26, 2026',
-    age: '5 days ago',
-    verified: true,
-    status: 'approved',
-    order: '#NS-10461',
-    reviewCode: 'REV-2039',
-    starred: true,
-  },
-  {
-    id: 4,
-    rating: 2,
-    title: 'Pilling after two weeks',
-    body: 'It started pilling much sooner than I expected.',
-    product: 'Merino Wool Sweater',
-    productIcon: 'package',
-    customer: 'Lucas Meyer',
-    date: 'Sep 25, 2026',
-    age: '6 days ago',
-    verified: true,
-    status: 'approved',
-    order: '#NS-10458',
-    reviewCode: 'REV-2038',
-    starred: false,
-  },
-  {
-    id: 5,
-    rating: 3,
-    title: 'Arrived damaged',
-    body: 'The box was crushed and the scarf had a snag.',
-    product: 'Silk Scarf',
-    productIcon: 'package',
-    customer: 'Priya Raman',
-    date: 'Sep 22, 2026',
-    age: '1 week ago',
-    verified: true,
-    status: 'pending',
-    order: '#NS-10441',
-    reviewCode: 'REV-2037',
-    starred: false,
-  },
-  {
-    id: 6,
-    rating: 5,
-    title: 'Comfortable from day one',
-    body: 'No break-in needed and the suede feels great.',
-    product: 'Suede Chelsea Boots',
-    productIcon: 'package',
-    customer: 'Sofia Rossi',
-    date: 'Sep 18, 2026',
-    age: '2 weeks ago',
-    verified: true,
-    status: 'approved',
-    order: '#NS-10424',
-    reviewCode: 'REV-2036',
-    starred: false,
-  },
-  {
-    id: 7,
-    rating: 2,
-    title: 'Good but pricey',
-    body: 'Nice cut, though I expected a heavier fabric.',
-    product: 'Tailored Wool Trousers',
-    productIcon: 'inventory',
-    customer: 'Daniel Kim',
-    date: 'Sep 15, 2026',
-    age: '2 weeks ago',
-    verified: false,
-    status: 'rejected',
-    order: '#NS-10402',
-    reviewCode: 'REV-2035',
-    starred: false,
-  },
-  {
-    id: 8,
-    rating: 5,
-    title: 'Beautifully made',
-    body: 'Excellent construction and beautiful materials.',
-    product: 'Cashmere Overcoat',
-    productIcon: 'package',
-    customer: 'Noah Williams',
-    date: 'Sep 12, 2026',
-    age: '3 weeks ago',
-    verified: true,
-    status: 'approved',
-    order: '#NS-10394',
-    reviewCode: 'REV-2034',
-    starred: false,
-  },
-  {
-    id: 9,
-    rating: 4,
-    title: 'Lovely texture',
-    body: 'Soft, comfortable and looks exactly like the photos.',
-    product: 'Merino Wool Sweater',
-    productIcon: 'package',
-    customer: 'Emma Johnson',
-    date: 'Sep 10, 2026',
-    age: '3 weeks ago',
-    verified: true,
-    status: 'pending',
-    order: '#NS-10387',
-    reviewCode: 'REV-2033',
-    starred: false,
-  },
-  {
-    id: 10,
-    rating: 5,
-    title: 'Perfect everyday bag',
-    body: 'Spacious without being bulky. Very happy with it.',
-    product: 'Leather Tote Bag',
-    productIcon: 'package',
-    customer: 'Olivia Brown',
-    date: 'Sep 8, 2026',
-    age: '4 weeks ago',
-    verified: true,
-    status: 'approved',
-    order: '#NS-10372',
-    reviewCode: 'REV-2032',
-    starred: false,
-  },
-];
 
 /* =========================================================
    STAT CARD
@@ -243,16 +78,18 @@ function StatusBadge({ status }) {
 ========================================================= */
 
 function StarRating({ rating }) {
+  const numericRating = Math.round(Number(rating) || 0);
+
   return (
     <span
       className="reviews-star-rating"
-      aria-label={`${rating} out of 5 stars`}
+      aria-label={`${numericRating} out of 5 stars`}
     >
       {[1, 2, 3, 4, 5].map((star) => (
         <span
           key={star}
           className={
-            star <= rating ? 'is-filled' : ''
+            star <= numericRating ? 'is-filled' : ''
           }
         >
           ★
@@ -275,13 +112,13 @@ function FilterDropdown({
   onChange,
 }) {
   const isActive =
-    String(value) !== String(options[0].value);
+    String(value) !== String(options[0]?.value);
 
   const selectedOption =
     options.find(
       (option) =>
         String(option.value) === String(value),
-    ) || options[0];
+    ) || options[0] || { label, value };
 
   return (
     <div className="reviews-filter-dropdown">
@@ -353,49 +190,66 @@ function FilterDropdown({
 export default function AdminReviewsPage({
   go,
 }) {
-  const [reviews, setReviews] =
-    useState(INITIAL_REVIEWS);
+  // Query state (synchronized with URL params)
+  const [reviews, setReviews] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [pageSize, setPageSize] = useState('10');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const [selected, setSelected] =
-    useState([]);
+  // Tab & Filter states
+  const [activeTab, setActiveTab] = useState('all');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [ratingFilter, setRatingFilter] = useState('All ratings');
+  const [productFilter, setProductFilter] = useState('All products');
+  const [dateFilter, setDateFilter] = useState('All dates');
+  const [availableProducts, setAvailableProducts] = useState([]);
 
-  const [search, setSearch] =
-    useState('');
+  // Selection & Dropdowns
+  const [selected, setSelected] = useState([]);
+  const [openFilter, setOpenFilter] = useState(null);
+  const [openMenu, setOpenMenu] = useState(null);
+  const [menuTarget, setMenuTarget] = useState(null);
+  const [notice, setNotice] = useState('');
 
-  const [activeTab, setActiveTab] =
-    useState('all');
+  // Modals for missing features
+  const [replyModalReview, setReplyModalReview] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
-  const [ratingFilter, setRatingFilter] =
-    useState('All ratings');
+  const [viewModalReview, setViewModalReview] = useState(null);
 
-  const [productFilter, setProductFilter] =
-    useState('All products');
+  const [rejectModalReview, setRejectModalReview] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
-  const [dateFilter, setDateFilter] =
-    useState('All dates');
+  const [confirmDeleteReviewId, setConfirmDeleteReviewId] = useState(null);
 
-  const [openFilter, setOpenFilter] =
-    useState(null);
+  // Real statistics state
+  const [stats, setStats] = useState({
+    totalReviews: 0,
+    totalReviewsChange: '-',
+    averageRating: '5.0',
+    averageRatingChange: '-',
+    pendingReviews: 0,
+    pendingReviewsChange: '-',
+    replyRate: '0%',
+    replyRateChange: '-',
+  });
 
-  const [openMenu, setOpenMenu] =
-    useState(null);
-
-  const [notice, setNotice] =
-    useState('');
+  const [counts, setCounts] = useState({
+    all: 0,
+    pending: 0,
+    approved: 0,
+    rejected: 0,
+  });
 
   const toolbarRef = useRef(null);
 
   /* =======================================================
-     STATISTICS
-  ======================================================= */
-
-  const totalReviews = 1284;
-  const pendingReviews = 18;
-  const averageRating = '4.6';
-  const replyRate = '72%';
-
-  /* =======================================================
-     NOTICE
+     NOTICE / TOAST
   ======================================================= */
 
   const showNotice = useCallback(
@@ -404,10 +258,135 @@ export default function AdminReviewsPage({
 
       window.setTimeout(() => {
         setNotice('');
-      }, 2200);
+      }, 2400);
     },
     [],
   );
+
+  /* =======================================================
+     SEARCH DEBOUNCE
+  ======================================================= */
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  /* =======================================================
+     URL QUERY INITIALIZATION
+  ======================================================= */
+
+  useEffect(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const urlStatus = searchParams.get('status');
+      const urlSearch = searchParams.get('search');
+      const urlRating = searchParams.get('rating');
+      const urlProduct = searchParams.get('product');
+      const urlPage = searchParams.get('page');
+
+      if (urlStatus && ['all', 'pending', 'approved', 'rejected'].includes(urlStatus.toLowerCase())) {
+        setActiveTab(urlStatus.toLowerCase());
+      }
+      if (urlSearch) {
+        setSearch(urlSearch);
+        setDebouncedSearch(urlSearch);
+      }
+      if (urlRating) {
+        setRatingFilter(urlRating);
+      }
+      if (urlProduct) {
+        setProductFilter(urlProduct);
+      }
+      if (urlPage && !isNaN(parseInt(urlPage, 10))) {
+        setPage(Math.max(1, parseInt(urlPage, 10)));
+      }
+    } catch {
+      // ignore URL parse errors
+    }
+  }, []);
+
+  /* =======================================================
+     FETCH REVIEWS LIST
+  ======================================================= */
+
+  const fetchReviews = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = {
+        page,
+        limit: parseInt(pageSize, 10) || 10,
+        search: debouncedSearch.trim() || undefined,
+        status: activeTab !== 'all' ? activeTab : undefined,
+        rating: ratingFilter !== 'All ratings' ? ratingFilter : undefined,
+        product: productFilter !== 'All products' ? productFilter : undefined,
+        dateRange: dateFilter !== 'All dates' ? dateFilter : undefined,
+      };
+
+      const res = await adminApi.getReviews(params);
+
+      if (res && res.data) {
+        const payload = res.data.data || res.data;
+        const reviewList = payload.reviews || [];
+        setReviews(reviewList);
+        setTotalCount(payload.total || 0);
+        setPages(payload.pages || 1);
+
+        // Collect unique product names for the product filter
+        if (reviewList.length > 0) {
+          setAvailableProducts((prev) => {
+            const names = new Set(prev);
+            reviewList.forEach((r) => {
+              if (r.product) names.add(r.product);
+            });
+            return Array.from(names).sort();
+          });
+        }
+      }
+    } catch (err) {
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        if (typeof go === 'function') go('/admin/signin');
+        return;
+      }
+      setError(err.response?.data?.message || err.message || 'Failed to load reviews.');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, debouncedSearch, activeTab, ratingFilter, productFilter, dateFilter, go]);
+
+  /* =======================================================
+     FETCH STATS & TAB COUNTS
+  ======================================================= */
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const res = await adminApi.getReviewStats();
+      if (res && res.data) {
+        const payload = res.data.data || res.data;
+        if (payload.stats) {
+          setStats(payload.stats);
+        }
+        if (payload.counts) {
+          setCounts(payload.counts);
+        }
+      }
+    } catch (err) {
+      console.warn('Unable to load review statistics:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReviews();
+  }, [fetchReviews]);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
 
   /* =======================================================
      CLOSE FILTERS OUTSIDE TOOLBAR
@@ -429,6 +408,10 @@ export default function AdminReviewsPage({
       if (event.key === 'Escape') {
         setOpenFilter(null);
         setOpenMenu(null);
+        setReplyModalReview(null);
+        setViewModalReview(null);
+        setRejectModalReview(null);
+        setConfirmDeleteReviewId(null);
       }
     };
 
@@ -493,28 +476,19 @@ export default function AdminReviewsPage({
   ];
 
   const productOptions = useMemo(() => {
-    const products = [
-      ...new Set(
-        reviews.map(
-          (review) => review.product,
-        ),
-      ),
-    ].sort();
-
     return [
       {
         value: 'All products',
         label: 'All products',
         buttonLabel: 'Product',
       },
-
-      ...products.map((product) => ({
+      ...availableProducts.map((product) => ({
         value: product,
         label: product,
         buttonLabel: product,
       })),
     ];
-  }, [reviews]);
+  }, [availableProducts]);
 
   const dateOptions = [
     {
@@ -565,6 +539,7 @@ export default function AdminReviewsPage({
       setRatingFilter(String(value));
       setSelected([]);
       setOpenFilter(null);
+      setPage(1);
     },
     [],
   );
@@ -574,6 +549,7 @@ export default function AdminReviewsPage({
       setProductFilter(String(value));
       setSelected([]);
       setOpenFilter(null);
+      setPage(1);
     },
     [],
   );
@@ -583,6 +559,7 @@ export default function AdminReviewsPage({
       setDateFilter(String(value));
       setSelected([]);
       setOpenFilter(null);
+      setPage(1);
     },
     [],
   );
@@ -591,178 +568,46 @@ export default function AdminReviewsPage({
     setRatingFilter('All ratings');
     setProductFilter('All products');
     setDateFilter('All dates');
+    setSearch('');
     setSelected([]);
     setOpenFilter(null);
+    setPage(1);
   }, []);
-
-  /* =======================================================
-     FILTERED REVIEWS
-  ======================================================= */
-
-  const filteredReviews = useMemo(() => {
-    const query =
-      search.trim().toLowerCase();
-
-    const today = new Date(
-      2026,
-      9,
-      5,
-      23,
-      59,
-      59,
-    );
-
-    return reviews.filter((review) => {
-      const matchesTab =
-        activeTab === 'all' ||
-        review.status === activeTab;
-
-      const matchesSearch =
-        !query ||
-        review.title
-          .toLowerCase()
-          .includes(query) ||
-        review.body
-          .toLowerCase()
-          .includes(query) ||
-        review.product
-          .toLowerCase()
-          .includes(query) ||
-        review.customer
-          .toLowerCase()
-          .includes(query) ||
-        review.order
-          .toLowerCase()
-          .includes(query);
-
-      const matchesRating =
-        ratingFilter === 'All ratings' ||
-        String(review.rating) ===
-          String(ratingFilter);
-
-      const matchesProduct =
-        productFilter === 'All products' ||
-        String(review.product) ===
-          String(productFilter);
-
-      let matchesDate = true;
-
-      if (dateFilter !== 'All dates') {
-        const reviewDate = new Date(
-          review.date,
-        );
-
-        const normalizedToday =
-          new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            today.getDate(),
-          );
-
-        const normalizedReviewDate =
-          new Date(
-            reviewDate.getFullYear(),
-            reviewDate.getMonth(),
-            reviewDate.getDate(),
-          );
-
-        const differenceInDays = Math.floor(
-          (normalizedToday -
-            normalizedReviewDate) /
-            (1000 * 60 * 60 * 24),
-        );
-
-        switch (dateFilter) {
-          case 'Last 7 days':
-            matchesDate =
-              differenceInDays >= 0 &&
-              differenceInDays <= 7;
-            break;
-
-          case 'Last 14 days':
-            matchesDate =
-              differenceInDays >= 0 &&
-              differenceInDays <= 14;
-            break;
-
-          case 'Last 30 days':
-            matchesDate =
-              differenceInDays >= 0 &&
-              differenceInDays <= 30;
-            break;
-
-          case 'Older than 30 days':
-            matchesDate =
-              differenceInDays > 30;
-            break;
-
-          default:
-            matchesDate = true;
-        }
-      }
-
-      return (
-        matchesTab &&
-        matchesSearch &&
-        matchesRating &&
-        matchesProduct &&
-        matchesDate
-      );
-    });
-  }, [
-    reviews,
-    activeTab,
-    search,
-    ratingFilter,
-    productFilter,
-    dateFilter,
-  ]);
 
   /* =======================================================
      SELECTION
   ======================================================= */
 
   const selectedVisibleIds =
-    filteredReviews
+    reviews
       .filter((review) =>
         selected.includes(review.id),
       )
       .map((review) => review.id);
 
   const allVisibleSelected =
-    filteredReviews.length > 0 &&
+    reviews.length > 0 &&
     selectedVisibleIds.length ===
-      filteredReviews.length;
-
-  const pendingCount =
-    reviews.filter(
-      (review) =>
-        review.status === 'pending',
-    ).length;
-
-  /* =======================================================
-     SELECTION HELPERS
-  ======================================================= */
+      reviews.length;
 
   const toggleSelectAll = () => {
     if (allVisibleSelected) {
       setSelected((current) =>
         current.filter(
           (id) =>
-            !filteredReviews.some(
+            !reviews.some(
               (review) =>
                 review.id === id,
             ),
         ),
       );
-
       return;
     }
 
     setSelected((current) => [
       ...new Set([
         ...current,
-        ...filteredReviews.map(
+        ...reviews.map(
           (review) => review.id,
         ),
       ]),
@@ -780,220 +625,291 @@ export default function AdminReviewsPage({
   };
 
   /* =======================================================
-     REVIEW STATUS
+     REVIEW STATUS (APPROVE / REJECT)
   ======================================================= */
 
-  const updateReviewStatus = (
+  const updateReviewStatus = async (
     id,
     status,
+    reason = '',
   ) => {
-    setReviews((current) =>
-      current.map((review) =>
-        review.id === id
-          ? {
-              ...review,
-              status,
-            }
-          : review,
-      ),
-    );
+    try {
+      await adminApi.updateReviewStatus(id, status, reason);
 
-    setOpenMenu(null);
+      setReviews((current) =>
+        current.map((review) =>
+          review.id === id
+            ? {
+                ...review,
+                status,
+                rejectionReason: reason,
+              }
+            : review,
+        ),
+      );
 
-    const message =
-      status === 'approved'
-        ? 'Review approved.'
-        : status === 'rejected'
-          ? 'Review rejected.'
-          : 'Review moved to pending.';
+      setOpenMenu(null);
+      setRejectModalReview(null);
 
-    showNotice(message);
+      const message =
+        status === 'approved'
+          ? 'Review approved.'
+          : status === 'rejected'
+            ? 'Review rejected.'
+            : 'Review moved to pending.';
+
+      showNotice(message);
+      fetchStats();
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Failed to update review status.');
+    }
+  };
+
+  /* =======================================================
+     FEATURED STAR TOGGLE
+  ======================================================= */
+
+  const handleToggleStar = async (review) => {
+    try {
+      const res = await adminApi.toggleStarReview(review.id);
+      const isStarred = res.data?.data?.starred ?? !review.starred;
+
+      setReviews((current) =>
+        current.map((item) =>
+          item.id === review.id
+            ? { ...item, starred: isStarred }
+            : item,
+        ),
+      );
+
+      showNotice(isStarred ? 'Review starred as featured.' : 'Review unstarred.');
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Failed to toggle star.');
+    }
   };
 
   /* =======================================================
      DELETE REVIEW
   ======================================================= */
 
-  const deleteReview = (id) => {
-    setReviews((current) =>
-      current.filter(
-        (review) =>
-          review.id !== id,
-      ),
-    );
+  const deleteReview = async (id) => {
+    try {
+      await adminApi.deleteReview(id);
 
-    setSelected((current) =>
-      current.filter(
-        (item) => item !== id,
-      ),
-    );
+      setReviews((current) =>
+        current.filter(
+          (review) =>
+            review.id !== id,
+        ),
+      );
 
-    setOpenMenu(null);
+      setSelected((current) =>
+        current.filter(
+          (item) => item !== id,
+        ),
+      );
 
-    showNotice('Review deleted.');
+      setOpenMenu(null);
+      setConfirmDeleteReviewId(null);
+
+      showNotice('Review deleted.');
+      fetchStats();
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Failed to delete review.');
+    }
   };
 
   /* =======================================================
      BULK UPDATE
   ======================================================= */
 
-  const bulkUpdate = (status) => {
+  const bulkUpdate = async (status) => {
     if (!selected.length) return;
 
-    setReviews((current) =>
-      current.map((review) =>
-        selected.includes(review.id)
-          ? {
-              ...review,
-              status,
-            }
-          : review,
-      ),
-    );
+    try {
+      await adminApi.bulkUpdateReviews(selected, status);
 
-    setSelected([]);
+      setReviews((current) =>
+        current.map((review) =>
+          selected.includes(review.id)
+            ? {
+                ...review,
+                status,
+              }
+            : review,
+        ),
+      );
 
-    showNotice(
-      status === 'approved'
-        ? 'Selected reviews approved.'
-        : 'Selected reviews rejected.',
-    );
+      setSelected([]);
+
+      showNotice(
+        status === 'approved'
+          ? 'Selected reviews approved.'
+          : 'Selected reviews rejected.',
+      );
+      fetchStats();
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Bulk update failed.');
+    }
   };
 
   /* =======================================================
      BULK DELETE
   ======================================================= */
 
-  const bulkDelete = () => {
+  const bulkDelete = async () => {
     if (!selected.length) return;
 
-    setReviews((current) =>
-      current.filter(
-        (review) =>
-          !selected.includes(
-            review.id,
-          ),
-      ),
-    );
-
-    setSelected([]);
-
-    showNotice(
-      'Selected reviews deleted.',
-    );
-  };
-
-  /* =======================================================
-     EXPORT
-  ======================================================= */
-
-  const exportReviews = () => {
-    const rows = filteredReviews.map(
-      (review) => ({
-        review: review.title,
-        rating: review.rating,
-        product: review.product,
-        customer: review.customer,
-        date: review.date,
-        status: review.status,
-      }),
-    );
-
-    const header =
-      'Review,Rating,Product,Customer,Date,Status';
-
-    const csv = [
-      header,
-      ...rows.map((row) =>
-        [
-          row.review,
-          row.rating,
-          row.product,
-          row.customer,
-          row.date,
-          row.status,
-        ]
-          .map(
-            (value) =>
-              `"${String(
-                value,
-              ).replaceAll('"', '""')}"`,
-          )
-          .join(','),
-      ),
-    ].join('\n');
-
-    const blob = new Blob([csv], {
-      type: 'text/csv;charset=utf-8;',
-    });
-
-    const url =
-      URL.createObjectURL(blob);
-
-    const anchor =
-      document.createElement('a');
-
-    anchor.href = url;
-    anchor.download =
-      'novashop-reviews.csv';
-
-    anchor.click();
-
-    URL.revokeObjectURL(url);
-
-    showNotice('Reviews exported.');
-  };
-
-  /* =======================================================
-     REVIEW ACTIONS
-  ======================================================= */
-
-  const handleReply = (review) => {
-    setOpenMenu(null);
-
-    showNotice(
-      `Replying to ${review.customer}.`,
-    );
-  };
-
-  const handleViewReview = (
-    review,
-  ) => {
-    setOpenMenu(null);
-
-    showNotice(
-      `Opening ${review.reviewCode}.`,
-    );
-  };
-
-  const handleViewProduct = (
-    review,
-  ) => {
-    setOpenMenu(null);
-
-    if (go) {
-      go('/admin/products');
+    if (!window.confirm(`Are you sure you want to delete ${selected.length} selected review(s)?`)) {
       return;
     }
 
-    showNotice(
-      `Opening ${review.product}.`,
-    );
+    try {
+      await adminApi.bulkUpdateReviews(selected, 'delete');
+
+      setReviews((current) =>
+        current.filter(
+          (review) =>
+            !selected.includes(
+              review.id,
+            ),
+        ),
+      );
+
+      setSelected([]);
+
+      showNotice(
+        'Selected reviews deleted.',
+      );
+      fetchStats();
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Bulk delete failed.');
+    }
   };
 
-  const handleViewCustomer = (
-    review,
-  ) => {
-    setOpenMenu(null);
+  /* =======================================================
+     EXPORT REVIEWS (CSV)
+  ======================================================= */
 
-    if (go) {
-      go('/admin/customers');
+  const exportReviews = async () => {
+    try {
+      showNotice('Generating CSV export…');
+
+      const params = {
+        search: debouncedSearch.trim() || undefined,
+        status: activeTab !== 'all' ? activeTab : undefined,
+        rating: ratingFilter !== 'All ratings' ? ratingFilter : undefined,
+        product: productFilter !== 'All products' ? productFilter : undefined,
+        dateRange: dateFilter !== 'All dates' ? dateFilter : undefined,
+      };
+
+      const res = await adminApi.exportReviews(params);
+
+      const blob = new Blob([res.data], {
+        type: 'text/csv;charset=utf-8;',
+      });
+
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'novashop-reviews.csv';
+      anchor.click();
+      URL.revokeObjectURL(url);
+
+      showNotice('Reviews exported.');
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Failed to export reviews.');
+    }
+  };
+
+  /* =======================================================
+     REPLY SUBMISSION
+  ======================================================= */
+
+  const handleOpenReplyModal = (review) => {
+    setOpenMenu(null);
+    setReplyModalReview(review);
+    setReplyText(review.adminReply?.text || '');
+  };
+
+  const handleSaveReply = async () => {
+    if (!replyModalReview) return;
+    if (!replyText.trim()) {
+      showNotice('Please write a reply before submitting.');
       return;
     }
 
-    showNotice(
-      `Opening ${review.customer}.`,
-    );
+    setIsSubmittingReply(true);
+    try {
+      const res = await adminApi.replyToReview(replyModalReview.id, replyText.trim());
+      const replyData = res.data?.data?.adminReply || { text: replyText.trim(), repliedAt: new Date() };
+
+      setReviews((current) =>
+        current.map((r) =>
+          r.id === replyModalReview.id
+            ? { ...r, adminReply: replyData }
+            : r,
+        ),
+      );
+
+      setReplyModalReview(null);
+      setReplyText('');
+      showNotice(`Reply sent to ${replyModalReview.customer}.`);
+      fetchStats();
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Failed to post reply.');
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
+
+  const handleDeleteReply = async (review) => {
+    try {
+      await adminApi.deleteReviewReply(review.id);
+      setReviews((current) =>
+        current.map((r) =>
+          r.id === review.id
+            ? { ...r, adminReply: { text: '', repliedAt: null } }
+            : r,
+        ),
+      );
+      setReplyModalReview(null);
+      showNotice('Reply removed.');
+      fetchStats();
+    } catch (err) {
+      showNotice(err.response?.data?.message || err.message || 'Failed to delete reply.');
+    }
+  };
+
+  /* =======================================================
+     ROW MENU ACTIONS
+  ======================================================= */
+
+  const handleViewReview = (review) => {
+    setOpenMenu(null);
+    setViewModalReview(review);
+  };
+
+  const handleViewProduct = (review) => {
+    setMenuTarget(null);
+    setOpenMenu(null);
+    const targetProd = review.productId || review.product;
+    if (go && targetProd) {
+      go(`/admin/products?product=${encodeURIComponent(targetProd)}`);
+      return;
+    }
+    showNotice(`Opening ${review.product}.`);
+  };
+
+  const handleViewCustomer = (review) => {
+    setMenuTarget(null);
+    setOpenMenu(null);
+    const targetCust = review.customerId || review.userId;
+    if (go && targetCust) {
+      go(`/admin/customers?customer=${encodeURIComponent(targetCust)}`);
+      return;
+    }
+    showNotice(`Opening ${review.customer}.`);
   };
 
   /* =======================================================
@@ -1005,6 +921,7 @@ export default function AdminReviewsPage({
     setSelected([]);
     setOpenMenu(null);
     setOpenFilter(null);
+    setPage(1);
   };
 
   /* =======================================================
@@ -1017,6 +934,14 @@ export default function AdminReviewsPage({
       productFilter !== 'All products',
       dateFilter !== 'All dates',
     ].filter(Boolean).length;
+
+  /* =======================================================
+     PAGINATION CALCULATIONS
+  ======================================================= */
+
+  const parsedPageSize = parseInt(pageSize, 10) || 10;
+  const startItem = totalCount === 0 ? 0 : (page - 1) * parsedPageSize + 1;
+  const endItem = Math.min(page * parsedPageSize, totalCount);
 
   /* =======================================================
      RENDER
@@ -1064,27 +989,27 @@ export default function AdminReviewsPage({
       <section className="reviews-stats-grid">
         <StatCard
           label="Total reviews"
-          value={totalReviews.toLocaleString()}
-          change="+86 this month"
+          value={Number(stats.totalReviews || 0).toLocaleString()}
+          change={stats.totalReviewsChange || '-'}
         />
 
         <StatCard
           label="Average rating"
-          value={averageRating}
-          change="+0.1"
+          value={stats.averageRating || '5.0'}
+          change={stats.averageRatingChange || '-'}
         />
 
         <StatCard
           label="Pending review"
-          value={pendingReviews}
-          change="+5 this week"
+          value={stats.pendingReviews || 0}
+          change={stats.pendingReviewsChange || '-'}
           changeTone="warning"
         />
 
         <StatCard
           label="Reply rate"
-          value={replyRate}
-          change="+4%"
+          value={stats.replyRate || '0%'}
+          change={stats.replyRateChange || '-'}
         />
       </section>
 
@@ -1217,7 +1142,7 @@ export default function AdminReviewsPage({
           <i className="is-pending" />
           Pending
           <span className="reviews-tab-count">
-            {pendingCount}
+            {counts.pending}
           </span>
         </button>
 
@@ -1263,10 +1188,10 @@ export default function AdminReviewsPage({
         <div className="reviews-results-summary">
           Showing{' '}
           <strong>
-            {filteredReviews.length}
+            {reviews.length}
           </strong>{' '}
           matching review
-          {filteredReviews.length === 1
+          {reviews.length === 1
             ? ''
             : 's'}
         </div>
@@ -1337,7 +1262,53 @@ export default function AdminReviewsPage({
 
             <tbody>
 
-              {filteredReviews.length === 0 ? (
+              {loading ? (
+                // SKELETON LOADING STATE
+                [1, 2, 3, 4, 5].map((skeletonId) => (
+                  <tr key={skeletonId} className="reviews-loading-row">
+                    <td className="reviews-check-column">
+                      <div style={{ width: 16, height: 16, background: '#EAE6DF', borderRadius: 4 }} />
+                    </td>
+                    <td className="reviews-rating-column">
+                      <div style={{ width: 70, height: 14, background: '#EAE6DF', borderRadius: 3 }} />
+                    </td>
+                    <td className="reviews-review-column">
+                      <div style={{ display: 'grid', gap: 6 }}>
+                        <div style={{ width: '60%', height: 14, background: '#EAE6DF', borderRadius: 3 }} />
+                        <div style={{ width: '90%', height: 12, background: '#F2EFEB', borderRadius: 3 }} />
+                      </div>
+                    </td>
+                    <td className="reviews-product-column">
+                      <div style={{ width: 110, height: 14, background: '#EAE6DF', borderRadius: 3 }} />
+                    </td>
+                    <td className="reviews-customer-column">
+                      <div style={{ width: 90, height: 14, background: '#EAE6DF', borderRadius: 3 }} />
+                    </td>
+                    <td className="reviews-date-column">
+                      <div style={{ width: 75, height: 14, background: '#EAE6DF', borderRadius: 3 }} />
+                    </td>
+                    <td className="reviews-status-column">
+                      <div style={{ width: 65, height: 20, background: '#EAE6DF', borderRadius: 10 }} />
+                    </td>
+                    <td className="reviews-menu-column">
+                      <div style={{ width: 24, height: 24, background: '#EAE6DF', borderRadius: 4 }} />
+                    </td>
+                  </tr>
+                ))
+              ) : error ? (
+                <tr>
+                  <td colSpan="8" className="reviews-empty">
+                    <div>
+                      <AdminIcon name="searchSlash" size={22} />
+                      <strong>Error loading reviews</strong>
+                      <span>{error}</span>
+                      <button type="button" onClick={fetchReviews}>
+                        Retry
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ) : reviews.length === 0 ? (
                 <tr>
 
                   <td
@@ -1377,7 +1348,7 @@ export default function AdminReviewsPage({
                 </tr>
               ) : (
 
-                filteredReviews.map(
+                reviews.map(
                   (review) => (
                     <tr
                       key={review.id}
@@ -1423,22 +1394,7 @@ export default function AdminReviewsPage({
                                 : ''
                             }`}
                             onClick={() =>
-                              setReviews(
-                                (current) =>
-                                  current.map(
-                                    (
-                                      item,
-                                    ) =>
-                                      item.id ===
-                                      review.id
-                                        ? {
-                                            ...item,
-                                            starred:
-                                              !item.starred,
-                                          }
-                                        : item,
-                                  ),
-                              )
+                              handleToggleStar(review)
                             }
                             aria-label={
                               review.starred
@@ -1477,6 +1433,12 @@ export default function AdminReviewsPage({
                             {review.body}
                           </span>
 
+                          {review.adminReply?.text && (
+                            <span style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#2B5E43' }}>
+                              <AdminIcon name="check" size={11} /> Replied by concierge
+                            </span>
+                          )}
+
                         </div>
 
                       </td>
@@ -1491,7 +1453,7 @@ export default function AdminReviewsPage({
 
                             <AdminIcon
                               name={
-                                review.productIcon
+                                review.productIcon || 'package'
                               }
                               size={15}
                             />
@@ -1561,156 +1523,23 @@ export default function AdminReviewsPage({
                       <td className="reviews-menu-column">
 
                         <div className="reviews-row-menu">
-
                           <button
                             type="button"
                             className="reviews-more-button"
-                            onClick={() => {
-                              setOpenFilter(
-                                null,
-                              );
-
-                              setOpenMenu(
-                                (current) =>
-                                  current ===
-                                  review.id
-                                    ? null
-                                    : review.id,
-                              );
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const btn = e.currentTarget;
+                              setMenuTarget({ review, triggerRef: { current: btn } });
                             }}
                             aria-label={`Actions for ${review.title}`}
                           >
-
                             <AdminIcon
                               name="more"
                               size={16}
                             />
-
                           </button>
-
-                          {openMenu ===
-                            review.id && (
-                            <div className="reviews-action-menu">
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleViewReview(
-                                    review,
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="eye"
-                                  size={14}
-                                />
-                                View review
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateReviewStatus(
-                                    review.id,
-                                    'approved',
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="check"
-                                  size={14}
-                                />
-                                Approve
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  updateReviewStatus(
-                                    review.id,
-                                    'rejected',
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="stop"
-                                  size={14}
-                                />
-                                Reject
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleReply(
-                                    review,
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="left"
-                                  size={14}
-                                />
-                                Reply
-                              </button>
-
-                              <div className="reviews-menu-divider" />
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleViewProduct(
-                                    review,
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="eye"
-                                  size={14}
-                                />
-                                View product
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleViewCustomer(
-                                    review,
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="customers"
-                                  size={14}
-                                />
-                                View customer
-                              </button>
-
-                              <div className="reviews-menu-divider" />
-
-                              <button
-                                type="button"
-                                className="is-danger"
-                                onClick={() =>
-                                  deleteReview(
-                                    review.id,
-                                  )
-                                }
-                              >
-                                <AdminIcon
-                                  name="trash"
-                                  size={14}
-                                />
-                                Delete review
-                              </button>
-
-                            </div>
-                          )}
-
                         </div>
-
                       </td>
-
                     </tr>
                   ),
                 )
@@ -1729,19 +1558,20 @@ export default function AdminReviewsPage({
         <footer className="reviews-table-footer">
 
           <span>
-            Showing 1–
-            {Math.min(
-              10,
-              filteredReviews.length,
-            )}{' '}
-            of 1,284 reviews
+            Showing {startItem}–{endItem} of {Number(totalCount).toLocaleString()} reviews
           </span>
 
           <div className="reviews-pagination">
 
             <label className="reviews-per-page">
 
-              <select defaultValue="10">
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(e.target.value);
+                  setPage(1);
+                }}
+              >
 
                 <option value="10">
                   10 per page
@@ -1766,33 +1596,44 @@ export default function AdminReviewsPage({
 
             <button
               type="button"
-              disabled
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
             >
               Previous
             </button>
 
+            {Array.from({ length: Math.min(pages, 5) }).map((_, i) => {
+              const pNum = i + 1;
+              return (
+                <button
+                  key={pNum}
+                  type="button"
+                  className={page === pNum ? 'is-current' : ''}
+                  onClick={() => setPage(pNum)}
+                >
+                  {pNum}
+                </button>
+              );
+            })}
+
+            {pages > 5 && (
+              <>
+                <span>...</span>
+                <button
+                  type="button"
+                  className={page === pages ? 'is-current' : ''}
+                  onClick={() => setPage(pages)}
+                >
+                  {pages}
+                </button>
+              </>
+            )}
+
             <button
               type="button"
-              className="is-current"
+              disabled={page >= pages}
+              onClick={() => setPage((p) => Math.min(pages, p + 1))}
             >
-              1
-            </button>
-
-            <button type="button">
-              2
-            </button>
-
-            <button type="button">
-              3
-            </button>
-
-            <span>...</span>
-
-            <button type="button">
-              129
-            </button>
-
-            <button type="button">
               Next
             </button>
 
@@ -1880,6 +1721,500 @@ export default function AdminReviewsPage({
             />
           </button>
 
+        </div>
+      )}
+
+      {/* Universal Portal Row Action Menu */}
+      <AdminRowActionMenu
+        isOpen={Boolean(menuTarget)}
+        onClose={() => setMenuTarget(null)}
+        triggerRef={menuTarget?.triggerRef}
+        header={{
+          title: menuTarget?.review?.title,
+          subtitle: `${menuTarget?.review?.customer || 'Customer'} · ${menuTarget?.review?.product || 'Product'}`,
+        }}
+        items={[
+          {
+            id: 'view',
+            label: 'View review details',
+            icon: 'eye',
+            onClick: () => handleViewReview(menuTarget.review),
+          },
+          {
+            id: 'approve',
+            label: 'Approve review',
+            icon: 'check',
+            hidden: menuTarget?.review?.status === 'approved',
+            onClick: () => updateReviewStatus(menuTarget.review.id, 'approved'),
+          },
+          {
+            id: 'reject',
+            label: 'Reject review',
+            icon: 'stop',
+            hidden: menuTarget?.review?.status === 'rejected',
+            onClick: () => {
+              setRejectModalReview(menuTarget.review);
+              setRejectionReason(menuTarget.review.rejectionReason || '');
+            },
+          },
+          {
+            id: 'reply',
+            label: menuTarget?.review?.adminReply?.text ? 'Edit public reply' : 'Reply to customer',
+            icon: 'mail',
+            onClick: () => handleOpenReplyModal(menuTarget.review),
+          },
+          {
+            id: 'divider-1',
+            isDivider: true,
+          },
+          {
+            id: 'product',
+            label: 'View product in catalog',
+            icon: 'package',
+            onClick: () => handleViewProduct(menuTarget.review),
+          },
+          {
+            id: 'customer',
+            label: 'View customer profile',
+            icon: 'customers',
+            onClick: () => handleViewCustomer(menuTarget.review),
+          },
+          {
+            id: 'divider-2',
+            isDivider: true,
+          },
+          {
+            id: 'delete',
+            label: 'Delete review',
+            icon: 'trash',
+            danger: true,
+            onClick: () => setConfirmDeleteReviewId(menuTarget.review.id),
+          },
+        ]}
+      />
+
+      {/* ===================================================
+          NEW MINIMAL UI MODALS (Matching NovaShop Admin Styles)
+      =================================================== */}
+
+      {/* 1. REPLY MODAL */}
+      {replyModalReview && (
+        <div className="admin-modal-backdrop" onClick={() => setReplyModalReview(null)}>
+          <section
+            className="admin-order-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reply-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 480 }}
+          >
+            <header className="admin-modal-heading">
+              <div>
+                <span className="admin-modal-eyebrow">Customer Concierge</span>
+                <h2 id="reply-modal-title">Reply to {replyModalReview.customer}</h2>
+              </div>
+              <button
+                className="admin-icon-button"
+                type="button"
+                onClick={() => setReplyModalReview(null)}
+                aria-label="Close"
+              >
+                <AdminIcon name="close" />
+              </button>
+            </header>
+
+            <div style={{ padding: '0 24px 20px', display: 'grid', gap: 14 }}>
+              <div style={{
+                background: 'var(--bg-surface-raised)',
+                border: '1px solid var(--border-subtle)',
+                borderLeft: '3px solid var(--admin-accent, #D4A662)',
+                padding: '12px 14px',
+                borderRadius: 8,
+                fontSize: 13,
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4, fontWeight: 600 }}>
+                  <span style={{ color: 'var(--text-primary)' }}>{replyModalReview.title}</span>
+                  <span style={{ color: '#D4A662' }}>{replyModalReview.rating}★</span>
+                </div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: 12 }}>"{replyModalReview.body}"</div>
+              </div>
+
+              <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Your Public Reply</span>
+                  <span style={{ fontSize: 11, fontWeight: 400, color: replyText.length > 1500 ? 'var(--color-danger)' : 'var(--text-muted)' }}>
+                    {replyText.length} / 1500
+                  </span>
+                </div>
+                <textarea
+                  rows={4}
+                  maxLength={1500}
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                  placeholder="Write a professional, warm reply to this review..."
+                  className="reviews-reply-textarea"
+                  style={{
+                    padding: '10px 12px',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 7,
+                    fontFamily: 'inherit',
+                    fontSize: 13,
+                    resize: 'vertical',
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </label>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
+                {replyModalReview.adminReply?.text ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteReply(replyModalReview)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-danger)',
+                      fontSize: 12,
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Delete reply
+                  </button>
+                ) : <span />}
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setReplyModalReview(null)}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'transparent',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      color: 'var(--text-primary)',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSubmittingReply || !replyText.trim() || replyText.length > 1500}
+                    onClick={handleSaveReply}
+                    style={{
+                      padding: '8px 18px',
+                      background: 'var(--admin-primary)',
+                      color: 'var(--admin-primary-text, #141210)',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: (isSubmittingReply || !replyText.trim() || replyText.length > 1500) ? 'not-allowed' : 'pointer',
+                      opacity: (isSubmittingReply || !replyText.trim() || replyText.length > 1500) ? 0.6 : 1,
+                    }}
+                  >
+                    {isSubmittingReply ? 'Sending…' : 'Send Reply'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* 2. VIEW REVIEW MODAL */}
+      {viewModalReview && (
+        <div className="admin-modal-backdrop" onClick={() => setViewModalReview(null)}>
+          <section
+            className="admin-order-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="view-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 520, background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+          >
+            <header className="admin-modal-heading">
+              <div>
+                <span className="admin-modal-eyebrow">Review Details · {viewModalReview.reviewCode}</span>
+                <h2 id="view-modal-title" style={{ color: 'var(--text-primary)' }}>{viewModalReview.title}</h2>
+              </div>
+              <button
+                className="admin-icon-button"
+                type="button"
+                onClick={() => setViewModalReview(null)}
+                aria-label="Close"
+              >
+                <AdminIcon name="close" />
+              </button>
+            </header>
+
+            <div style={{ padding: '0 24px 24px', display: 'grid', gap: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <StarRating rating={viewModalReview.rating} />
+                <StatusBadge status={viewModalReview.status} />
+              </div>
+
+              <div style={{ background: 'var(--bg-surface-raised)', border: '1px solid var(--border-subtle)', padding: 14, borderRadius: 8 }}>
+                <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6, color: 'var(--text-primary)' }}>
+                  {viewModalReview.body}
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, fontSize: 12 }}>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Product</span>
+                  <div style={{ fontWeight: 600, marginTop: 2, color: 'var(--text-primary)' }}>{viewModalReview.product}</div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Customer</span>
+                  <div style={{ fontWeight: 600, marginTop: 2, color: 'var(--text-primary)' }}>
+                    {viewModalReview.customer} ({viewModalReview.verified ? 'Verified' : 'Not verified'})
+                  </div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Order</span>
+                  <div style={{ fontWeight: 600, marginTop: 2, color: 'var(--text-primary)' }}>{viewModalReview.order}</div>
+                </div>
+                <div>
+                  <span style={{ color: 'var(--text-muted)' }}>Submitted</span>
+                  <div style={{ fontWeight: 600, marginTop: 2, color: 'var(--text-primary)' }}>{viewModalReview.date} ({viewModalReview.age})</div>
+                </div>
+              </div>
+
+              {viewModalReview.adminReply?.text && (
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 12 }}>
+                  <span style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--color-success)', fontWeight: 600 }}>
+                    Concierge Response
+                  </span>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                    {viewModalReview.adminReply.text}
+                  </p>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 8 }}>
+                {viewModalReview.status !== 'approved' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      updateReviewStatus(viewModalReview.id, 'approved');
+                      setViewModalReview(null);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'var(--color-success)',
+                      color: '#FFF',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Approve
+                  </button>
+                )}
+                {viewModalReview.status !== 'rejected' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setViewModalReview(null);
+                      setRejectModalReview(viewModalReview);
+                    }}
+                    style={{
+                      padding: '8px 16px',
+                      background: 'var(--color-danger)',
+                      color: '#FFF',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Reject
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setViewModalReview(null);
+                    handleOpenReplyModal(viewModalReview);
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'var(--admin-primary)',
+                    color: 'var(--admin-primary-text, #141210)',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Reply
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* 3. REJECT REASON MODAL */}
+      {rejectModalReview && (
+        <div className="admin-modal-backdrop" onClick={() => setRejectModalReview(null)}>
+          <section
+            className="admin-order-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="reject-modal-title"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 440, background: 'var(--bg-surface)', border: '1px solid var(--border-default)' }}
+          >
+            <header className="admin-modal-heading">
+              <div>
+                <span className="admin-modal-eyebrow">Moderation Action</span>
+                <h2 id="reject-modal-title" style={{ color: 'var(--text-primary)' }}>Reject Review</h2>
+              </div>
+              <button
+                className="admin-icon-button"
+                type="button"
+                onClick={() => setRejectModalReview(null)}
+                aria-label="Close"
+              >
+                <AdminIcon name="close" />
+              </button>
+            </header>
+
+            <div style={{ padding: '0 24px 20px', display: 'grid', gap: 14 }}>
+              <p style={{ margin: 0, fontSize: 13, color: 'var(--text-secondary)' }}>
+                Reject review by <strong>{rejectModalReview.customer}</strong>. You may provide an optional reason to be shared in the customer notification.
+              </p>
+
+              <label style={{ display: 'grid', gap: 6, fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                Rejection Reason (Optional)
+                <input
+                  type="text"
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Inappropriate language, unrelated content..."
+                  style={{
+                    padding: '9px 12px',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 6,
+                    fontFamily: 'inherit',
+                    fontSize: 13,
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    outline: 'none',
+                  }}
+                />
+              </label>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setRejectModalReview(null)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'transparent',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    color: 'var(--text-primary)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => updateReviewStatus(rejectModalReview.id, 'rejected', rejectionReason)}
+                  style={{
+                    padding: '8px 18px',
+                    background: 'var(--color-danger)',
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* 4. CONFIRM DELETE DIALOG */}
+      {confirmDeleteReviewId && (
+        <div className="admin-modal-backdrop" onClick={() => setConfirmDeleteReviewId(null)}>
+          <section
+            className="admin-order-modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: 400 }}
+          >
+            <header className="admin-modal-heading">
+              <div>
+                <span className="admin-modal-eyebrow">Confirm Deletion</span>
+                <h2>Delete this review?</h2>
+              </div>
+              <button
+                className="admin-icon-button"
+                type="button"
+                onClick={() => setConfirmDeleteReviewId(null)}
+                aria-label="Close"
+              >
+                <AdminIcon name="close" />
+              </button>
+            </header>
+            <div style={{ padding: '0 24px 20px', display: 'grid', gap: 14 }}>
+              <p style={{ margin: 0, fontSize: 13, color: '#685F5B' }}>
+                This review will be removed from your catalog and product rating aggregates will be recalculated automatically.
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 6 }}>
+                <button
+                  type="button"
+                  onClick={() => setConfirmDeleteReviewId(null)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#F0ECE4',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deleteReview(confirmDeleteReviewId)}
+                  style={{
+                    padding: '8px 18px',
+                    background: '#B83227',
+                    color: '#FFF',
+                    border: 'none',
+                    borderRadius: 6,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 

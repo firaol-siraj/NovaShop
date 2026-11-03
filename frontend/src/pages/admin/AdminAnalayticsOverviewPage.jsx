@@ -1,79 +1,17 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import { useChartTheme } from '../../lib/chartTheme';
+import {
+  useAdminAnalyticsOverview,
+  useAnalyticsUrlState,
+  resolveDateRangeBounds,
+} from '../../hooks/useAdminAnalytics';
+import adminApi from '../../lib/api/adminApi';
+import { formatCurrency, formatNumber, formatPercentageChange } from '../../lib/formatters';
 import './admin-analytics-overview.css';
 
-/* =========================================================
-   MOCK DATA
-========================================================= */
-
-const KPI_STATS = [
-  { label: 'Revenue', value: '$284,600', trend: '+12.4%', positive: true },
-  { label: 'Orders', value: '1,126', trend: '+8.1%', positive: true },
-  { label: 'Average order value', value: '$252.75', trend: '+3.9%', positive: true },
-  { label: 'Conversion rate', value: '3.2%', trend: '−0.3%', positive: false },
-];
-
-const REVENUE_SERIES = [
-  { date: 'Sep 1', value: 4100 },
-  { date: 'Sep 5', value: 7200 },
-  { date: 'Sep 10', value: 5400 },
-  { date: 'Sep 15', value: 9600 },
-  { date: 'Sep 18', value: 12840, orders: 54, highlight: true },
-  { date: 'Sep 20', value: 8900 },
-  { date: 'Sep 25', value: 11200 },
-  { date: 'Sep 30', value: 13600 },
-];
-
-const FUNNEL_STEPS = [
-  { label: 'Sessions', value: 48200, percent: null },
-  { label: 'Added to cart', value: 6840, percent: 14.2 },
-  { label: 'Checkout', value: 2310, percent: 33.8 },
-  { label: 'Purchased', value: 1126, percent: 48.7 },
-];
-
-const TOP_PRODUCTS = [
-  { id: 'P-01', name: 'Cashmere Overcoat', category: 'Outerwear', units: 62, revenue: 89900, share: 32, swatch: '#3C342B' },
-  { id: 'P-02', name: 'Silk Slip Dress', category: 'Dresses', units: 54, revenue: 48060, share: 17, swatch: '#7C6B5C' },
-  { id: 'P-03', name: 'Leather Tote Bag', category: 'Accessories', units: 33, revenue: 36960, share: 13, swatch: '#4A3F33' },
-  { id: 'P-04', name: 'Merino Wool Sweater', category: 'Knitwear', units: 71, revenue: 29820, share: 10, swatch: '#9A8E7E' },
-  { id: 'P-05', name: 'Suede Chelsea Boots', category: 'Footwear', units: 28, revenue: 21840, share: 8, swatch: '#5C4B3A' },
-];
-
-const SALES_BY_CATEGORY = [
-  { label: 'Outerwear', revenue: 98400 },
-  { label: 'Dresses', revenue: 72150 },
-  { label: 'Accessories', revenue: 54300 },
-  { label: 'Knitwear', revenue: 35900 },
-  { label: 'Footwear', revenue: 23850 },
-];
-
-const SALES_BY_COUNTRY = [
-  { label: 'United States', revenue: 112400 },
-  { label: 'United Kingdom', revenue: 54800 },
-  { label: 'Germany', revenue: 32100 },
-  { label: 'United Arab Emirates', revenue: 24700 },
-  { label: 'Singapore', revenue: 19300 },
-];
-
-const TRAFFIC_SOURCES = [
-  { label: 'Direct', percent: 34 },
-  { label: 'Organic search', percent: 27 },
-  { label: 'Email', percent: 16 },
-  { label: 'Social', percent: 14 },
-  { label: 'Paid', percent: 9 },
-];
-
-const CUSTOMER_LOYALTY = {
-  returning: 698,
-  new: 428,
-};
-
-const DATE_RANGES = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
+const DATE_RANGES = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This month', 'This year'];
 const CHART_GRANULARITY = ['Daily', 'Weekly', 'Monthly'];
-
-function formatCurrency(value) {
-  return `$${Number(value).toLocaleString('en-US')}`;
-}
 
 /* =========================================================
    SMALL REUSABLE DROPDOWN (date range picker)
@@ -136,42 +74,62 @@ function RangeDropdown({ value, options, onChange }) {
    REVENUE LINE CHART (lightweight inline SVG, no dependency)
 ========================================================= */
 
-function RevenueChart({ series }) {
+function RevenueChart({ series = [], onHoverPoint, activeIndex }) {
+  const chartTheme = useChartTheme();
   const width = 640;
   const height = 220;
   const paddingLeft = 36;
   const paddingBottom = 24;
-  const maxValue = 15000;
+
+  const maxVal = useMemo(() => {
+    const max = Math.max(...series.map((p) => p.value || 0), 0);
+    return max > 0 ? Math.ceil((max * 1.15) / 1000) * 1000 : 1000;
+  }, [series]);
 
   const points = useMemo(() => {
+    if (!series || series.length === 0) return [];
     const innerWidth = width - paddingLeft;
-    const step = innerWidth / (series.length - 1);
+    const step = series.length > 1 ? innerWidth / (series.length - 1) : innerWidth;
 
     return series.map((point, index) => ({
       ...point,
       x: paddingLeft + step * index,
-      y: height - paddingBottom - (point.value / maxValue) * (height - paddingBottom),
+      y: height - paddingBottom - ((point.value || 0) / maxVal) * (height - paddingBottom),
     }));
-  }, [series]);
+  }, [series, maxVal]);
+
+  if (!series || series.length === 0) {
+    return (
+      <div className="analytics-empty-chart flex items-center justify-center h-[220px] text-[#8A847C] text-xs">
+        No sales in this period
+      </div>
+    );
+  }
 
   const linePath = points
     .map((point, index) => `${index === 0 ? 'M' : 'L'}${point.x},${point.y}`)
     .join(' ');
 
-  const areaPath = `${linePath} L${points[points.length - 1].x},${height - paddingBottom} L${points[0].x},${height - paddingBottom} Z`;
+  const areaPath = points.length > 0
+    ? `${linePath} L${points[points.length - 1].x},${height - paddingBottom} L${points[0].x},${height - paddingBottom} Z`
+    : '';
 
-  const highlighted = points.find((point) => point.highlight);
-  const gridValues = [0, 5000, 10000, 15000];
+  const highlighted =
+    activeIndex !== null && points[activeIndex]
+      ? points[activeIndex]
+      : points.find((point) => point.highlight) || points[points.length - 1];
+
+  const gridValues = [0, Math.round(maxVal / 3), Math.round((maxVal * 2) / 3), maxVal];
 
   return (
     <svg
       className="analytics-chart-svg"
       viewBox={`0 0 ${width} ${height + 20}`}
       role="img"
-      aria-label="Revenue trend from September 1 to September 30"
+      aria-label="Revenue trend"
     >
       {gridValues.map((value) => {
-        const y = height - paddingBottom - (value / maxValue) * (height - paddingBottom);
+        const y = height - paddingBottom - (value / maxVal) * (height - paddingBottom);
         return (
           <g key={value}>
             <line
@@ -182,14 +140,14 @@ function RevenueChart({ series }) {
               className="analytics-chart-grid"
             />
             <text x={0} y={y + 3} className="analytics-chart-axis-label">
-              {value === 0 ? '$0' : `$${value / 1000}k`}
+              {value === 0 ? '$0' : value >= 1000 ? `$${Math.round(value / 1000)}k` : `$${value}`}
             </text>
           </g>
         );
       })}
 
-      <path d={areaPath} className="analytics-chart-area" />
-      <path d={linePath} className="analytics-chart-line" />
+      {areaPath && <path d={areaPath} className="analytics-chart-area" />}
+      {linePath && <path d={linePath} className="analytics-chart-line" />}
 
       {highlighted && (
         <line
@@ -201,20 +159,22 @@ function RevenueChart({ series }) {
         />
       )}
 
-      {points.map((point) => (
+      {points.map((point, index) => (
         <circle
-          key={point.date}
+          key={point.date || index}
           cx={point.x}
           cy={point.y}
-          r={point.highlight ? 4 : 0}
-          className="analytics-chart-dot"
+          r={highlighted && highlighted.date === point.date ? 4 : 0}
+          className="analytics-chart-dot cursor-pointer"
+          onMouseEnter={() => onHoverPoint && onHoverPoint(index)}
         />
       ))}
 
       {series
-        .filter((_, index) => index % 2 === 0 || index === series.length - 1)
+        .filter((_, index) => index % Math.max(1, Math.floor(series.length / 5)) === 0 || index === series.length - 1)
         .map((point) => {
           const matched = points.find((p) => p.date === point.date);
+          if (!matched) return null;
           return (
             <text
               key={point.date}
@@ -234,15 +194,15 @@ function RevenueChart({ series }) {
    CUSTOMER LOYALTY DONUT
 ========================================================= */
 
-function LoyaltyDonut({ returning, newCustomers }) {
+function LoyaltyDonut({ returning = 0, newCustomers = 0 }) {
   const total = returning + newCustomers;
-  const returningPercent = Math.round((returning / total) * 100);
+  const returningPercent = total > 0 ? Math.round((returning / total) * 100) : 0;
 
   return (
     <div
       className="analytics-donut"
       style={{
-        background: `conic-gradient(var(--admin-primary) 0% ${returningPercent}%, #EEE9E2 ${returningPercent}% 100%)`,
+        background: `conic-gradient(var(--admin-primary) 0% ${returningPercent}%, var(--chart-track, #EEE9E2) ${returningPercent}% 100%)`,
       }}
     >
       <div className="analytics-donut-hole">
@@ -257,54 +217,122 @@ function LoyaltyDonut({ returning, newCustomers }) {
    PAGE
 ========================================================= */
 
-export default function AdminAnalyticsOverviewPage() {
-  const [dateRange, setDateRange] = useState('Last 30 days');
-  const [granularity, setGranularity] = useState('Daily');
+export default function AdminAnalyticsOverviewPage({ go }) {
+  const { dateRange, setDateRange, granularity, setGranularity } = useAnalyticsUrlState(
+    'Last 30 days',
+    'Daily'
+  );
+
+  const { from, to } = useMemo(() => resolveDateRangeBounds(dateRange), [dateRange]);
+  const interval = granularity === 'Monthly' ? 'month' : granularity === 'Weekly' ? 'week' : 'day';
+
+  const { data, isLoading, isError, error, refetch } = useAdminAnalyticsOverview({
+    from,
+    to,
+    interval,
+  });
+
   const [notice, setNotice] = useState('');
-
-  const maxFunnelValue = FUNNEL_STEPS[0].value;
-  const maxCategoryRevenue = Math.max(...SALES_BY_CATEGORY.map((item) => item.revenue));
-  const maxCountryRevenue = Math.max(...SALES_BY_COUNTRY.map((item) => item.revenue));
-
-  const totalCategoryRevenue = SALES_BY_CATEGORY.reduce((sum, item) => sum + item.revenue, 0);
+  const [hoveredChartIndex, setHoveredChartIndex] = useState(null);
 
   const notify = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(''), 2200);
+    window.setTimeout(() => setNotice(''), 2500);
   };
 
-  const exportReport = () => {
-    const rows = [
-      ['Metric', 'Value', 'Trend'],
-      ...KPI_STATS.map((stat) => [stat.label, stat.value, stat.trend]),
-      [],
-      ['Top products', 'Units sold', 'Revenue', 'Share'],
-      ...TOP_PRODUCTS.map((product) => [
-        product.name,
-        product.units,
-        product.revenue,
-        `${product.share}%`,
-      ]),
-    ];
-
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
-      .join('\n');
-
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'novashop-analytics-overview.csv';
-    link.click();
-    URL.revokeObjectURL(url);
-
-    notify('Analytics report exported');
+  const navigateTo = (targetPath) => {
+    if (go) {
+      go(targetPath);
+    } else if (typeof window !== 'undefined') {
+      window.location.href = targetPath;
+    }
   };
+
+  // Derive active series & hovered/peak point
+  const series = data?.revenueSeries || [];
+  const activeTooltipPoint = useMemo(() => {
+    if (hoveredChartIndex !== null && series[hoveredChartIndex]) {
+      return series[hoveredChartIndex];
+    }
+    const peak = series.find((p) => p.highlight);
+    if (peak) return peak;
+    return series[series.length - 1] || null;
+  }, [series, hoveredChartIndex]);
+
+  // Funnel calculations
+  const funnelSteps = data?.funnel?.steps || [
+    { label: 'Sessions', value: 0, percent: null },
+    { label: 'Added to cart', value: 0, percent: null },
+    { label: 'Checkout', value: 0, percent: null },
+    { label: 'Purchased', value: 0, percent: null },
+  ];
+  const maxFunnelValue = Math.max(1, funnelSteps[0]?.value || 1);
+
+  // Categories & Countries
+  const salesByCategory = data?.salesByCategory || [];
+  const maxCategoryRevenue = Math.max(1, ...salesByCategory.map((item) => item.revenue || 0));
+  const totalCategoryRevenue = data?.totalCategoryRevenue || salesByCategory.reduce((sum, item) => sum + item.revenue, 0);
+
+  const salesByCountry = data?.salesByCountry || [];
+  const maxCountryRevenue = Math.max(1, ...salesByCountry.map((item) => item.revenue || 0));
+
+  const trafficSources = data?.trafficSources || [
+    { label: 'Direct', percent: null },
+    { label: 'Organic search', percent: null },
+    { label: 'Email', percent: null },
+    { label: 'Social', percent: null },
+    { label: 'Paid', percent: null },
+  ];
+
+  const topProducts = data?.topProducts || [];
+
+  // Export report
+  const exportReport = async () => {
+    try {
+      notify('Exporting analytics report…');
+      const blob = await adminApi.exportAnalyticsCsv({ page: 'overview', from, to });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `novashop-analytics-overview-${dateRange.toLowerCase().replace(/\s+/g, '-')}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      notify('Analytics report exported');
+    } catch {
+      notify('Failed to export CSV report');
+    }
+  };
+
+  const kpis = [
+    {
+      label: 'Revenue',
+      value: isLoading ? '...' : data?.kpis?.revenue?.formatted || '$0',
+      trend: data?.kpis?.revenue?.formattedTrend || '-',
+      positive: data?.kpis?.revenue?.positive ?? true,
+    },
+    {
+      label: 'Orders',
+      value: isLoading ? '...' : data?.kpis?.orders?.formatted || '0',
+      trend: data?.kpis?.orders?.formattedTrend || '-',
+      positive: data?.kpis?.orders?.positive ?? true,
+    },
+    {
+      label: 'Average order value',
+      value: isLoading ? '...' : data?.kpis?.aov?.formatted || '-',
+      trend: data?.kpis?.aov?.formattedTrend || '-',
+      positive: data?.kpis?.aov?.positive ?? true,
+    },
+    {
+      label: 'Conversion rate',
+      value: isLoading ? '...' : data?.kpis?.conversionRate?.formatted || '-',
+      trend: data?.kpis?.conversionRate?.formattedTrend || '-',
+      positive: data?.kpis?.conversionRate?.positive ?? true,
+    },
+  ];
 
   return (
     <div className="admin-dashboard analytics-page">
-
-      {/* PAGE HEADER — shared admin-page-* classes, same as Inventory */}
+      {/* PAGE HEADER — shared admin-page-* classes */}
       <section className="admin-page-heading analytics-page-heading">
         <div>
           <h1 className="admin-page-title">Analytics Overview</h1>
@@ -327,11 +355,13 @@ export default function AdminAnalyticsOverviewPage() {
         </div>
       </section>
 
-      <div className="analytics-kpi-label">VS PREVIOUS 30 DAYS</div>
+      <div className="analytics-kpi-label">
+        VS PREVIOUS {data?.durationDays || 30} DAYS
+      </div>
 
-      {/* KPI ROW — shared admin-stat-* classes, same as Inventory/Discounts */}
+      {/* KPI ROW */}
       <section className="admin-stat-grid analytics-stat-grid">
-        {KPI_STATS.map((stat) => (
+        {kpis.map((stat) => (
           <article className="admin-stat-card" key={stat.label}>
             <div className="admin-stat-heading">
               <span className="admin-stat-label">{stat.label}</span>
@@ -369,18 +399,28 @@ export default function AdminAnalyticsOverviewPage() {
                 ))}
               </div>
 
-              <button type="button" className="analytics-text-link">
+              <button
+                type="button"
+                className="analytics-text-link"
+                onClick={() => navigateTo('/admin/analytics/sales')}
+              >
                 View sales report <span>→</span>
               </button>
             </div>
           </div>
 
           <div className="analytics-chart-wrap">
-            <RevenueChart series={REVENUE_SERIES} />
+            <RevenueChart
+              series={series}
+              onHoverPoint={setHoveredChartIndex}
+              activeIndex={hoveredChartIndex}
+            />
 
-            <div className="analytics-chart-tooltip">
-              <strong>Sep 18</strong> · $12,840 · 54 orders
-            </div>
+            {activeTooltipPoint && (
+              <div className="analytics-chart-tooltip">
+                <strong>{activeTooltipPoint.date}</strong> · {formatCurrency(activeTooltipPoint.value)} · {activeTooltipPoint.orders} orders
+              </div>
+            )}
           </div>
         </article>
 
@@ -393,7 +433,7 @@ export default function AdminAnalyticsOverviewPage() {
           </div>
 
           <div className="analytics-funnel-list">
-            {FUNNEL_STEPS.map((step) => (
+            {funnelSteps.map((step) => (
               <div className="analytics-funnel-row" key={step.label}>
                 <div className="analytics-funnel-top">
                   <span>{step.label}</span>
@@ -401,12 +441,18 @@ export default function AdminAnalyticsOverviewPage() {
                     {step.percent !== null && (
                       <strong className="analytics-funnel-percent">{step.percent}%</strong>
                     )}
-                    {Number(step.value).toLocaleString('en-US')}
+                    {step.value > 0 || data?.funnel?.hasTracking
+                      ? formatNumber(step.value)
+                      : '-'}
                   </span>
                 </div>
 
                 <div className="analytics-funnel-bar">
-                  <span style={{ width: `${(step.value / maxFunnelValue) * 100}%` }} />
+                  <span
+                    style={{
+                      width: `${step.value > 0 ? (step.value / maxFunnelValue) * 100 : 0}%`,
+                    }}
+                  />
                 </div>
               </div>
             ))}
@@ -414,7 +460,11 @@ export default function AdminAnalyticsOverviewPage() {
 
           <div className="analytics-card-footer">
             <span>Overall conversion efficiency</span>
-            <strong>2.33% total</strong>
+            <strong>
+              {data?.funnel?.overallEfficiency !== null && data?.funnel?.overallEfficiency !== undefined
+                ? `${data.funnel.overallEfficiency}% total`
+                : '-'}
+            </strong>
           </div>
         </article>
 
@@ -426,7 +476,11 @@ export default function AdminAnalyticsOverviewPage() {
               <p>What is selling best?</p>
             </div>
 
-            <button type="button" className="analytics-text-link">
+            <button
+              type="button"
+              className="analytics-text-link"
+              onClick={() => navigateTo('/admin/analytics/products')}
+            >
               View product report <span>→</span>
             </button>
           </div>
@@ -439,32 +493,38 @@ export default function AdminAnalyticsOverviewPage() {
               <span>SHARE</span>
             </div>
 
-            {TOP_PRODUCTS.map((product) => (
-              <div className="analytics-products-row" key={product.id}>
-                <div className="analytics-product-identity">
-                  <span
-                    className="analytics-product-thumb"
-                    style={{ background: product.swatch }}
-                    aria-hidden="true"
-                  />
-                  <div>
-                    <strong>{product.name}</strong>
-                    <small>{product.category}</small>
-                  </div>
-                </div>
-
-                <span className="analytics-products-units">{product.units}</span>
-
-                <span className="analytics-products-revenue">
-                  {formatCurrency(product.revenue)}
-                </span>
-
-                <span className="analytics-products-share">
-                  <i style={{ width: `${product.share * 2.2}px` }} />
-                  {product.share}%
-                </span>
+            {topProducts.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No product sales recorded in this period
               </div>
-            ))}
+            ) : (
+              topProducts.map((product) => (
+                <div className="analytics-products-row" key={product.id}>
+                  <div className="analytics-product-identity">
+                    <span
+                      className="analytics-product-thumb"
+                      style={{ background: product.swatch || '#3C342B' }}
+                      aria-hidden="true"
+                    />
+                    <div>
+                      <strong>{product.name}</strong>
+                      <small>{product.category}</small>
+                    </div>
+                  </div>
+
+                  <span className="analytics-products-units">{product.units}</span>
+
+                  <span className="analytics-products-revenue">
+                    {formatCurrency(product.revenue)}
+                  </span>
+
+                  <span className="analytics-products-share">
+                    <i style={{ width: `${Math.min(100, (product.share || 0) * 2.2)}px` }} />
+                    {product.share}%
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
@@ -477,23 +537,31 @@ export default function AdminAnalyticsOverviewPage() {
           </div>
 
           <div className="analytics-bar-list">
-            {SALES_BY_CATEGORY.map((item) => (
-              <div className="analytics-bar-row" key={item.label}>
-                <div className="analytics-bar-top">
-                  <span>{item.label}</span>
-                  <strong>{formatCurrency(item.revenue)}</strong>
-                </div>
-                <div className="analytics-bar-track">
-                  <span
-                    style={{ width: `${(item.revenue / maxCategoryRevenue) * 100}%` }}
-                  />
-                </div>
+            {salesByCategory.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No category sales recorded in this period
               </div>
-            ))}
+            ) : (
+              salesByCategory.map((item) => (
+                <div className="analytics-bar-row" key={item.label}>
+                  <div className="analytics-bar-top">
+                    <span>{item.label}</span>
+                    <strong>{formatCurrency(item.revenue)}</strong>
+                  </div>
+                  <div className="analytics-bar-track">
+                    <span
+                      style={{
+                        width: `${Math.min(100, (item.revenue / maxCategoryRevenue) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
           <div className="analytics-card-footer">
-            <span>Total 5 categories</span>
+            <span>Total {salesByCategory.length} categories</span>
             <strong>
               {formatCurrency(totalCategoryRevenue)} (100%)
             </strong>
@@ -512,22 +580,34 @@ export default function AdminAnalyticsOverviewPage() {
           </div>
 
           <div className="analytics-bar-list analytics-bar-list-compact">
-            {SALES_BY_COUNTRY.map((item) => (
-              <div className="analytics-bar-row" key={item.label}>
-                <div className="analytics-bar-top">
-                  <span>{item.label}</span>
-                  <strong>{formatCurrency(item.revenue)}</strong>
-                </div>
-                <div className="analytics-bar-track analytics-bar-track-thin">
-                  <span
-                    style={{ width: `${(item.revenue / maxCountryRevenue) * 100}%` }}
-                  />
-                </div>
+            {salesByCountry.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No regional data in this period
               </div>
-            ))}
+            ) : (
+              salesByCountry.map((item) => (
+                <div className="analytics-bar-row" key={item.label}>
+                  <div className="analytics-bar-top">
+                    <span>{item.label}</span>
+                    <strong>{formatCurrency(item.revenue)}</strong>
+                  </div>
+                  <div className="analytics-bar-track analytics-bar-track-thin">
+                    <span
+                      style={{
+                        width: `${Math.min(100, (item.revenue / maxCountryRevenue) * 100)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
           </div>
 
-          <p className="analytics-note">Top 5 markets yield 85.5% volume.</p>
+          <p className="analytics-note">
+            {salesByCountry.length > 0
+              ? `Top ${salesByCountry.length} markets represent primary geographic volume.`
+              : 'Based on verified paid shipping destinations.'}
+          </p>
         </article>
 
         <article className="analytics-card">
@@ -539,20 +619,28 @@ export default function AdminAnalyticsOverviewPage() {
           </div>
 
           <div className="analytics-bar-list analytics-bar-list-compact">
-            {TRAFFIC_SOURCES.map((item) => (
+            {trafficSources.map((item) => (
               <div className="analytics-bar-row" key={item.label}>
                 <div className="analytics-bar-top">
                   <span>{item.label}</span>
-                  <strong>{item.percent}%</strong>
+                  <strong>{item.percent !== null ? `${item.percent}%` : '-'}</strong>
                 </div>
                 <div className="analytics-bar-track analytics-bar-track-thin">
-                  <span style={{ width: `${item.percent * 2.5}%` }} />
+                  <span
+                    style={{
+                      width: `${item.percent !== null ? Math.min(100, item.percent * 2.5) : 0}%`,
+                    }}
+                  />
                 </div>
               </div>
             ))}
           </div>
 
-          <p className="analytics-note">High intent direct engagement leads.</p>
+          <p className="analytics-note">
+            {data?.hasTrafficTracking
+              ? 'Derived from verified visitor telemetry and UTM attribution.'
+              : 'Tracking active for new sessions. Historical visits before tracking unavailable.'}
+          </p>
         </article>
 
         <article className="analytics-card analytics-loyalty-card">
@@ -566,31 +654,44 @@ export default function AdminAnalyticsOverviewPage() {
               type="button"
               className="analytics-icon-link"
               aria-label="Open full customer report"
-              onClick={() => notify('Opening customer analytics…')}
+              onClick={() => navigateTo('/admin/analytics/customers')}
             >
               ↗
             </button>
           </div>
 
           <LoyaltyDonut
-            returning={CUSTOMER_LOYALTY.returning}
-            newCustomers={CUSTOMER_LOYALTY.new}
+            returning={data?.loyalty?.returning || 0}
+            newCustomers={data?.loyalty?.newCustomers || 0}
           />
 
           <div className="analytics-loyalty-legend">
             <div className="analytics-loyalty-legend-row">
               <span className="analytics-legend-dot is-returning" />
               Returning customers
-              <strong>{CUSTOMER_LOYALTY.returning}</strong>
+              <strong>{data?.loyalty?.returning || 0}</strong>
             </div>
             <div className="analytics-loyalty-legend-row">
               <span className="analytics-legend-dot is-new" />
               New customers
-              <strong>{CUSTOMER_LOYALTY.new}</strong>
+              <strong>{data?.loyalty?.newCustomers || 0}</strong>
             </div>
           </div>
         </article>
       </section>
+
+      {isError && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs flex items-center justify-between">
+          <span>{error || 'Failed to load analytics data'}</span>
+          <button
+            type="button"
+            className="underline font-semibold ml-4"
+            onClick={() => refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div className="admin-toast" role="status">

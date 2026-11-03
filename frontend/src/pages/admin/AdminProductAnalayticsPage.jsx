@@ -1,77 +1,22 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useMemo } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import {
+  useAdminProductAnalytics,
+  useAnalyticsUrlState,
+  resolveDateRangeBounds,
+} from '../../hooks/useAdminAnalytics';
+import adminApi from '../../lib/api/adminApi';
+import { formatCurrency, formatNumber } from '../../lib/formatters';
 import './admin-product-analytics.css';
 
-/* =========================================================
-   MOCK DATA
-========================================================= */
-
-const KPI_STATS = [
-  { label: 'Units sold', value: '1,480', trend: '+9.2%', tone: 'positive' },
-  { label: 'Product views', value: '96,400', trend: '+14.6%', tone: 'positive' },
-  { label: 'Add-to-cart rate', value: '14.2%', trend: '+0.8%', tone: 'positive' },
-  { label: 'Return rate', value: '3.1%', trend: '+0.4%', tone: 'warning' },
-];
-
-const REVENUE_BY_PRODUCT = [
-  { name: 'Cashmere Overcoat', revenue: 89900 },
-  { name: 'Silk Slip Dress', revenue: 48060 },
-  { name: 'Leather Tote Bag', revenue: 36960 },
-  { name: 'Merino Wool Sweater', revenue: 29820 },
-  { name: 'Suede Chelsea Boots', revenue: 21840 },
-  { name: 'Silk Scarf', revenue: 18000 },
-  { name: 'Tailored Wool Trousers', revenue: 15120 },
-  { name: 'Linen Shirt', revenue: 9250 },
-];
-
-const RESTOCK_ALERTS = [
-  { name: 'Silk Slip Dress', sku: 'NS-DR-089', status: 'low', label: '12 left', swatch: '#7C6B5C' },
-  { name: 'Suede Chelsea Boots', sku: 'NS-FT-412', status: 'low', label: '9 left', swatch: '#5C4B3A' },
-  { name: 'Leather Tote Bag', sku: 'NS-AC-142', status: 'critical', label: '2 left', swatch: '#4A3F33' },
-  { name: 'Wool Beanie', sku: 'NS-AC-780', status: 'out', label: 'Out of stock', swatch: '#9A8E7E' },
-];
-
+const DATE_RANGES = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This month', 'This year'];
 const PERFORMANCE_TABS = ['Best sellers', 'Most viewed', 'Low performers'];
-
-const PRODUCT_PERFORMANCE = [
-  { name: 'Cashmere Overcoat', category: 'Outerwear', views: 14820, addToCart: 16.4, units: 62, revenue: 89900, returnRate: 2.19, status: 'In stock' },
-  { name: 'Silk Slip Dress', category: 'Dresses', views: 12300, addToCart: 14.9, units: 54, revenue: 48060, returnRate: 4.8, status: 'Low stock' },
-  { name: 'Leather Tote Bag', category: 'Accessories', views: 9760, addToCart: 13.2, units: 33, revenue: 36960, returnRate: 1.1, status: 'Out of stock' },
-  { name: 'Merino Wool Sweater', category: 'Knitwear', views: 11240, addToCart: 12.7, units: 71, revenue: 29820, returnRate: 3.49, status: 'In stock' },
-  { name: 'Suede Chelsea Boots', category: 'Footwear', views: 7480, addToCart: 11.8, units: 28, revenue: 21840, returnRate: 2.6, status: 'Low stock' },
-  { name: 'Silk Scarf', category: 'Accessories', views: 6150, addToCart: 15.6, units: 75, revenue: 18000, returnRate: 1.29, status: 'In stock' },
-];
-
-const SALES_BY_CATEGORY = [
-  { label: 'Outerwear', revenue: 98400 },
-  { label: 'Dresses', revenue: 72150 },
-  { label: 'Accessories', revenue: 54300 },
-  { label: 'Knitwear', revenue: 35900 },
-  { label: 'Footwear', revenue: 23850 },
-];
-
-const RETURNS_BY_REASON = [
-  { label: 'Wrong size', count: 612, percent: 41 },
-  { label: 'Not as described', count: 358, percent: 24 },
-  { label: 'Damaged on arrival', count: 284, percent: 19 },
-  { label: 'Changed mind', count: 239, percent: 16 },
-];
-
-const DATE_RANGES = ['Last 7 days', 'Last 30 days', 'Last 90 days', 'This year'];
 
 const STATUS_META = {
   'In stock': 'in-stock',
   'Low stock': 'low-stock',
   'Out of stock': 'out-of-stock',
 };
-
-function formatCurrency(value) {
-  return `$${Number(value).toLocaleString('en-US')}`;
-}
-
-function formatNumber(value) {
-  return Number(value).toLocaleString('en-US');
-}
 
 /* =========================================================
    DATE RANGE DROPDOWN
@@ -130,7 +75,7 @@ function RangeDropdown({ value, options, onChange }) {
   );
 }
 
-function StockPill({ status, label }) {
+function StockPill({ status = 'in-stock', label = 'In stock' }) {
   return <span className={`pa-stock-pill is-${status}`}>{label}</span>;
 }
 
@@ -139,63 +84,101 @@ function StockPill({ status, label }) {
 ========================================================= */
 
 export default function AdminProductAnalyticsPage({ go }) {
-  const [dateRange, setDateRange] = useState('Last 30 days');
+  const { dateRange, setDateRange } = useAnalyticsUrlState('Last 30 days', 'Daily');
   const [performanceTab, setPerformanceTab] = useState('Best sellers');
   const [notice, setNotice] = useState('');
 
-  const maxRevenue = Math.max(...REVENUE_BY_PRODUCT.map((item) => item.revenue));
-  const maxCategoryRevenue = Math.max(...SALES_BY_CATEGORY.map((item) => item.revenue));
-  const totalReturns = RETURNS_BY_REASON.reduce((sum, item) => sum + item.count, 0);
+  const { from, to } = useMemo(() => resolveDateRangeBounds(dateRange), [dateRange]);
+
+  const { data, isLoading, isError, error, refetch } = useAdminProductAnalytics({
+    from,
+    to,
+    tab: performanceTab,
+  });
 
   const notify = (message) => {
     setNotice(message);
-    window.setTimeout(() => setNotice(''), 2200);
+    window.setTimeout(() => setNotice(''), 2500);
   };
 
-  const goToInventory = () => {
+  const navigateTo = (targetPath) => {
     if (go) {
-      go('/admin/inventory');
-      return;
+      go(targetPath);
+    } else if (typeof window !== 'undefined') {
+      window.location.href = targetPath;
     }
-    notify('Opening inventory…');
   };
 
-  const exportReport = () => {
-    const rows = [
-      ['Metric', 'Value', 'Trend'],
-      ...KPI_STATS.map((stat) => [stat.label, stat.value, stat.trend]),
-      [],
-      ['Product', 'Category', 'Views', 'Add-to-cart', 'Units sold', 'Revenue', 'Return rate', 'Status'],
-      ...PRODUCT_PERFORMANCE.map((item) => [
-        item.name,
-        item.category,
-        item.views,
-        `${item.addToCart}%`,
-        item.units,
-        item.revenue,
-        `${item.returnRate}%`,
-        item.status,
-      ]),
-    ];
+  // Revenue by product
+  const revenueByProduct = data?.revenueByProduct || [];
+  const maxRevenue = Math.max(1, ...revenueByProduct.map((item) => item.revenue || 0));
 
-    const csv = rows
-      .map((row) => row.map((cell) => `"${String(cell ?? '').replaceAll('"', '""')}"`).join(','))
-      .join('\n');
+  // Restock alerts
+  const restockAlerts = data?.restockAlerts || [];
 
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8;' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'novashop-product-analytics.csv';
-    link.click();
-    URL.revokeObjectURL(url);
+  // Product performance
+  const productPerformance = data?.productPerformance || [];
 
-    notify('Product report exported');
+  // Sales by category
+  const salesByCategory = data?.salesByCategory || [];
+  const maxCategoryRevenue = Math.max(1, ...salesByCategory.map((item) => item.revenue || 0));
+
+  // Returns
+  const returnsByReason = data?.returnsByReason?.reasons || [
+    { label: 'Wrong size', count: 0, percent: null },
+    { label: 'Not as described', count: 0, percent: null },
+    { label: 'Damaged on arrival', count: 0, percent: null },
+    { label: 'Changed mind', count: 0, percent: null },
+  ];
+  const totalReturns = data?.returnsByReason?.totalReturns || 0;
+
+  // Export report
+  const exportReport = async () => {
+    try {
+      notify('Exporting product report…');
+      const blob = await adminApi.exportAnalyticsCsv({ page: 'products', from, to });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `novashop-product-analytics-${dateRange.toLowerCase().replace(/\s+/g, '-')}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
+      notify('Product report exported');
+    } catch {
+      notify('Failed to export CSV report');
+    }
   };
+
+  const kpiStats = [
+    {
+      label: 'Units sold',
+      value: isLoading ? '...' : data?.kpis?.unitsSold?.formatted || '0',
+      trend: data?.kpis?.unitsSold?.formattedTrend || '-',
+      tone: 'positive',
+    },
+    {
+      label: 'Product views',
+      value: isLoading ? '...' : data?.kpis?.productViews?.formatted || '-',
+      trend: data?.kpis?.productViews?.formattedTrend || '-',
+      tone: 'positive',
+    },
+    {
+      label: 'Add-to-cart rate',
+      value: isLoading ? '...' : data?.kpis?.addToCartRate?.formatted || '-',
+      trend: data?.kpis?.addToCartRate?.formattedTrend || '-',
+      tone: 'positive',
+    },
+    {
+      label: 'Return rate',
+      value: isLoading ? '...' : data?.kpis?.returnRate?.formatted || '0.0%',
+      trend: data?.kpis?.returnRate?.formattedTrend || '-',
+      tone: 'warning',
+    },
+  ];
 
   return (
     <div className="admin-dashboard pa-page">
-
-      {/* PAGE HEADER — shared admin-page-* classes, same as Inventory/Analytics */}
+      {/* PAGE HEADER */}
       <section className="admin-page-heading pa-page-heading">
         <div>
           <h1 className="admin-page-title">Product Analytics</h1>
@@ -214,11 +197,13 @@ export default function AdminProductAnalyticsPage({ go }) {
         </div>
       </section>
 
-      <div className="pa-kpi-label">VS PREVIOUS 30 DAYS</div>
+      <div className="pa-kpi-label">
+        VS PREVIOUS {data?.durationDays || 30} DAYS
+      </div>
 
-      {/* KPI ROW — shared admin-stat-* classes */}
+      {/* KPI ROW */}
       <section className="admin-stat-grid pa-stat-grid">
-        {KPI_STATS.map((stat) => (
+        {kpiStats.map((stat) => (
           <article className="admin-stat-card" key={stat.label}>
             <div className="admin-stat-heading">
               <span className="admin-stat-label">{stat.label}</span>
@@ -246,17 +231,27 @@ export default function AdminProductAnalyticsPage({ go }) {
           </div>
 
           <div className="pa-bar-list">
-            {REVENUE_BY_PRODUCT.map((product) => (
-              <div className="pa-bar-row" key={product.name}>
-                <span className="pa-bar-label">{product.name}</span>
-
-                <div className="pa-bar-track">
-                  <span style={{ width: `${(product.revenue / maxRevenue) * 100}%` }} />
-                </div>
-
-                <strong className="pa-bar-value">{formatCurrency(product.revenue)}</strong>
+            {revenueByProduct.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No product sales recorded in this period
               </div>
-            ))}
+            ) : (
+              revenueByProduct.map((product) => (
+                <div className="pa-bar-row" key={product.name}>
+                  <span className="pa-bar-label">{product.name}</span>
+
+                  <div className="pa-bar-track">
+                    <span
+                      style={{
+                        width: `${maxRevenue > 0 ? (product.revenue / maxRevenue) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+
+                  <strong className="pa-bar-value">{formatCurrency(product.revenue)}</strong>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
@@ -267,31 +262,37 @@ export default function AdminProductAnalyticsPage({ go }) {
               <p>What should we reorder?</p>
             </div>
 
-            <button type="button" className="pa-text-link" onClick={goToInventory}>
+            <button type="button" className="pa-text-link" onClick={() => navigateTo('/admin/inventory')}>
               View inventory <span>→</span>
             </button>
           </div>
 
           <div className="pa-restock-list">
-            {RESTOCK_ALERTS.map((item) => (
-              <div className="pa-restock-row" key={item.sku}>
-                <span
-                  className="pa-restock-thumb"
-                  style={{ background: item.swatch }}
-                  aria-hidden="true"
-                />
-
-                <div className="pa-restock-identity">
-                  <strong>{item.name}</strong>
-                  <small>SKU: {item.sku}</small>
-                </div>
-
-                <span className={`pa-restock-pill is-${item.status}`}>
-                  <i />
-                  {item.label}
-                </span>
+            {restockAlerts.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                All product variants are sufficiently stocked
               </div>
-            ))}
+            ) : (
+              restockAlerts.map((item) => (
+                <div className="pa-restock-row" key={item.sku}>
+                  <span
+                    className="pa-restock-thumb"
+                    style={{ background: item.swatch || '#7C6B5C' }}
+                    aria-hidden="true"
+                  />
+
+                  <div className="pa-restock-identity">
+                    <strong>{item.name}</strong>
+                    <small>SKU: {item.sku}</small>
+                  </div>
+
+                  <span className={`pa-restock-pill is-${item.status}`}>
+                    <i />
+                    {item.label}
+                  </span>
+                </div>
+              ))
+            )}
           </div>
         </article>
       </section>
@@ -329,29 +330,44 @@ export default function AdminProductAnalyticsPage({ go }) {
             <span>STATUS</span>
           </div>
 
-          {PRODUCT_PERFORMANCE.map((product) => (
-            <div className="pa-performance-row" key={product.name}>
-              <div className="pa-performance-identity">
-                <strong>{product.name}</strong>
-                <small>{product.category}</small>
-              </div>
-
-              <span className="pa-performance-cell">{formatNumber(product.views)}</span>
-              <span className="pa-performance-cell">{product.addToCart}%</span>
-              <span className="pa-performance-cell">{product.units}</span>
-              <span className="pa-performance-cell pa-performance-revenue">
-                {formatCurrency(product.revenue)}
-              </span>
-              <span className="pa-performance-cell">{product.returnRate}%</span>
-
-              <span className="pa-performance-status">
-                <StockPill status={STATUS_META[product.status]} label={product.status} />
-              </span>
+          {productPerformance.length === 0 ? (
+            <div className="p-4 text-center text-xs text-[#8A847C]">
+              No product performance data in this period
             </div>
-          ))}
+          ) : (
+            productPerformance.map((product) => (
+              <div className="pa-performance-row" key={product.name}>
+                <div className="pa-performance-identity">
+                  <strong>{product.name}</strong>
+                  <small>{product.category}</small>
+                </div>
+
+                <span className="pa-performance-cell">
+                  {product.views !== null ? formatNumber(product.views) : '-'}
+                </span>
+                <span className="pa-performance-cell">
+                  {product.addToCart !== null ? `${product.addToCart}%` : '-'}
+                </span>
+                <span className="pa-performance-cell">{product.units}</span>
+                <span className="pa-performance-cell pa-performance-revenue">
+                  {formatCurrency(product.revenue)}
+                </span>
+                <span className="pa-performance-cell">
+                  {product.returnRate !== null ? `${product.returnRate}%` : '-'}
+                </span>
+
+                <span className="pa-performance-status">
+                  <StockPill
+                    status={STATUS_META[product.status] || 'in-stock'}
+                    label={product.status || 'In stock'}
+                  />
+                </span>
+              </div>
+            ))
+          )}
         </div>
 
-        <button type="button" className="pa-view-all">
+        <button type="button" className="pa-view-all" onClick={() => navigateTo('/admin/products')}>
           View all products <span>→</span>
         </button>
       </section>
@@ -369,17 +385,27 @@ export default function AdminProductAnalyticsPage({ go }) {
           </div>
 
           <div className="pa-category-list">
-            {SALES_BY_CATEGORY.map((item) => (
-              <div className="pa-category-row" key={item.label}>
-                <span className="pa-category-label">{item.label}</span>
-
-                <div className="pa-category-track">
-                  <span style={{ width: `${(item.revenue / maxCategoryRevenue) * 100}%` }} />
-                </div>
-
-                <strong className="pa-category-value">{formatCurrency(item.revenue)}</strong>
+            {salesByCategory.length === 0 ? (
+              <div className="p-4 text-center text-xs text-[#8A847C]">
+                No category sales recorded in this period
               </div>
-            ))}
+            ) : (
+              salesByCategory.map((item) => (
+                <div className="pa-category-row" key={item.label}>
+                  <span className="pa-category-label">{item.label}</span>
+
+                  <div className="pa-category-track">
+                    <span
+                      style={{
+                        width: `${maxCategoryRevenue > 0 ? (item.revenue / maxCategoryRevenue) * 100 : 0}%`,
+                      }}
+                    />
+                  </div>
+
+                  <strong className="pa-category-value">{formatCurrency(item.revenue)}</strong>
+                </div>
+              ))
+            )}
           </div>
         </article>
 
@@ -394,7 +420,7 @@ export default function AdminProductAnalyticsPage({ go }) {
           </div>
 
           <div className="pa-returns-list">
-            {RETURNS_BY_REASON.map((reason) => (
+            {returnsByReason.map((reason) => (
               <div className="pa-returns-row" key={reason.label}>
                 <div className="pa-returns-copy">
                   <span>{reason.label}</span>
@@ -402,15 +428,30 @@ export default function AdminProductAnalyticsPage({ go }) {
                 </div>
 
                 <div className="pa-returns-track">
-                  <span style={{ width: `${reason.percent}%` }} />
+                  <span style={{ width: `${reason.percent !== null ? reason.percent : 0}%` }} />
                 </div>
 
-                <strong className="pa-returns-percent">{reason.percent}%</strong>
+                <strong className="pa-returns-percent">
+                  {reason.percent !== null ? `${reason.percent}%` : '-'}
+                </strong>
               </div>
             ))}
           </div>
         </article>
       </section>
+
+      {isError && (
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded text-xs flex items-center justify-between">
+          <span>{error || 'Failed to load product analytics'}</span>
+          <button
+            type="button"
+            className="underline font-semibold ml-4"
+            onClick={() => refetch()}
+          >
+            Retry
+          </button>
+        </div>
+      )}
 
       {notice && (
         <div className="admin-toast" role="status">

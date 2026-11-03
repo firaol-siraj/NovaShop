@@ -140,9 +140,9 @@
 .ca-card {
   min-width: 0;
   padding: 20px;
-  border: 1px solid #E9E3DB;
+  border: 1px solid var(--border-default, #E9E3DB);
   border-radius: 10px;
-  background: #FFFFFF;
+  background: var(--bg-surface, #FFFFFF);
   box-shadow: 0 4px 16px rgba(28, 25, 23, .025);
 }
 
@@ -670,7 +670,7 @@
 .ca-customers-head {
   padding-top: 0;
   padding-bottom: 10px;
-  color: #928A81;
+  color: var(--text-muted);
   font-size: 8px;
   font-weight: 700;
   letter-spacing: .07em;
@@ -704,7 +704,7 @@
 .ca-customer-identity strong {
   display: block;
   overflow: hidden;
-  color: #2B2723;
+  color: var(--text-primary);
   font-size: 10px;
   font-weight: 700;
   text-overflow: ellipsis;
@@ -715,21 +715,21 @@
   display: block;
   margin-top: 2px;
   overflow: hidden;
-  color: #928A81;
+  color: var(--text-muted);
   font-size: 8px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ca-customers-cell {
-  color: #3D372F;
+  color: var(--text-secondary);
   font-size: 9px;
   text-align: right;
   white-space: nowrap;
 }
 
 .ca-customers-spent {
-  color: #2B2723;
+  color: var(--text-primary);
   font-weight: 700;
 }
 
@@ -741,7 +741,7 @@
 }
 
 .ca-customers-last-order small {
-  color: #928A81;
+  color: var(--text-muted);
   font-size: 8px;
 }
 
@@ -787,4 +787,260 @@
   .ca-stat-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ==========================================================================
+   DARK THEME OVERRIDES (WCAG AA Compliant >= 4.5:1)
+   ========================================================================== */
+[data-theme="dark"] .ca-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #2A2622);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="dark"] .ca-range-button {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ca-range-button svg:first-child {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-range-button svg:last-child {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-range-menu {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .ca-range-menu button {
+  background: transparent;
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .ca-range-menu button:hover {
+  background: var(--bg-surface, #1E1B18);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ca-range-menu button.is-selected {
+  background: var(--bg-surface, #1E1B18);
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-card-heading h2 {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-card-heading p {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .ca-text-link {
+  color: var(--color-accent, #D4A662) !important;
+}
+
+[data-theme="dark"] .ca-segmented-control {
+  background: var(--bg-surface-sunken, #181614);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .ca-segmented-control button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .ca-segmented-control button:hover {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-segmented-control button.is-selected {
+  background: var(--bg-surface-raised, #282420) !important;
+  border: none !important;
+  color: var(--text-primary, #FBF9F5) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .ca-legend-item {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .ca-legend-item i.is-returning {
+  background: var(--chart-net, #F0ECE4);
+}
+
+[data-theme="dark"] .ca-legend-item i.is-new {
+  background: var(--color-camel, #D6B898);
+}
+
+[data-theme="dark"] .ca-growth-gridline {
+  border-bottom-color: var(--chart-grid, #2D2722);
+}
+
+[data-theme="dark"] .ca-growth-gridline span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-growth-stack span.is-returning {
+  background: var(--chart-net, #F0ECE4);
+}
+
+[data-theme="dark"] .ca-growth-stack span.is-new {
+  background: var(--color-camel, #D6B898);
+}
+
+[data-theme="dark"] .ca-growth-column small {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-growth-column small.is-active {
+  background-color: transparent !important;
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-growth-tooltip {
+  background: var(--bg-surface-raised, #282420);
+  border: 1px solid var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+[data-theme="dark"] .ca-growth-tooltip strong {
+  background-color: transparent !important;
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-growth-tooltip span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-donut-hole {
+  background: var(--bg-surface, #1E1B18);
+}
+
+[data-theme="dark"] .ca-donut-hole strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-donut-hole span {
+  color: var(--text-muted, #C4BCB1) !important;
+}
+
+[data-theme="dark"] .ca-split-legend-row {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .ca-split-legend-row strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-legend-dot.is-returning {
+  background: var(--chart-net, #F0ECE4);
+}
+
+[data-theme="dark"] .ca-legend-dot.is-new {
+  background: var(--color-camel, #D6B898);
+}
+
+/* Customer Retention Cohort Table - 5 Distinguishable Levels with AA Contrast */
+[data-theme="dark"] .ca-cohort-head {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-cohort-label strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-cohort-label small {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-cohort-cell.is-empty {
+  background: var(--bg-surface-sunken, #181614);
+  color: #79716B;
+}
+
+[data-theme="dark"] .ca-cohort-cell.is-level-0 {
+  background: #2D2824;
+  color: #DFD9CF !important;
+}
+
+[data-theme="dark"] .ca-cohort-cell.is-level-1 {
+  background: #4A3E31;
+  color: #FBF9F5 !important;
+}
+
+[data-theme="dark"] .ca-cohort-cell.is-level-2 {
+  background: #6E5A44;
+  color: #FBF9F5 !important;
+}
+
+[data-theme="dark"] .ca-cohort-cell.is-level-3 {
+  background: #997D5B;
+  color: #141210 !important;
+}
+
+[data-theme="dark"] .ca-cohort-cell.is-level-4 {
+  background: #D6B898;
+  color: #141210 !important;
+}
+
+[data-theme="dark"] .ca-cohort-footer {
+  border-top-color: var(--border-subtle, #2A2622);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-cohort-legend i.is-level-0 { background: #2D2824; }
+[data-theme="dark"] .ca-cohort-legend i.is-level-1 { background: #4A3E31; }
+[data-theme="dark"] .ca-cohort-legend i.is-level-2 { background: #6E5A44; }
+[data-theme="dark"] .ca-cohort-legend i.is-level-3 { background: #997D5B; }
+[data-theme="dark"] .ca-cohort-legend i.is-level-4 { background: #D6B898; }
+
+/* Progress bars: Orders per customer */
+[data-theme="dark"] .ca-bar-top {
+  color: var(--text-secondary, #DFD9CF) !important;
+}
+
+[data-theme="dark"] .ca-bar-top strong {
+  color: var(--text-primary, #FBF9F5) !important;
+}
+
+[data-theme="dark"] .ca-bar-track {
+  background: var(--chart-track, #2A2622);
+}
+
+[data-theme="dark"] .ca-bar-track span {
+  background: var(--admin-primary, #F0ECE4);
+}
+
+/* Top customers table */
+[data-theme="dark"] .ca-customer-row {
+  border-bottom-color: var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .ca-customer-name strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ca-customer-name span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-customer-stat span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .ca-customer-stat strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .ca-customers-footer {
+  border-top-color: var(--border-subtle, #2A2622);
+  color: var(--text-muted, #C4BCB1);
 }

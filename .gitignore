@@ -23,5 +23,21 @@ logs/
 
 # Archives & scratch
 novashop-source.zip
+pre_settings_backup.tar.gz
+*.tar.gz
 .claude/
 .jestcache/
+# Local backups and snapshots
+**/.backup/
+**/.backup*/
+.backup*/
+*.tar.gz
+
+# Local uploaded files
+uploads/
+backend/uploads/
+
+# Local development files
+.DS_Store
+*.swp
+*.swo

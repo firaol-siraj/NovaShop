@@ -1,8 +1,12 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { useAdminAuth } from '../../context/AdminAuthContext';
 
 export default function ProtectedRoute({ children, go, adminOnly = false }) {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const customerAuth = useAuth();
+  const adminAuth = useAdminAuth();
+
+  const { user, isAuthenticated, isLoading } = adminOnly ? adminAuth : customerAuth;
 
   useEffect(() => {
     if (!isLoading) {
@@ -14,15 +18,15 @@ export default function ProtectedRoute({ children, go, adminOnly = false }) {
           go('/login');
         }
       } else if (adminOnly && user?.role !== 'admin') {
-        go('/');
+        go('/admin/login');
       }
     }
   }, [isLoading, isAuthenticated, user, go, adminOnly]);
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: '#FDFBF7' }}>
-        <p style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#7A726C', letterSpacing: '0.05em' }}>Loading...</p>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', background: 'var(--bg-main)' }}>
+        <p style={{ fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)', letterSpacing: '0.05em' }}>Loading...</p>
       </div>
     );
   }

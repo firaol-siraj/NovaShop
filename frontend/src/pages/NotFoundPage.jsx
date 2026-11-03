@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
 
 const T = {
-  bg: '#FAF7F2',
-  espresso: '#231E1B',
-  muted: '#6E6962',
+  bg: 'var(--bg-main)',
+  espresso: 'var(--text-primary)',
+  muted: 'var(--text-secondary)',
 };
 
 export default function NotFoundPage({ go }) {
@@ -24,12 +24,12 @@ export default function NotFoundPage({ go }) {
           text-align: center;
           background: ${T.bg};
         }
-        
+
         .nf-numeral {
           font-family: var(--font-serif);
           font-size: clamp(70px, 15vw, 110px);
           font-weight: 300;
-          color: rgba(35, 30, 27, 0.4); /* Faded gray-black */
+          color: var(--border-strong);
           line-height: 1;
           margin: 0 0 16px;
           letter-spacing: -0.02em;
@@ -54,7 +54,7 @@ export default function NotFoundPage({ go }) {
 
         .nf-btn-home {
           background: ${T.espresso};
-          color: #FFF;
+          color: var(--color-primary-contrast);
           border: none;
           padding: 16px 36px;
           font-family: var(--font-sans);
@@ -68,7 +68,7 @@ export default function NotFoundPage({ go }) {
           max-width: 280px;
           margin-bottom: 24px;
         }
-        
+
         .nf-btn-home:hover {
           opacity: 0.8;
         }
@@ -88,7 +88,7 @@ export default function NotFoundPage({ go }) {
           border: none;
           padding: 0;
         }
-        
+
         .nf-link-shop:hover {
           color: ${T.espresso};
         }
@@ -100,7 +100,7 @@ export default function NotFoundPage({ go }) {
           }
         }
       `}</style>
-      
+
       <div className="nf-container">
         <div style={{ maxWidth: '450px', width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div className="nf-numeral">404</div>

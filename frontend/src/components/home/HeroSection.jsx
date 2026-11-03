@@ -1,57 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import hero1 from '../../assets/hero/hero1.jpg';
-import hero2 from '../../assets/hero/hero2.jpg';
-import hero3 from '../../assets/hero/hero3.jpg';
-import hero4 from '../../assets/hero/hero4.jpg';
+import { homeApi } from '../../lib/api/homeApi';
 
-/* ─────────────────────────────────────────────────────────────────────────────
-   SLIDE DATA — each slide is self-contained: its image is always paired
-   with its own text, CTAs, and positioning.
-───────────────────────────────────────────────────────────────────────────── */
-const SLIDES = [
-  {
-    image: hero1,
-    objectPosition: 'right 30%',
-    transformOrigin: 'right 30%',
-    eyebrow: 'THE COLOR EDIT',
-    headline: 'Dressed in Confidence.',
-    description: "Bold hues and considered prints, curated for a wardrobe that isn't afraid to stand out.",
-    primaryCTA: { label: 'SHOP THE EDIT', path: '/shop' },
-    secondaryCTA: { label: 'VIEW LOOKBOOK', path: '/about' },
-  },
-  {
-    image: hero2,
-    objectPosition: 'right 30%',
-    transformOrigin: 'right 30%',
-    eyebrow: 'TEXTURE & WARMTH',
-    headline: 'Layers, Thoughtfully Made.',
-    description: 'Rich knits and natural textures in an earthy palette, built for the season ahead.',
-    primaryCTA: { label: 'SHOP KNITWEAR', path: '/shop?category=knitwear' },
-    secondaryCTA: { label: 'EXPLORE THE ARCHIVE', path: '/shop?collection=autumn-winter-2026' },
-  },
-  {
-    image: hero3,
-    objectPosition: 'center top',
-    transformOrigin: 'center top',
-    eyebrow: 'STATEMENT TAILORING',
-    headline: 'Color, Cut With Precision.',
-    description: 'A sculpted blazer in vivid emerald satin — tailoring that commands the room.',
-    primaryCTA: { label: 'SHOP TAILORING', path: '/shop?category=tailoring' },
-    secondaryCTA: { label: 'VIEW LOOKBOOK', path: '/about' },
-  },
-  {
-    image: hero4,
-    objectPosition: 'center 20%',
-    transformOrigin: 'center 20%',
-    eyebrow: 'OFF-DUTY TAILORING',
-    headline: 'Relaxed, Never Undone.',
-    description: 'An oversized blazer paired with denim and sneakers — tailoring that moves easily into everyday life.',
-    primaryCTA: { label: 'SHOP WOMEN', path: '/shop?category=women' },
-    secondaryCTA: { label: 'VIEW LOOKBOOK', path: '/about' },
-  },
-];
+const HERO_CACHE_KEY = 'novashop_hero_slides_cache';
 
-const TOTAL = SLIDES.length;
+function getInitialSlides() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = sessionStorage.getItem(HERO_CACHE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return [];
+}
+
 const AUTO_MS = 6000;   // 6 s per slide
 const FADE_MS = 1000;   // image crossfade
 const TEXT_SLIDE_MS = 600;    // text reveal
@@ -115,6 +82,8 @@ function TextLine({ children, delay, style }) {
    MAIN COMPONENT
 ───────────────────────────────────────────────────────────────────────────── */
 export default function HeroSection({ go }) {
+  const [slidesList, setSlidesList] = useState(getInitialSlides);
+  const totalSlides = slidesList.length;
   const [active, setActive] = useState(0);
   const [prev, setPrev] = useState(null);   // for crossfade
   const [isHovered, setIsHovered] = useState(false);
@@ -122,14 +91,124 @@ export default function HeroSection({ go }) {
   const [progressKey, setProgressKey] = useState(0);  // force progress bar restart
 
   const timerRef = useRef(null);
+  const trackedImpressionsRef = useRef(new Set());
+
+  const [heroHeight, setHeroHeight] = useState(720);
+
+  /* ── Load dynamic active slides from backend ──────────────────────────── */
+  useEffect(() => {
+    let cancelled = false;
+    async function loadSlides() {
+      try {
+        const res = await homeApi.getHeroSlides();
+        const data = res?.data || [];
+        if (!cancelled) {
+          if (Array.isArray(data) && data.length > 0) {
+            const mapped = data.map((s) => {
+              const width = typeof s.width === 'number' ? s.width : null;
+              const height = typeof s.height === 'number' ? s.height : null;
+              const ratio = width && height ? width / height : (typeof s.aspectRatio === 'number' ? s.aspectRatio : null);
+              const rawFit = s.imageFit === 'contain' ? 'contain' : 'cover';
+              const position = s.imagePosition || 'right';
+              const focalX = typeof s.focalPointX === 'number' ? s.focalPointX : 50;
+              const focalY = typeof s.focalPointY === 'number' ? s.focalPointY : 50;
+
+              return {
+                id: s._id || s.id,
+                image: s.imageUrl || s.image,
+                mobileImage: s.mobileImage || '',
+                imageFit: rawFit,
+                imagePosition: position,
+                width,
+                height,
+                aspectRatio: ratio,
+                focalPointX: focalX,
+                focalPointY: focalY,
+                srcSet: s.srcSet || '',
+                mobileSrcSet: s.mobileSrcSet || '',
+                objectPosition: `${focalX}% ${focalY}%`,
+                eyebrow: s.eyebrow || 'THE EDIT',
+                headline: s.headline || s.title || '',
+                description: s.description || s.subheadline || s.subtitle || '',
+                primaryCTA: {
+                  label: s.buttonLabel || s.buttonText || 'SHOP THE EDIT',
+                  path: s.buttonLink || '/shop',
+                },
+                secondaryCTA: {
+                  label: s.secondaryButtonText || 'VIEW LOOKBOOK',
+                  path: s.secondaryButtonLink || '/about',
+                },
+              };
+            });
+            setSlidesList(mapped);
+            try {
+              sessionStorage.setItem(HERO_CACHE_KEY, JSON.stringify(mapped));
+            } catch {
+              // ignore
+            }
+          } else {
+            setSlidesList([]);
+            try {
+              sessionStorage.removeItem(HERO_CACHE_KEY);
+            } catch {
+              // ignore
+            }
+          }
+        }
+      } catch {
+        // Silently keep any cached slides on network glitch
+      }
+    }
+    loadSlides();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /* ── Adaptive hero height consistent across slides to prevent layout jumps ── */
+  useEffect(() => {
+    function computeHeight() {
+      const vw = typeof window !== 'undefined' ? window.innerWidth : 1440;
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 900;
+      if (vw <= 768) {
+        setHeroHeight(Math.max(420, Math.min(Math.round(0.65 * vh), 560)));
+        return;
+      }
+      // Generous full-bleed desktop hero height
+      const target = Math.max(560, Math.min(Math.round(0.85 * vh), 880));
+      setHeroHeight(target);
+    }
+    computeHeight();
+    window.addEventListener('resize', computeHeight);
+    return () => window.removeEventListener('resize', computeHeight);
+  }, []);
 
   /* ── Preload images ─────────────────────────────────────────────────────── */
   useEffect(() => {
-    // Preload slides 2 & 3 right away; slide 4 after a short delay
-    SLIDES.slice(1, 3).forEach(s => { const i = new Image(); i.src = s.image; });
-    const t = setTimeout(() => { const i = new Image(); i.src = SLIDES[3].image; }, 2000);
+    if (!slidesList || slidesList.length <= 1) return;
+    slidesList.slice(1, 3).forEach(s => {
+      if (s?.image) {
+        const i = new Image();
+        i.src = s.image;
+      }
+    });
+    const t = setTimeout(() => {
+      if (slidesList[3]?.image) {
+        const i = new Image();
+        i.src = slidesList[3].image;
+      }
+    }, 2000);
     return () => clearTimeout(t);
-  }, []);
+  }, [slidesList]);
+
+  /* ── Track impression when slide changes ───────────────────────────────── */
+  useEffect(() => {
+    const cur = slidesList[active];
+    if (cur?.id && !trackedImpressionsRef.current.has(cur.id)) {
+      trackedImpressionsRef.current.add(cur.id);
+      homeApi.trackHero(cur.id, 'impression').catch(() => {});
+    }
+  }, [active, slidesList]);
 
   /* ── Navigate to a slide ─────────────────────────────────────────────────── */
   const goTo = useCallback((idx) => {
@@ -143,15 +222,23 @@ export default function HeroSection({ go }) {
     setTimeout(() => setPrev(null), FADE_MS + 100);
   }, []);
 
-  const goPrev = useCallback(() => goTo((active - 1 + TOTAL) % TOTAL), [active, goTo]);
-  const goNext = useCallback(() => goTo((active + 1) % TOTAL), [active, goTo]);
+  const goPrev = useCallback(() => {
+    if (totalSlides <= 1) return;
+    goTo((active - 1 + totalSlides) % totalSlides);
+  }, [active, goTo, totalSlides]);
+
+  const goNext = useCallback(() => {
+    if (totalSlides <= 1) return;
+    goTo((active + 1) % totalSlides);
+  }, [active, goTo, totalSlides]);
 
   /* ── Auto-advance ───────────────────────────────────────────────────────── */
   const startTimer = useCallback(() => {
     clearInterval(timerRef.current);
+    if (totalSlides <= 1) return;
     timerRef.current = setInterval(() => {
       setActive(cur => {
-        const next = (cur + 1) % TOTAL;
+        const next = (cur + 1) % totalSlides;
         setPrev(cur);
         setTimeout(() => setPrev(null), FADE_MS + 100);
         return next;
@@ -159,7 +246,7 @@ export default function HeroSection({ go }) {
       setTextKey(k => k + 1);
       setProgressKey(k => k + 1);
     }, AUTO_MS);
-  }, []);
+  }, [totalSlides]);
 
   useEffect(() => {
     if (!isHovered) startTimer();
@@ -169,32 +256,81 @@ export default function HeroSection({ go }) {
 
   const handleManualNav = useCallback((fn) => {
     fn();
-    // Timer restarts via state change → startTimer effect fires
   }, []);
 
-  const slide = SLIDES[active];
+  const handleCtaClick = (path) => {
+    const cur = slidesList[active];
+    if (cur?.id) {
+      homeApi.trackHero(cur.id, 'click').catch(() => {});
+    }
+    go(path);
+  };
+
+  const slide = slidesList[active] || slidesList[0];
 
   /* ── Secondary CTA arrow nudge ─────────────────────────────────────────── */
   const [arrowNudge, setArrowNudge] = useState(false);
 
+  if (!slide || slidesList.length === 0) {
+    return (
+      <section
+        aria-label="Hero carousel"
+        className="hero-section-box"
+        style={{
+          position: 'relative',
+          width: '100%',
+          height: `${heroHeight}px`,
+          overflow: 'hidden',
+          backgroundColor: '#1A1510',
+        }}
+      >
+        <style>{`
+          .hero-section-box {
+            height: clamp(480px, 80vh, 820px);
+          }
+          @media (max-width: 768px) {
+            .hero-section-box {
+              height: clamp(420px, 65vh, 560px) !important;
+            }
+          }
+          @media (max-width: 480px) {
+            .hero-section-box {
+              height: clamp(360px, 55vh, 480px) !important;
+            }
+          }
+        `}</style>
+      </section>
+    );
+  }
+
   return (
     <section
       aria-label="Hero carousel"
+      className="hero-section-box"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
         position: 'relative',
         width: '100%',
-        height: 'clamp(600px, 92vh, 1080px)',
+        height: `${heroHeight}px`,
         overflow: 'hidden',
         backgroundColor: '#1A1510',
       }}
     >
       {/* ══ BACKGROUND IMAGES (crossfade) ══════════════════════════════════ */}
-      {SLIDES.map((s, i) => {
+      {slidesList.map((s, i) => {
         const isActive = i === active;
         const isPrev = i === prev;
-        const visible = isActive || isPrev;
+        const rawFit = s.imageFit === 'contain' ? 'contain' : 'cover';
+        const isContain = rawFit === 'contain';
+        const ratio = s.aspectRatio || (s.width && s.height ? s.width / s.height : null);
+        const isPortrait = (s.height && s.width && s.height > s.width) || (ratio && ratio < 1.2);
+        const focalX = typeof s.focalPointX === 'number' ? s.focalPointX : 50;
+        // Default focalPointY to 22% for portrait images so faces and hats stay perfectly framed in the upper portion
+        const focalY = typeof s.focalPointY === 'number' && s.focalPointY !== 50
+          ? s.focalPointY
+          : (isPortrait ? 22 : (typeof s.focalPointY === 'number' ? s.focalPointY : 50));
+        const focalPos = `${focalX}% ${focalY}%`;
 
         return (
           <div
@@ -202,8 +338,10 @@ export default function HeroSection({ go }) {
             aria-hidden={!isActive}
             style={{
               position: 'absolute',
-              top: 0, left: 0,
-              width: '100%', height: '100%',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
               opacity: isActive ? 1 : 0,
               transition: `opacity ${FADE_MS}ms ease-in-out`,
               /* active=2, outgoing=1, hidden=0 — never negative to avoid stacking-context bugs */
@@ -213,26 +351,123 @@ export default function HeroSection({ go }) {
               overflow: 'hidden',
             }}
           >
-            <img
-              src={s.image}
-              alt=""
-              aria-hidden="true"
-              fetchPriority={i === 0 ? 'high' : 'low'}
-              loading={i === 0 ? 'eager' : 'lazy'}
-              className={isActive ? 'hero-ken-burns' : ''}
-              style={{
-                /* Absolute fill — never depends on natural image dimensions */
-                position: 'absolute',
-                top: 0, left: 0,
-                width: '100%', height: '100%',
-                objectFit: 'cover',
-                objectPosition: s.objectPosition || 'center top',
-                display: 'block',
-                animationPlayState: isHovered ? 'paused' : 'running',
-                /* Match zoom focal point to the visible crop anchor */
-                transformOrigin: s.transformOrigin || 'center top',
-              }}
-            />
+            {isContain ? (
+              /* When contain mode is explicitly chosen in admin: centered with ambient fill */
+              <>
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: '-24px',
+                    overflow: 'hidden',
+                    zIndex: 1,
+                  }}
+                >
+                  <img
+                    src={s.image}
+                    srcSet={s.srcSet || undefined}
+                    sizes="100vw"
+                    alt=""
+                    aria-hidden="true"
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      objectPosition: focalPos,
+                      filter: 'blur(36px) brightness(0.35) saturate(1.25)',
+                      transform: 'scale(1.15)',
+                      display: 'block',
+                    }}
+                  />
+                </div>
+                <div
+                  className={`hero-foreground-contain hero-pos-${s.imagePosition || 'right'}`}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: s.imagePosition === 'left' ? 'flex-start' : s.imagePosition === 'center' ? 'center' : 'flex-end',
+                    padding: s.imagePosition === 'right' ? '0 clamp(24px, 7vw, 100px) 0 0' : s.imagePosition === 'left' ? '0 0 0 clamp(24px, 7vw, 100px)' : '0',
+                    zIndex: 2,
+                    pointerEvents: 'none',
+                  }}
+                >
+                  <picture style={{ height: '100%', display: 'flex', alignItems: 'center' }}>
+                    {s.mobileImage && (
+                      <source
+                        media="(max-width: 768px)"
+                        srcSet={s.mobileSrcSet || s.mobileImage}
+                        sizes="100vw"
+                      />
+                    )}
+                    {s.srcSet && (
+                      <source
+                        media="(min-width: 769px)"
+                        srcSet={s.srcSet}
+                        sizes="(max-width: 768px) 100vw, 650px"
+                      />
+                    )}
+                    <img
+                      src={s.image}
+                      srcSet={s.srcSet || undefined}
+                      sizes="(max-width: 768px) 100vw, 650px"
+                      alt={s.headline || ''}
+                      aria-hidden="true"
+                      fetchPriority={i === 0 ? 'high' : 'low'}
+                      loading={i === 0 ? 'eager' : 'lazy'}
+                      style={{
+                        maxHeight: '100%',
+                        height: '100%',
+                        maxWidth: s.width ? `${s.width}px` : '100%',
+                        width: 'auto',
+                        objectFit: 'contain',
+                        display: 'block',
+                        filter: 'none',
+                      }}
+                    />
+                  </picture>
+                </div>
+              </>
+            ) : (
+              /* Default Full-Width Hero: fills 100% width and 100% height edge-to-edge, crisp, unblurred, no backdrop */
+              <picture style={{ width: '100%', height: '100%', display: 'block', zIndex: 2 }}>
+                {s.mobileImage && (
+                  <source
+                    media="(max-width: 768px)"
+                    srcSet={s.mobileSrcSet || s.mobileImage}
+                    sizes="100vw"
+                  />
+                )}
+                {s.srcSet && (
+                  <source
+                    media="(min-width: 769px)"
+                    srcSet={s.srcSet}
+                    sizes="100vw"
+                  />
+                )}
+                <img
+                  src={s.image}
+                  srcSet={s.srcSet || undefined}
+                  sizes="100vw"
+                  alt={s.headline || ''}
+                  aria-hidden="true"
+                  fetchPriority={i === 0 ? 'high' : 'low'}
+                  loading={i === 0 ? 'eager' : 'lazy'}
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: focalPos,
+                    display: 'block',
+                    filter: 'none',
+                  }}
+                />
+              </picture>
+            )}
           </div>
         );
       })}
@@ -332,10 +567,10 @@ export default function HeroSection({ go }) {
               <div className="hero-cta-row" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '28px' }}>
                 {/* Primary solid button */}
                 <button
-                  onClick={() => go(slide.primaryCTA.path)}
+                  onClick={() => handleCtaClick(slide.primaryCTA.path)}
                   style={{
-                    background: '#FDFBF7',
-                    color: '#1A1510',
+                    background: 'var(--color-primary-contrast, #FDFBF7)',
+                    color: 'var(--color-primary, #1A1510)',
                     border: 'none',
                     padding: '15px 30px',
                     fontFamily: 'var(--font-sans)',
@@ -344,15 +579,15 @@ export default function HeroSection({ go }) {
                     letterSpacing: '0.14em',
                     textTransform: 'uppercase',
                     cursor: 'pointer',
-                    transition: 'background 200ms, color 200ms',
+                    transition: 'background 200ms, color 200ms, opacity 200ms',
                     whiteSpace: 'nowrap',
                     flexShrink: 0,
                   }}
                   onMouseEnter={e => {
-                    e.currentTarget.style.background = '#E8E3DA';
+                    e.currentTarget.style.opacity = '0.85';
                   }}
                   onMouseLeave={e => {
-                    e.currentTarget.style.background = '#FDFBF7';
+                    e.currentTarget.style.opacity = '1';
                   }}
                 >
                   {slide.primaryCTA.label}
@@ -360,7 +595,7 @@ export default function HeroSection({ go }) {
 
                 {/* Secondary text link */}
                 <button
-                  onClick={() => go(slide.secondaryCTA.path)}
+                  onClick={() => handleCtaClick(slide.secondaryCTA.path)}
                   onMouseEnter={() => setArrowNudge(true)}
                   onMouseLeave={() => setArrowNudge(false)}
                   style={{
@@ -417,7 +652,7 @@ export default function HeroSection({ go }) {
 
               {/* Progress bars */}
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                {SLIDES.map((_, i) => (
+                {slidesList.map((_, i) => (
                   <button
                     key={`${progressKey}-${i}`}
                     role="tab"
@@ -457,7 +692,7 @@ export default function HeroSection({ go }) {
                 letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums',
                 lineHeight: 1, flexShrink: 0,
               }} aria-hidden="true">
-                {pad2(TOTAL - 1)}
+                {pad2(totalSlides - 1)}
               </span>
             </div>
           </div>
@@ -475,17 +710,9 @@ export default function HeroSection({ go }) {
 
       {/* ══ CSS ═══════════════════════════════════════════════════════════ */}
       <style>{`
-        /* Ken Burns slow zoom — 6s, restarts on each slide.
-           Starts at scale(1.02) not 1.0 so there is guaranteed full
-           coverage even on the very first rendered frame — eliminates
-           any sub-pixel gap that could appear before the GPU rasterises
-           the image at exactly 1.0 scale. */
-        @keyframes heroBurns {
-          0%   { transform: scale(1.02); }
-          100% { transform: scale(1.08); }
-        }
-        .hero-ken-burns {
-          animation: heroBurns ${AUTO_MS}ms ease-out forwards;
+        /* Consistent crisp presentation without blurry GPU transforms */
+        .hero-section-box {
+          height: clamp(480px, 80vh, 820px);
         }
 
         /* Staggered text reveal */
@@ -506,6 +733,13 @@ export default function HeroSection({ go }) {
 
         /* ── Responsive ─────────────────────────────────────────────── */
         @media (max-width: 768px) {
+          .hero-section-box {
+            height: clamp(420px, 65vh, 560px) !important;
+          }
+          .hero-foreground-contain {
+            justify-content: center !important;
+            padding: 0 !important;
+          }
           .hero-bottom-row {
             padding: 0 24px 36px !important;
             flex-direction: column;
@@ -529,6 +763,9 @@ export default function HeroSection({ go }) {
         }
 
         @media (max-width: 480px) {
+          .hero-section-box {
+            height: clamp(360px, 55vh, 480px) !important;
+          }
           .hero-bottom-row {
             padding: 0 20px 28px !important;
           }

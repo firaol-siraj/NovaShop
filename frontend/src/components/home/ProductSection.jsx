@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useCart } from "../../context/CartContext";
 
 function HeartIcon({ filled }) {
@@ -7,8 +7,8 @@ function HeartIcon({ filled }) {
       width="17"
       height="17"
       viewBox="0 0 24 24"
-      fill={filled ? "#1B1816" : "none"}
-      stroke="#1B1816"
+      fill={filled ? "currentColor" : "none"}
+      stroke="currentColor"
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -26,7 +26,7 @@ function BagIcon({ added }) {
       height="17"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#1B1816"
+      stroke="currentColor"
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -40,7 +40,7 @@ function BagIcon({ added }) {
       height="17"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#1B1816"
+      stroke="currentColor"
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -60,7 +60,7 @@ function EyeIcon() {
       height="17"
       viewBox="0 0 24 24"
       fill="none"
-      stroke="#1B1816"
+      stroke="currentColor"
       strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -72,39 +72,52 @@ function EyeIcon() {
   );
 }
 
+function getSwatchVisual(rawSwatch) {
+  const hex = (typeof rawSwatch === "object" && rawSwatch !== null ? rawSwatch.hex : rawSwatch) || "";
+  const cleanHex = typeof hex === "string" ? hex.trim().toLowerCase() : "";
+  const isValidHex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(cleanHex);
+  const isWhite = cleanHex === "#fff" || cleanHex === "#ffffff" || cleanHex === "#ffffffff" || cleanHex === "white";
+
+  const useFallback = !isValidHex || isWhite;
+  const background = useFallback ? "var(--bg-surface-raised)" : cleanHex;
+  const border = useFallback
+    ? "1.5px solid var(--border-strong)"
+    : "1.5px solid var(--border-subtle)";
+
+  return { background, border, title: cleanHex || "Color swatch" };
+}
+
 function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
   const { isWishlisted, toggleWishlist } = useCart();
   const [hovered, setHovered] = useState(false);
-  const [wishlisted, setWishlisted] = useState(
-    isWishlisted(product.productId || product.id),
-  );
   const [cartAdded, setCartAdded] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  useEffect(() => {
-    setWishlisted(isWishlisted(product.productId || product.id));
-  }, [isWishlisted, product.productId, product.id]);
+  const wishlisted = isWishlisted(product.productId || product.id);
   const showActions = hovered || focused;
 
   const imageSrc = product.primaryImage || product.image;
   const hoverSrc = product.hoverImage || imageSrc;
 
-  const handleWishlist = (e) => {
+  const handleWishlist = async (e) => {
     e.stopPropagation();
-    toggleWishlist(product);
-    setWishlisted((value) => !value);
-    onAddToWishlist?.(product);
+    const result = await toggleWishlist(product);
+    if (result?.ok) {
+      onAddToWishlist?.(product);
+    }
   };
 
   const productPath = product.path || `/products/${product.slug || product.id}`;
-  const soldOut = Number(product.stockTotal) === 0;
+  const soldOut = false;
 
-  const handleCart = (e) => {
+  const handleCart = async (e) => {
     e.stopPropagation();
     if (cartAdded || soldOut) return;
-    setCartAdded(true);
-    onAddToCart?.({ ...product, stock: product.stock || "in-stock" });
-    setTimeout(() => setCartAdded(false), 1600);
+    const result = await onAddToCart?.({ ...product, stock: product.stock || "in-stock" });
+    if (result?.ok) {
+      setCartAdded(true);
+      setTimeout(() => setCartAdded(false), 1600);
+    }
   };
 
   const handleView = (e) => {
@@ -134,10 +147,10 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
           overflow: "hidden",
           borderRadius: "14px",
           aspectRatio: "1 / 1.1",
-          backgroundColor: "#F0EBE0",
+          backgroundColor: "var(--bg-surface-sunken)",
           boxShadow: showActions
-            ? "0 18px 32px rgba(17, 14, 12, 0.08)"
-            : "0 8px 18px rgba(17, 14, 12, 0.03)",
+            ? "var(--shadow-md)"
+            : "var(--shadow-sm)",
           transition: "box-shadow 260ms ease",
         }}
       >
@@ -181,8 +194,8 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
               position: "absolute",
               top: "12px",
               left: "12px",
-              background: "#1B1816",
-              color: "#FDFBF7",
+              background: "var(--color-primary)",
+              color: "var(--color-primary-contrast)",
               fontSize: "9px",
               fontFamily: "var(--font-sans)",
               fontWeight: 600,
@@ -220,9 +233,10 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
               width: "38px",
               height: "38px",
               borderRadius: "50%",
-              border: "none",
-              background: "#FDFBF7",
-              boxShadow: "0 8px 18px rgba(17, 14, 12, 0.12)",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-surface)",
+              color: "var(--text-primary)",
+              boxShadow: "var(--shadow-sm)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -244,9 +258,10 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
               width: "38px",
               height: "38px",
               borderRadius: "50%",
-              border: "none",
-              background: "#FDFBF7",
-              boxShadow: "0 8px 18px rgba(17, 14, 12, 0.12)",
+              border: "1px solid var(--border-default)",
+              background: "var(--bg-surface)",
+              color: "var(--text-primary)",
+              boxShadow: "var(--shadow-sm)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -259,29 +274,30 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
           </button>
 
           {!soldOut && (
-          <button
-            type="button"
-            onClick={handleCart}
-            onFocus={() => setFocused(true)}
-            onBlur={() => setFocused(false)}
-            aria-label="Add to cart"
-            style={{
-              width: "38px",
-              height: "38px",
-              borderRadius: "50%",
-              border: "none",
-              background: "#FDFBF7",
-              boxShadow: "0 8px 18px rgba(17, 14, 12, 0.12)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              cursor: "pointer",
-              transition: "transform 200ms ease, box-shadow 200ms ease",
-              transform: showActions ? "translateY(0)" : "translateY(2px)",
-            }}
-          >
-            <BagIcon added={cartAdded} />
-          </button>
+            <button
+              type="button"
+              onClick={handleCart}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              aria-label="Add to cart"
+              style={{
+                width: "38px",
+                height: "38px",
+                borderRadius: "50%",
+                border: "1px solid var(--border-default)",
+                background: "var(--bg-surface)",
+                color: "var(--text-primary)",
+                boxShadow: "var(--shadow-sm)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                cursor: "pointer",
+                transition: "transform 200ms ease, box-shadow 200ms ease",
+                transform: showActions ? "translateY(0)" : "translateY(2px)",
+              }}
+            >
+              <BagIcon added={cartAdded} />
+            </button>
           )}
         </div>
       </div>
@@ -304,7 +320,7 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
               fontFamily: "var(--font-sans)",
               fontSize: "15px",
               fontWeight: 500,
-              color: "#1B1816",
+              color: "var(--text-primary)",
               lineHeight: 1.3,
               whiteSpace: "nowrap",
               overflow: "hidden",
@@ -319,11 +335,11 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
               fontFamily: "var(--font-sans)",
               fontSize: "15px",
               fontWeight: 600,
-              color: "#1B1816",
+              color: "var(--text-primary)",
               flexShrink: 0,
             }}
           >
-            {product.price}
+            {typeof product.price === "number" ? `$${product.price.toFixed(2)}` : product.price}
           </p>
         </div>
 
@@ -332,7 +348,7 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
             margin: "0 0 10px",
             fontFamily: "var(--font-sans)",
             fontSize: "12px",
-            color: "#8C837C",
+            color: "var(--text-muted)",
             lineHeight: 1.5,
           }}
         >
@@ -347,26 +363,30 @@ function ProductTile({ product, go, onAddToCart, onAddToWishlist }) {
             flexWrap: "wrap",
           }}
         >
-          {(product.swatches || []).map((swatch, index) => (
-            <span
-              key={`${product.id}-swatch-${index}`}
-              aria-label={`${product.name} ${index + 1} color`}
-              style={{
-                width: "15px",
-                height: "15px",
-                borderRadius: "50%",
-                background: swatch,
-                border: "1.5px solid rgba(0,0,0,0.12)",
-                display: "inline-block",
-                boxSizing: "border-box",
-              }}
-            />
-          ))}
+          {(product.swatches || []).map((swatch, index) => {
+            const visual = getSwatchVisual(swatch);
+            return (
+              <span
+                key={`${product.id}-swatch-${index}`}
+                aria-label={`${product.name} ${index + 1} color`}
+                title={visual.title}
+                style={{
+                  width: "15px",
+                  height: "15px",
+                  borderRadius: "50%",
+                  background: visual.background,
+                  border: visual.border,
+                  display: "inline-block",
+                  boxSizing: "border-box",
+                }}
+              />
+            );
+          })}
           <span
             style={{
               fontFamily: "var(--font-sans)",
               fontSize: "11px",
-              color: "#9B9189",
+              color: "var(--text-muted)",
               letterSpacing: "0.04em",
             }}
           >
@@ -386,10 +406,11 @@ export default function ProductSection({
   label,
   heading,
   description,
-  viewAllPath,
-  viewAllLabel = "View all",
+  viewAllLabel = "View more",
   products = [],
   loading = false,
+  error = null,
+  onRetry = null,
   filters = null,
   activeFilter = "all",
   onFilterChange = null,
@@ -398,10 +419,19 @@ export default function ProductSection({
 }) {
   const skeletonArr = Array.from({ length: 4 });
 
-  const filteredProducts = useMemo(() => products, [products]);
+  const destinationPath = useMemo(() => {
+    if (activeFilter && activeFilter !== "all") {
+      return `/shop?category=${encodeURIComponent(activeFilter)}`;
+    }
+    return "/shop";
+  }, [activeFilter]);
+
+  const handleNavigate = () => {
+    go(destinationPath);
+  };
 
   return (
-    <section style={{ backgroundColor: "#FDFBF7", padding: "76px 0" }}>
+    <section style={{ backgroundColor: "var(--bg-main)", padding: "76px 0" }}>
       <div style={{ maxWidth: "1400px", margin: "0 auto", padding: "0 40px" }}>
         <div
           style={{
@@ -424,7 +454,7 @@ export default function ProductSection({
                   fontWeight: 500,
                   letterSpacing: "0.2em",
                   textTransform: "uppercase",
-                  color: "#9B9189",
+                  color: "var(--text-muted)",
                 }}
               >
                 {label}
@@ -439,7 +469,7 @@ export default function ProductSection({
                 fontWeight: 400,
                 fontStyle: "italic",
                 letterSpacing: "-0.03em",
-                color: "#1B1816",
+                color: "var(--text-primary)",
               }}
             >
               {heading}
@@ -452,7 +482,7 @@ export default function ProductSection({
                   fontFamily: "var(--font-sans)",
                   fontSize: "14px",
                   lineHeight: 1.6,
-                  color: "#6E6962",
+                  color: "var(--text-secondary)",
                   fontWeight: 300,
                 }}
               >
@@ -489,11 +519,11 @@ export default function ProductSection({
                     type="button"
                     onClick={() => onFilterChange && onFilterChange(f.value)}
                     style={{
-                      border: "1px solid #D9D0C7",
+                      border: "1px solid var(--border-default)",
                       borderRadius: "999px",
                       background:
-                        activeFilter === f.value ? "#1B1816" : "#F6F1EA",
-                      color: activeFilter === f.value ? "#FDFBF7" : "#1B1816",
+                        activeFilter === f.value ? "var(--color-primary)" : "var(--bg-surface)",
+                      color: activeFilter === f.value ? "var(--color-primary-contrast)" : "var(--text-primary)",
                       fontFamily: "var(--font-sans)",
                       fontSize: "10px",
                       fontWeight: 600,
@@ -502,6 +532,7 @@ export default function ProductSection({
                       padding: "10px 16px",
                       cursor: "pointer",
                       transition: "all 220ms ease",
+                      flexShrink: 0,
                     }}
                   >
                     {f.label}
@@ -510,29 +541,28 @@ export default function ProductSection({
               </div>
             )}
 
-            {viewAllPath && (
-              <button
-                type="button"
-                onClick={() => go(viewAllPath)}
-                style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  fontFamily: "var(--font-sans)",
-                  fontSize: "10px",
-                  fontWeight: 600,
-                  letterSpacing: "0.14em",
-                  textTransform: "uppercase",
-                  color: "#1B1816",
-                  borderBottom: "1px solid #1B1816",
-                  paddingBottom: "2px",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {viewAllLabel}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleNavigate}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontFamily: "var(--font-sans)",
+                fontSize: "10px",
+                fontWeight: 600,
+                letterSpacing: "0.14em",
+                textTransform: "uppercase",
+                color: "var(--text-primary)",
+                borderBottom: "1px solid var(--text-primary)",
+                paddingBottom: "2px",
+                whiteSpace: "nowrap",
+                flexShrink: 0,
+              }}
+            >
+              {viewAllLabel}
+            </button>
           </div>
         </div>
 
@@ -552,7 +582,7 @@ export default function ProductSection({
                     aspectRatio: "1 / 1.1",
                     width: "100%",
                     borderRadius: "14px",
-                    background: "#EFECE6",
+                    background: "var(--skeleton-base)",
                     animation: "trending-pulse 1.5s ease-in-out infinite",
                   }}
                 />
@@ -568,7 +598,7 @@ export default function ProductSection({
                     style={{
                       height: "12px",
                       width: "60%",
-                      background: "#EFECE6",
+                      background: "var(--skeleton-base)",
                       borderRadius: "4px",
                       animation: "trending-pulse 1.5s ease-in-out infinite",
                     }}
@@ -577,7 +607,7 @@ export default function ProductSection({
                     style={{
                       height: "11px",
                       width: "45%",
-                      background: "#EFECE6",
+                      background: "var(--skeleton-base)",
                       borderRadius: "4px",
                       animation: "trending-pulse 1.5s ease-in-out infinite",
                     }}
@@ -585,6 +615,53 @@ export default function ProductSection({
                 </div>
               </div>
             ))}
+          </div>
+        ) : error ? (
+          <div style={{ textAlign: "center", padding: "48px 0" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-sans)",
+                fontSize: "14px",
+                color: "var(--text-muted)",
+                marginBottom: "16px",
+              }}
+            >
+              {typeof error === "string" ? error : "Unable to load products."}
+            </p>
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                style={{
+                  border: "1px solid var(--border-strong)",
+                  background: "var(--color-primary)",
+                  color: "var(--color-primary-contrast)",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.14em",
+                  textTransform: "uppercase",
+                  padding: "10px 24px",
+                  cursor: "pointer",
+                }}
+              >
+                Retry
+              </button>
+            )}
+          </div>
+        ) : products.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "64px 0" }}>
+            <p
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "18px",
+                fontStyle: "italic",
+                color: "var(--text-muted)",
+                margin: 0,
+              }}
+            >
+              No products in this category yet
+            </p>
           </div>
         ) : (
           <div
@@ -596,9 +673,9 @@ export default function ProductSection({
             }}
             className="trending-grid"
           >
-            {filteredProducts.map((product) => (
+            {products.map((product) => (
               <div
-                key={product.id}
+                key={product.id || product.slug}
                 style={{
                   transition: "opacity 300ms ease, transform 300ms ease",
                 }}

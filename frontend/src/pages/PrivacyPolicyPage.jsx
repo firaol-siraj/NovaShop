@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 
 const T = {
-  bg: '#FAF7F2',
-  bgAlt: '#F2EDE5',
-  espresso: '#231E1B',
-  muted: '#6E6962',
-  border: 'rgba(27,24,22,0.12)',
-  terracotta: '#9B4A3A',
+  bg: 'var(--bg-main)',
+  bgAlt: 'var(--bg-surface)',
+  espresso: 'var(--text-primary)',
+  muted: 'var(--text-secondary)',
+  border: 'var(--border-default)',
+  terracotta: 'var(--color-accent, #9B4A3A)',
 };
 
 const SECTIONS = [
@@ -27,7 +27,7 @@ export default function PrivacyPolicyPage({ go }) {
   const [mobileTocOpen, setMobileTocOpen] = useState(false);
   const [cookieModalOpen, setCookieModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
-  
+
   const [consent, setConsent] = useState({
     preferences: false,
     analytical: false,
@@ -56,7 +56,7 @@ export default function PrivacyPolicyPage({ go }) {
       (entries) => {
         let maxVisible = 0;
         let mostVisibleId = '';
-        
+
         // Find the section that takes up the most of the viewport
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio > maxVisible) {
@@ -99,7 +99,7 @@ export default function PrivacyPolicyPage({ go }) {
           margin: 0 auto;
           padding: 0 clamp(24px, 6vw, 48px);
         }
-        
+
         .pp-layout {
           display: grid;
           grid-template-columns: 220px 1fr;
@@ -120,7 +120,7 @@ export default function PrivacyPolicyPage({ go }) {
           scroll-margin-top: 120px;
           margin-bottom: 80px;
         }
-        
+
         .pp-section:last-child {
           margin-bottom: 0;
         }
@@ -181,7 +181,7 @@ export default function PrivacyPolicyPage({ go }) {
             scrollbar-width: none;
           }
           .pp-tablet-toc::-webkit-scrollbar { display: none; }
-          
+
           .pp-card-grid-3 { grid-template-columns: 1fr; }
           .pp-card-grid-2 { grid-template-columns: 1fr; }
         }
@@ -213,7 +213,7 @@ export default function PrivacyPolicyPage({ go }) {
           position: absolute;
           cursor: pointer;
           top: 0; left: 0; right: 0; bottom: 0;
-          background-color: #ccc;
+          background-color: var(--border-default);
           transition: .4s;
           border-radius: 34px;
         }
@@ -222,7 +222,7 @@ export default function PrivacyPolicyPage({ go }) {
           content: "";
           height: 16px; width: 16px;
           left: 3px; bottom: 3px;
-          background-color: white;
+          background-color: var(--color-primary-contrast);
           transition: .4s;
           border-radius: 50%;
         }
@@ -260,7 +260,7 @@ export default function PrivacyPolicyPage({ go }) {
               {' / '}
               <span style={{ color: T.espresso, fontWeight: 500 }}>PRIVACY POLICY</span>
             </div>
-            
+
             <div style={{
               fontFamily: 'var(--font-sans)',
               fontSize: '11px',
@@ -288,7 +288,7 @@ export default function PrivacyPolicyPage({ go }) {
                 onClick={() => scrollToSection(s.id)}
                 style={{
                   background: activeSection === s.id ? T.espresso : 'transparent',
-                  color: activeSection === s.id ? '#FFF' : T.muted,
+                  color: activeSection === s.id ? 'var(--color-primary-contrast)' : T.muted,
                   border: `1px solid ${activeSection === s.id ? T.espresso : T.border}`,
                   borderRadius: '20px',
                   padding: '6px 16px',
@@ -333,7 +333,7 @@ export default function PrivacyPolicyPage({ go }) {
                     <path d="m6 9 6 6 6-6" />
                   </svg>
                 </button>
-                
+
                 {mobileTocOpen && (
                   <div style={{
                     marginTop: '8px',
@@ -413,8 +413,8 @@ export default function PrivacyPolicyPage({ go }) {
                         if (activeSection !== s.id) e.currentTarget.style.color = T.muted;
                       }}
                     >
-                      <span style={{ 
-                        fontSize: '12px', 
+                      <span style={{
+                        fontSize: '12px',
                         color: activeSection === s.id ? T.espresso : T.muted,
                         opacity: activeSection === s.id ? 1 : 0.6
                       }}>
@@ -473,7 +473,7 @@ export default function PrivacyPolicyPage({ go }) {
 
             {/* RIGHT CONTENT */}
             <div style={{ minWidth: 0 }}>
-              
+
               {/* 01 Information We Collect */}
               <section id="information-we-collect" className="pp-section">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
@@ -482,7 +482,7 @@ export default function PrivacyPolicyPage({ go }) {
                     Information We Collect
                   </h2>
                 </div>
-                
+
                 <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '15px', lineHeight: 1.8, color: T.muted }}>
                   NovaShop collects information to deliver an effortless, bespoke shopping experience. Depending on your engagement with our platform, we gather specific categories of information essential for order execution and tailored concierge support:
                 </p>
@@ -572,7 +572,7 @@ export default function PrivacyPolicyPage({ go }) {
                 <p style={{ margin: '0 0 24px', fontFamily: 'var(--font-sans)', fontSize: '14px', lineHeight: 1.8, color: T.muted }}>
                   You may adjust or deactivate cookies at any moment through your internet browser preferences. Note that disabling essential cookies may impact certain commerce capabilities, including checkout completion.
                 </p>
-                
+
                 <button
                   type="button"
                   onClick={() => setCookieModalOpen(true)}
@@ -589,7 +589,7 @@ export default function PrivacyPolicyPage({ go }) {
                     padding: '12px 24px',
                     transition: 'all 0.2s',
                   }}
-                  onMouseEnter={e => { e.currentTarget.style.background = T.espresso; e.currentTarget.style.color = '#FFF'; }}
+                  onMouseEnter={e => { e.currentTarget.style.background = T.espresso; e.currentTarget.style.color = 'var(--color-primary-contrast)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = T.espresso; }}
                 >
                   Manage Cookie Preferences
@@ -606,7 +606,7 @@ export default function PrivacyPolicyPage({ go }) {
                 </div>
 
                 <div style={{
-                  background: '#EAE6E1',
+                  background: 'var(--bg-surface-sunken)',
                   borderLeft: `4px solid ${T.espresso}`,
                   padding: '24px',
                   marginBottom: '24px',
@@ -655,7 +655,7 @@ export default function PrivacyPolicyPage({ go }) {
 
                 <div className="pp-card-grid-2">
                   <div className="pp-row-card" style={{ flexDirection: 'column' }}>
-                    <div style={{ background: '#FFF', padding: '10px', borderRadius: '50%', border: `1px solid ${T.border}`, marginBottom: '8px' }}>
+                    <div style={{ background: 'var(--bg-surface)', padding: '10px', borderRadius: '50%', border: `1px solid ${T.border}`, marginBottom: '8px' }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.espresso} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
                       </svg>
@@ -667,9 +667,9 @@ export default function PrivacyPolicyPage({ go }) {
                       Full cryptographic transit protection across all web pathways, browsing sessions, and checkout portals.
                     </p>
                   </div>
-                  
+
                   <div className="pp-row-card" style={{ flexDirection: 'column' }}>
-                    <div style={{ background: '#FFF', padding: '10px', borderRadius: '50%', border: `1px solid ${T.border}`, marginBottom: '8px' }}>
+                    <div style={{ background: 'var(--bg-surface)', padding: '10px', borderRadius: '50%', border: `1px solid ${T.border}`, marginBottom: '8px' }}>
                       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={T.espresso} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
                         <path d="M2 22 22 2"/><path d="M14 2 4 12v6h6l10-10"/><path d="M12.5 4.5 17 9"/>
                       </svg>
@@ -792,7 +792,7 @@ export default function PrivacyPolicyPage({ go }) {
                       privacy@novashop.com
                     </a>
                   </div>
-                  
+
                   <div style={{ border: `1px solid ${T.border}`, padding: '24px', borderRadius: '8px' }}>
                     <span style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.12em', color: T.muted, textTransform: 'uppercase', marginBottom: '8px', fontWeight: 600 }}>
                       RESPONSE COMMITMENT
@@ -821,7 +821,7 @@ export default function PrivacyPolicyPage({ go }) {
                     onClick={() => go('/help')}
                     style={{
                       background: T.espresso,
-                      color: '#FFF',
+                      color: 'var(--color-primary-contrast)',
                       border: 'none',
                       padding: '14px 32px',
                       fontFamily: 'var(--font-sans)',
@@ -850,7 +850,7 @@ export default function PrivacyPolicyPage({ go }) {
         <div style={{
           position: 'fixed',
           inset: 0,
-          backgroundColor: 'rgba(35,30,27,0.4)',
+          backgroundColor: 'rgba(0,0,0,0.5)',
           backdropFilter: 'blur(4px)',
           zIndex: 1000,
           display: 'flex',
@@ -863,7 +863,7 @@ export default function PrivacyPolicyPage({ go }) {
             borderRadius: '16px',
             width: '100%',
             maxWidth: '500px',
-            boxShadow: '0 24px 48px rgba(0,0,0,0.1)',
+            boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
             overflow: 'hidden',
           }}>
             <div style={{ padding: '32px', borderBottom: `1px solid ${T.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -874,7 +874,7 @@ export default function PrivacyPolicyPage({ go }) {
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6 6 18M6 6l12 12"/></svg>
               </button>
             </div>
-            
+
             <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
                 <div>
@@ -895,9 +895,9 @@ export default function PrivacyPolicyPage({ go }) {
                   <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '13px', color: T.muted, lineHeight: 1.5 }}>Retains your selections such as currency and region.</p>
                 </div>
                 <label className="toggle-switch">
-                  <input 
-                    type="checkbox" 
-                    checked={consent.preferences} 
+                  <input
+                    type="checkbox"
+                    checked={consent.preferences}
                     onChange={(e) => setConsent(c => ({ ...c, preferences: e.target.checked }))}
                   />
                   <span className="slider"></span>
@@ -912,9 +912,9 @@ export default function PrivacyPolicyPage({ go }) {
                   <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: '13px', color: T.muted, lineHeight: 1.5 }}>Aggregated statistics for improving storefront performance.</p>
                 </div>
                 <label className="toggle-switch">
-                  <input 
-                    type="checkbox" 
-                    checked={consent.analytical} 
+                  <input
+                    type="checkbox"
+                    checked={consent.analytical}
                     onChange={(e) => setConsent(c => ({ ...c, analytical: e.target.checked }))}
                   />
                   <span className="slider"></span>
@@ -923,7 +923,7 @@ export default function PrivacyPolicyPage({ go }) {
             </div>
 
             <div style={{ padding: '24px 32px', background: T.bgAlt, borderTop: `1px solid ${T.border}`, display: 'flex', justifyContent: 'flex-end', gap: '16px' }}>
-              <button 
+              <button
                 onClick={() => setCookieModalOpen(false)}
                 style={{ background: 'none', border: 'none', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 600, color: T.muted, cursor: 'pointer' }}
               >
@@ -932,7 +932,7 @@ export default function PrivacyPolicyPage({ go }) {
               <button
                 onClick={handleSaveCookies}
                 style={{
-                  background: T.espresso, color: '#FFF', border: 'none', padding: '12px 24px', borderRadius: '4px',
+                  background: T.espresso, color: 'var(--color-primary-contrast)', border: 'none', padding: '12px 24px', borderRadius: '4px',
                   fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 600, cursor: 'pointer'
                 }}
               >
@@ -951,13 +951,13 @@ export default function PrivacyPolicyPage({ go }) {
           left: '50%',
           transform: 'translateX(-50%)',
           background: T.espresso,
-          color: '#FFF',
+          color: 'var(--color-primary-contrast)',
           padding: '12px 24px',
           borderRadius: '30px',
           fontFamily: 'var(--font-sans)',
           fontSize: '13px',
           fontWeight: 500,
-          boxShadow: '0 12px 24px rgba(35,30,27,0.2)',
+          boxShadow: '0 12px 24px rgba(0,0,0,0.25)',
           zIndex: 2000,
           animation: 'slideUpFade 0.3s cubic-bezier(0.4,0,0.2,1) forwards',
         }}>

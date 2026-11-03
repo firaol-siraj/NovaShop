@@ -1,70 +1,17 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import AccountLayout from '../components/account/AccountLayout';
 import { useAuth } from '../context/AuthContext';
-
-const SETTINGS_KEY = 'novashop_user_settings';
-
-const defaultSettings = {
-  language: 'English (US)',
-  currency: 'USD ($)',
-  notifications: {
-    orderUpdates: true,
-    deliveryUpdates: true,
-    promotionalEmails: false,
-  },
-};
+import { userApi } from '../lib/api/userApi';
+import { ThemeToggle } from '../context/ThemeContext';
 
 const languageOptions = ['English (US)', 'English (UK)', 'Amharic (አማርኛ)', 'French', 'Arabic'];
 const currencyOptions = ['USD ($)', 'ETB (Br)', 'EUR (€)', 'GBP (£)'];
 
-function readSettings() {
-  try {
-    const stored = localStorage.getItem(SETTINGS_KEY);
-    if (!stored) {
-      return { ...defaultSettings, notifications: { ...defaultSettings.notifications } };
-    }
-
-    const parsed = JSON.parse(stored);
-    return {
-      ...defaultSettings,
-      ...parsed,
-      notifications: {
-        ...defaultSettings.notifications,
-        ...(parsed?.notifications || {}),
-      },
-    };
-  } catch (error) {
-    console.warn('Unable to read settings', error);
-    return { ...defaultSettings, notifications: { ...defaultSettings.notifications } };
-  }
-}
-
-function persistSettings(nextSettings) {
-  try {
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify(nextSettings));
-    window.dispatchEvent(new CustomEvent('novashop:settings-updated', { detail: nextSettings }));
-    return true;
-  } catch (error) {
-    console.warn('Unable to persist settings', error);
-    return false;
-  }
-}
-
-function getCurrencyFooterLabel(currencyValue) {
-  const normalized = currencyValue || defaultSettings.currency;
-
-  if (normalized.includes('USD')) return 'Ethiopia (USD $)';
-  if (normalized.includes('ETB')) return 'Ethiopia (ETB Br)';
-  if (normalized.includes('EUR')) return 'Ethiopia (EUR €)';
-  if (normalized.includes('GBP')) return 'Ethiopia (GBP £)';
-  return 'Ethiopia (USD $)';
-}
-
-function UserIcon() {
+function PaletteIcon() {
   return (
-    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
-      <circle cx="12" cy="7" r="4" />
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 3a9 9 0 0 0 0 18v-9Z" />
     </svg>
   );
 }
@@ -143,8 +90,9 @@ function EyeToggleIcon({ visible }) {
   );
 }
 
-function ToggleSwitch({ checked, onChange, label }) {
+function ToggleSwitch({ checked, onChange, label, disabled }) {
   const handleKeyDown = (event) => {
+    if (disabled) return;
     if (event.key === 'Enter' || event.key === ' ') {
       event.preventDefault();
       onChange(!checked);
@@ -157,7 +105,8 @@ function ToggleSwitch({ checked, onChange, label }) {
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      onClick={() => onChange(!checked)}
+      disabled={disabled}
+      onClick={() => !disabled && onChange(!checked)}
       onKeyDown={handleKeyDown}
       style={{
         position: 'relative',
@@ -166,10 +115,10 @@ function ToggleSwitch({ checked, onChange, label }) {
         border: 'none',
         borderRadius: '999px',
         padding: 0,
-        background: checked ? '#1B1816' : '#D5CDC2',
-        cursor: 'pointer',
+        background: checked ? 'var(--color-primary)' : 'var(--border-strong)',
+        cursor: disabled ? 'not-allowed' : 'pointer',
         transition: 'background 200ms ease',
-        boxShadow: checked ? 'inset 0 0 0 1px rgba(27,24,22,0.08)' : 'inset 0 0 0 1px rgba(27,24,22,0.08)',
+        opacity: disabled ? 0.6 : 1,
       }}
       className="ns-toggle-switch"
     >
@@ -181,10 +130,9 @@ function ToggleSwitch({ checked, onChange, label }) {
           width: '18px',
           height: '18px',
           borderRadius: '50%',
-          background: '#fff',
-          boxShadow: '0 2px 8px rgba(27,24,22,0.12)',
+          background: 'var(--bg-main)',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
           transition: 'left 200ms ease',
-          transform: 'translateZ(0)',
         }}
       />
     </button>
@@ -193,24 +141,64 @@ function ToggleSwitch({ checked, onChange, label }) {
 
 export default function SettingsPage({ go, currentPath }) {
   const { user, isLoading, logout } = useAuth();
-  const [settings, setSettings] = useState(() => readSettings());
+  const [settings, setSettings] = useState({
+    language: 'English (US)',
+    currency: 'USD ($)',
+    notifications: {
+      orderUpdates: true,
+      deliveryUpdates: true,
+      promotionalEmails: false,
+    },
+  });
+  const [settingsLoading, setSettingsLoading] = useState(true);
+  const [updatingKey, setUpdatingKey] = useState(null);
   const [toast, setToast] = useState('');
   const [activeMenu, setActiveMenu] = useState(null);
+
+  // Password Modal State
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [passwordForm, setPasswordForm] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' });
   const [passwordErrors, setPasswordErrors] = useState({});
   const [showPassword, setShowPassword] = useState({ current: false, new: false, confirm: false });
   const [isPasswordSaving, setIsPasswordSaving] = useState(false);
+
+  // Delete Account State
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deletePassword, setDeletePassword] = useState('');
   const [isDeletingAccount, setIsDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  const fetchSettings = useCallback(async () => {
+    setSettingsLoading(true);
+    try {
+      const res = await userApi.getSettings();
+      if (res.success && res.data) {
+        setSettings({
+          language: res.data.language || 'English (US)',
+          currency: res.data.currency || 'USD ($)',
+          notifications: {
+            orderUpdates: res.data.notifications?.orderUpdates ?? true,
+            deliveryUpdates: res.data.notifications?.deliveryUpdates ?? true,
+            promotionalEmails: res.data.notifications?.promotionalEmails ?? false,
+          },
+        });
+      }
+    } catch (err) {
+      console.warn('Unable to load settings from server:', err);
+    } finally {
+      setSettingsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!isLoading && !user) {
       sessionStorage.setItem('novashop_redirect_after_login', '/account/settings');
       go('/login');
     }
-  }, [go, isLoading, user]);
+    if (user) {
+      fetchSettings();
+    }
+  }, [go, isLoading, user, fetchSettings]);
 
   useEffect(() => {
     if (!toast) return undefined;
@@ -248,51 +236,67 @@ export default function SettingsPage({ go, currentPath }) {
     setActiveMenu((current) => (current === type ? null : type));
   };
 
-  const handleSelectOption = (key, value) => {
+  const handleSelectOption = async (key, value) => {
     const nextSettings = {
       ...settings,
       [key]: value,
     };
-
     setSettings(nextSettings);
-    const saved = persistSettings(nextSettings);
-    if (!saved) {
-      showToast('Could not save preference');
-      return;
+    setActiveMenu(null);
+
+    try {
+      localStorage.setItem('novashop_user_settings', JSON.stringify(nextSettings));
+      window.dispatchEvent(new CustomEvent('novashop:settings-updated', { detail: nextSettings }));
+    } catch {
+      // ignore
     }
 
-    setActiveMenu(null);
-    showToast(key === 'language' ? 'Language updated' : 'Currency updated');
+    try {
+      await userApi.updateSettings({ [key]: value });
+      showToast(key === 'language' ? 'Language preference updated' : 'Currency preference updated');
+    } catch (err) {
+      showToast('Could not save preference to server');
+    }
   };
 
-  const handleToggleNotification = (key) => {
+  const handleToggleNotification = async (key) => {
+    const nextVal = !settings.notifications[key];
     const nextSettings = {
       ...settings,
       notifications: {
         ...settings.notifications,
-        [key]: !settings.notifications[key],
+        [key]: nextVal,
       },
     };
 
     setSettings(nextSettings);
+    setUpdatingKey(key);
 
-    const didPersist = persistSettings(nextSettings);
-    if (!didPersist) {
+    try {
+      await userApi.updateSettings({
+        notifications: {
+          ...nextSettings.notifications,
+        },
+      });
+      showToast('Notification preference saved');
+    } catch (err) {
+      // Revert on error
       setSettings(settings);
-      showToast('Preferences could not be saved');
-      return;
+      showToast('Failed to save preference');
+    } finally {
+      setUpdatingKey(null);
     }
-
-    showToast('Preferences saved');
   };
 
-  const handlePasswordSubmit = () => {
+  const handlePasswordSubmit = async () => {
     const nextErrors = {};
     if (!passwordForm.currentPassword.trim()) nextErrors.currentPassword = 'Current password is required.';
     if (!passwordForm.newPassword.trim()) {
       nextErrors.newPassword = 'New password is required.';
     } else if (passwordForm.newPassword.trim().length < 8) {
       nextErrors.newPassword = 'New password must be at least 8 characters.';
+    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(passwordForm.newPassword)) {
+      nextErrors.newPassword = 'Password must include uppercase, lowercase, and a number.';
     } else if (passwordForm.newPassword === passwordForm.currentPassword && passwordForm.currentPassword.trim()) {
       nextErrors.newPassword = 'Choose a new password that differs from your current one.';
     }
@@ -307,44 +311,52 @@ export default function SettingsPage({ go, currentPath }) {
     if (Object.keys(nextErrors).length > 0) return;
 
     setIsPasswordSaving(true);
-    setTimeout(() => {
+    try {
+      const res = await userApi.updatePassword({
+        currentPassword: passwordForm.currentPassword,
+        newPassword: passwordForm.newPassword,
+      });
+
+      if (res.success) {
+        setIsPasswordModalOpen(false);
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+        setPasswordErrors({});
+        setShowPassword({ current: false, new: false, confirm: false });
+        showToast('Password updated successfully');
+      } else {
+        throw new Error(res.message || 'Failed to update password');
+      }
+    } catch (err) {
+      const msg = err.response?.data?.message || err.message || 'Error updating password';
+      setPasswordErrors({ currentPassword: msg });
+    } finally {
       setIsPasswordSaving(false);
-      setIsPasswordModalOpen(false);
-      setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
-      setPasswordErrors({});
-      setShowPassword({ current: false, new: false, confirm: false });
-      showToast('Password updated');
-    }, 500);
+    }
   };
 
-  const handleDeleteAccount = () => {
-    if (deleteConfirmText !== 'DELETE') return;
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      setDeleteError('Please enter your password to confirm deactivation.');
+      return;
+    }
 
     setIsDeletingAccount(true);
-    setTimeout(() => {
-      try {
-        localStorage.removeItem(SETTINGS_KEY);
-        localStorage.removeItem('novashop_wishlist');
-        localStorage.removeItem('novashop_cart');
-        localStorage.removeItem('novashop_orders');
-        localStorage.removeItem('novashop_current_order');
-        localStorage.removeItem('novashop_default_address');
-      } catch (error) {
-        console.warn('Unable to clear account data', error);
+    setDeleteError('');
+    try {
+      const res = await userApi.deleteAccount({ password: deletePassword });
+      if (res.success) {
+        setDeleteDialogOpen(false);
+        setDeletePassword('');
+        await logout();
+        go('/login');
+      } else {
+        throw new Error(res.message || 'Unable to deactivate account');
       }
-
+    } catch (err) {
+      setDeleteError(err.response?.data?.message || err.message || 'Failed to deactivate account.');
+    } finally {
       setIsDeletingAccount(false);
-      setDeleteDialogOpen(false);
-      setDeleteConfirmText('');
-      window.dispatchEvent(new CustomEvent('novashop:user-updated', { detail: null }));
-      showToast('Your account has been deleted');
-      go('/');
-    }, 500);
-  };
-
-  const handleSignOut = async () => {
-    await logout();
-    go('/');
+    }
   };
 
   const sectionStyles = (delay = 0) => ({
@@ -352,70 +364,95 @@ export default function SettingsPage({ go, currentPath }) {
     animationDelay: `${delay}ms`,
   });
 
+  if (isLoading || !user) return null;
+
   return (
     <AccountLayout go={go} currentPath={currentPath || '/account/settings'}>
       <div style={{ display: 'grid', gap: '18px' }}>
-        <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: '#7A726C' }}>
-          <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#7A726C', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
-          <span style={{ margin: '0 8px', color: '#B9B1AB' }}>/</span>
-          <button type="button" onClick={() => go('/account')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: '#7A726C', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Account</button>
-          <span style={{ margin: '0 8px', color: '#B9B1AB' }}>/</span>
-          <span style={{ color: '#1B1816', fontWeight: 700 }}>Settings</span>
+        <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+          <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
+          <span style={{ margin: '0 8px', color: 'var(--text-subtle)' }}>/</span>
+          <button type="button" onClick={() => go('/account')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Account</button>
+          <span style={{ margin: '0 8px', color: 'var(--text-subtle)' }}>/</span>
+          <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>Settings</span>
         </div>
 
         <div>
-          <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(32px, 3vw, 52px)', letterSpacing: '-0.04em', fontWeight: 500, color: '#1B1816', lineHeight: 1.08 }}>Settings</h1>
-          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: '14px', color: '#6E6962', lineHeight: 1.65 }}>Manage your preferences and account settings.</p>
+          <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(32px, 3vw, 52px)', letterSpacing: '-0.04em', fontWeight: 500, color: 'var(--text-primary)', lineHeight: 1.08 }}>Settings</h1>
+          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)', lineHeight: 1.65 }}>Manage your preferences, appearance, and account security.</p>
         </div>
       </div>
 
-      <section style={{ ...sectionStyles(0), display: 'grid', gap: '22px' }}>
-        <div style={{ display: 'grid', gap: '14px' }}>
-          <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: '#1B1816', fontWeight: 500 }}>Preferences</h2>
+      <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', margin: '14px 0 20px' }} />
 
-          <div style={{ border: '1px solid rgba(27,24,22,0.12)', background: '#FDFBF7', boxShadow: '0 4px 18px rgba(17, 14, 12, 0.03)', overflow: 'hidden' }}>
-            <div style={{ position: 'relative' }}>
-              <button type="button" onClick={() => handleOptionClick('language')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', background: 'transparent', border: 'none', padding: '18px 18px 18px 20px', cursor: 'pointer', textAlign: 'left', transition: 'background 180ms ease', fontFamily: 'inherit' }} onMouseEnter={(event) => { event.currentTarget.style.background = '#F4EFE9'; }} onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent'; }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: '#F2E9DF', color: '#1B1816' }}><GlobeIcon /></span>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#1B1816', fontWeight: 500 }}>Language</span>
+      {toast && (
+        <div style={{ background: 'rgba(34, 123, 81, 0.1)', border: '1px solid var(--color-success)', borderRadius: '12px', padding: '12px 18px', fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--color-success)', marginBottom: '18px' }}>
+          {toast}
+        </div>
+      )}
+
+      {/* Preferences Section */}
+      <section style={{ ...sectionStyles(0), display: 'grid', gap: '22px', marginBottom: '26px' }}>
+        <div style={{ display: 'grid', gap: '14px' }}>
+          <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontWeight: 500 }}>Preferences & Appearance</h2>
+
+          <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: '14px', overflow: 'hidden' }}>
+            {/* Theme / Appearance Segmented Row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', padding: '18px 20px', borderBottom: '1px solid var(--border-subtle)', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: '220px' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}><PaletteIcon /></span>
+                <div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-primary)', fontWeight: 500 }}>Interface Theme</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Choose light, dark, or system match</div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6E6962' }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#6E6962' }}>{settings.language}</span>
+              </div>
+              <div>
+                <ThemeToggle variant="segmented" />
+              </div>
+            </div>
+
+            <div style={{ position: 'relative' }}>
+              <button type="button" onClick={() => handleOptionClick('language')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', background: 'transparent', border: 'none', padding: '18px 20px', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}><GlobeIcon /></span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-primary)', fontWeight: 500 }}>Language</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)' }}>{settings.language}</span>
                   <ChevronIcon />
                 </div>
               </button>
 
               {activeMenu === 'language' && (
-                <div style={{ position: 'absolute', right: '18px', top: 'calc(100% - 8px)', zIndex: 5, width: '250px', background: '#FDFBF7', border: '1px solid rgba(27,24,22,0.12)', boxShadow: '0 16px 36px rgba(17,14,12,0.08)', overflow: 'hidden' }} className="ns-settings-menu">
+                <div style={{ position: 'absolute', right: '18px', top: 'calc(100% - 8px)', zIndex: 10, width: '250px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '12px', boxShadow: '0 16px 36px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
                   {languageOptions.map((option) => (
-                    <button key={option} type="button" onClick={() => handleSelectOption('language', option)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: 'none', background: option === settings.language ? '#F2E9DF' : 'transparent', padding: '10px 12px', cursor: 'pointer', textAlign: 'left', color: '#1B1816', fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
+                    <button key={option} type="button" onClick={() => handleSelectOption('language', option)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: 'none', background: option === settings.language ? 'var(--bg-surface-sunken)' : 'transparent', padding: '10px 14px', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
                       <span>{option}</span>
-                      {option === settings.language && <span style={{ color: '#1B1816', fontWeight: 700 }}>✓</span>}
+                      {option === settings.language && <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>✓</span>}
                     </button>
                   ))}
                 </div>
               )}
             </div>
 
-            <div style={{ borderTop: '1px solid rgba(27,24,22,0.10)' }}>
-              <button type="button" onClick={() => handleOptionClick('currency')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', background: 'transparent', border: 'none', padding: '18px 18px 18px 20px', cursor: 'pointer', textAlign: 'left', transition: 'background 180ms ease', fontFamily: 'inherit' }} onMouseEnter={(event) => { event.currentTarget.style.background = '#F4EFE9'; }} onMouseLeave={(event) => { event.currentTarget.style.background = 'transparent'; }}>
+            <div style={{ borderTop: '1px solid var(--border-subtle)', position: 'relative' }}>
+              <button type="button" onClick={() => handleOptionClick('currency')} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', background: 'transparent', border: 'none', padding: '18px 20px', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: '#F2E9DF', color: '#1B1816' }}><CurrencyIcon /></span>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: '#1B1816', fontWeight: 500 }}>Currency</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}><CurrencyIcon /></span>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', color: 'var(--text-primary)', fontWeight: 500 }}>Currency</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#6E6962' }}>
-                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: '#6E6962' }}>{settings.currency}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)' }}>{settings.currency}</span>
                   <ChevronIcon />
                 </div>
               </button>
 
               {activeMenu === 'currency' && (
-                <div style={{ position: 'absolute', right: '18px', top: 'calc(100% - 8px)', zIndex: 5, width: '220px', background: '#FDFBF7', border: '1px solid rgba(27,24,22,0.12)', boxShadow: '0 16px 36px rgba(17,14,12,0.08)', overflow: 'hidden' }} className="ns-settings-menu">
+                <div style={{ position: 'absolute', right: '18px', top: 'calc(100% - 8px)', zIndex: 10, width: '220px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '12px', boxShadow: '0 16px 36px rgba(0,0,0,0.18)', overflow: 'hidden' }}>
                   {currencyOptions.map((option) => (
-                    <button key={option} type="button" onClick={() => handleSelectOption('currency', option)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: 'none', background: option === settings.currency ? '#F2E9DF' : 'transparent', padding: '10px 12px', cursor: 'pointer', textAlign: 'left', color: '#1B1816', fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
+                    <button key={option} type="button" onClick={() => handleSelectOption('currency', option)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '10px', border: 'none', background: option === settings.currency ? 'var(--bg-surface-sunken)' : 'transparent', padding: '10px 14px', cursor: 'pointer', textAlign: 'left', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '13px' }}>
                       <span>{option}</span>
-                      {option === settings.currency && <span style={{ color: '#1B1816', fontWeight: 700 }}>✓</span>}
+                      {option === settings.currency && <span style={{ color: 'var(--text-primary)', fontWeight: 700 }}>✓</span>}
                     </button>
                   ))}
                 </div>
@@ -425,188 +462,216 @@ export default function SettingsPage({ go, currentPath }) {
         </div>
       </section>
 
-      <section style={{ ...sectionStyles(50), display: 'grid', gap: '14px' }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: '#1B1816', fontWeight: 500 }}>Notifications</h2>
+      {/* Notifications Section */}
+      <section style={{ ...sectionStyles(50), display: 'grid', gap: '14px', marginBottom: '26px' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontWeight: 500 }}>Notifications</h2>
 
-        <div style={{ border: '1px solid rgba(27,24,22,0.12)', background: '#FDFBF7', boxShadow: '0 4px 18px rgba(17, 14, 12, 0.03)', overflow: 'hidden' }}>
+        <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: '14px', overflow: 'hidden' }}>
           {[
-            { key: 'orderUpdates', title: 'Order updates', description: 'Receive updates about your purchases.', active: settings.notifications.orderUpdates },
-            { key: 'deliveryUpdates', title: 'Delivery updates', description: 'Get tracking and shipping notifications.', active: settings.notifications.deliveryUpdates },
-            { key: 'promotionalEmails', title: 'Promotional emails', description: 'Receive news about new collections and seasonal edits.', active: settings.notifications.promotionalEmails },
+            { key: 'orderUpdates', title: 'Order updates', description: 'Receive email confirmations and receipts after successful payment.', active: settings.notifications.orderUpdates },
+            { key: 'deliveryUpdates', title: 'Delivery updates', description: 'Get notifications when your shipment is dispatched and out for delivery.', active: settings.notifications.deliveryUpdates },
+            { key: 'promotionalEmails', title: 'Promotional emails', description: 'Receive seasonal catalog edits and private showcase invitations.', active: settings.notifications.promotionalEmails },
           ].map((item, index) => (
-            <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '18px 18px 18px 20px', borderTop: index === 0 ? 'none' : '1px solid rgba(27,24,22,0.10)' }}>
+            <div key={item.key} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '18px 20px', borderTop: index === 0 ? 'none' : '1px solid var(--border-subtle)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', minWidth: 0 }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: '#F2E9DF', color: '#1B1816' }}><BellIcon /></span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}><BellIcon /></span>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 600, color: '#1B1816' }}>{item.title}</div>
-                  <div style={{ marginTop: '4px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#6E6962', lineHeight: 1.5 }}>{item.description}</div>
+                  <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>{item.title}</div>
+                  <div style={{ marginTop: '4px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', lineHeight: 1.5 }}>{item.description}</div>
                 </div>
               </div>
-              <ToggleSwitch checked={item.active} onChange={() => handleToggleNotification(item.key)} label={item.title} />
+              <ToggleSwitch checked={item.active} onChange={() => handleToggleNotification(item.key)} label={item.title} disabled={updatingKey === item.key} />
             </div>
           ))}
-        </div>
-      </section>
-
-      <section style={{ ...sectionStyles(100), display: 'grid', gap: '14px' }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: '#1B1816', fontWeight: 500 }}>Security</h2>
-
-        <div style={{ border: '1px solid rgba(27,24,22,0.12)', background: '#FDFBF7', boxShadow: '0 4px 18px rgba(17, 14, 12, 0.03)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', padding: '18px 18px 18px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: '#F2E9DF', color: '#1B1816' }}><LockIcon /></span>
-              <div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 600, color: '#1B1816' }}>Password</div>
-                <div style={{ marginTop: '4px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#6E6962', lineHeight: 1.5 }}>Change your password and manage account credentials.</div>
-              </div>
-            </div>
-
-            <button type="button" onClick={() => setIsPasswordModalOpen(true)} style={{ background: 'transparent', border: 'none', padding: 0, color: '#1B1816', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', cursor: 'pointer' }}>Update <ChevronIcon direction="right" /></button>
+          <div style={{ padding: '14px 20px', background: 'var(--bg-surface-sunken)', borderTop: '1px solid var(--border-subtle)', fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-muted)', lineHeight: 1.5 }}>
+            <strong style={{ color: 'var(--text-primary)' }}>Note:</strong> Security notifications (such as password changes, account deactivation, and verification alerts) are always sent to protect your account regardless of notification settings.
           </div>
         </div>
       </section>
 
+      {/* Security & Password Section */}
+      <section style={{ ...sectionStyles(100), display: 'grid', gap: '14px', marginBottom: '26px' }}>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: 'var(--text-primary)', fontWeight: 500 }}>Security</h2>
+
+        <div style={{ border: '1px solid var(--border-default)', background: 'var(--bg-surface)', borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'var(--bg-surface-sunken)', color: 'var(--text-primary)' }}><LockIcon /></span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 600, color: 'var(--text-primary)' }}>Account Password</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>Change your password to keep your account safe.</div>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsPasswordModalOpen(true)}
+            style={{ border: '1px solid var(--border-default)', background: 'transparent', color: 'var(--text-primary)', borderRadius: '999px', padding: '10px 18px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}
+          >
+            Change Password
+          </button>
+        </div>
+      </section>
+
+      {/* Danger Zone: Deactivate Account */}
       <section style={{ ...sectionStyles(150), display: 'grid', gap: '14px' }}>
-        <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: '#1B1816', fontWeight: 500 }}>Account</h2>
+        <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '21px', letterSpacing: '-0.02em', color: 'var(--color-danger)', fontWeight: 500 }}>Danger Zone</h2>
 
-        <div style={{ border: '1px solid rgba(27,24,22,0.12)', background: '#FDFBF7', boxShadow: '0 4px 18px rgba(17, 14, 12, 0.03)', overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', padding: '18px 18px 18px 20px' }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: '#FBE7E4', color: '#B7413F' }}><WarningIcon /></span>
-              <div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 600, color: '#1B1816' }}>Delete account</div>
-                <div style={{ marginTop: '4px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#6E6962', lineHeight: 1.5 }}>Permanently delete your account and all associated data. This action is irreversible.</div>
+        <div style={{ border: '1px solid rgba(217, 83, 79, 0.3)', background: 'rgba(217, 83, 79, 0.05)', borderRadius: '14px', padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(217, 83, 79, 0.15)', color: 'var(--color-danger)' }}><WarningIcon /></span>
+            <div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '15px', fontWeight: 600, color: 'var(--color-danger)' }}>Deactivate Account</div>
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                You will be signed out and unable to log in. Your order history is kept for our records. You can reactivate by logging in again.
               </div>
             </div>
-
-            <button type="button" onClick={() => setDeleteDialogOpen(true)} style={{ background: '#FCE7E7', border: '1px solid rgba(183,65,63,0.20)', color: '#B7413F', borderRadius: '999px', padding: '12px 14px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600, transition: 'background 180ms ease' }} onMouseEnter={(event) => { event.currentTarget.style.background = '#F9DCDC'; }} onMouseLeave={(event) => { event.currentTarget.style.background = '#FCE7E7'; }}>Delete account</button>
           </div>
+
+          {user.role === 'admin' ? (
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-muted)', fontStyle: 'italic' }}>
+              Admin accounts cannot be deactivated from the customer settings page.
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDeleteDialogOpen(true)}
+              style={{ border: '1px solid var(--color-danger)', background: 'transparent', color: 'var(--color-danger)', borderRadius: '999px', padding: '10px 18px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}
+            >
+              Deactivate Account
+            </button>
+          )}
         </div>
       </section>
 
-      {toast && (
-        <div style={{ position: 'fixed', right: '24px', bottom: '24px', zIndex: 120, background: '#1B1816', color: '#FDFBF7', padding: '12px 16px', borderRadius: '10px', fontFamily: 'var(--font-sans)', fontSize: '12px', boxShadow: '0 18px 40px rgba(17,14,12,0.16)' }}>
-          {toast}
-        </div>
-      )}
-
+      {/* Password Modal */}
       {isPasswordModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,14,12,0.42)', display: 'grid', placeItems: 'center', zIndex: 100 }} onClick={() => setIsPasswordModalOpen(false)}>
-          <div style={{ width: 'min(520px, calc(100vw - 24px))', background: '#FDFBF7', border: '1px solid rgba(27,24,22,0.12)', boxShadow: '0 28px 60px rgba(17,14,12,0.20)', padding: '22px 22px 18px', position: 'relative', animation: 'nsModalSlide 250ms ease both' }} onClick={(event) => event.stopPropagation()}>
-            <button type="button" aria-label="Close password modal" onClick={() => setIsPasswordModalOpen(false)} style={{ position: 'absolute', top: '14px', right: '14px', background: 'transparent', border: 'none', color: '#5F5853', cursor: 'pointer', fontSize: '20px', lineHeight: 1, width: '28px', height: '28px', display: 'grid', placeItems: 'center' }}>×</button>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', marginBottom: '18px', color: '#1B1816' }}>Update password</div>
-
-            <div style={{ display: 'grid', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#4C4743', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Current password</label>
-                <div style={{ position: 'relative' }}>
-                  <input type={showPassword.current ? 'text' : 'password'} value={passwordForm.currentPassword} onChange={(event) => setPasswordForm({ ...passwordForm, currentPassword: event.target.value })} style={{ width: '100%', border: passwordErrors.currentPassword ? '1px solid #C95D52' : '1px solid rgba(27,24,22,0.14)', background: '#F7F2EA', color: '#1B1816', borderRadius: '10px', padding: '14px 42px 14px 14px', fontSize: '14px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
-                  <button type="button" onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#5F5853', cursor: 'pointer' }} aria-label="Toggle current password visibility"><EyeToggleIcon visible={showPassword.current} /></button>
-                </div>
-                {passwordErrors.currentPassword && <div style={{ marginTop: '6px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#B7413F' }}>{passwordErrors.currentPassword}</div>}
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#4C4743', letterSpacing: '0.08em', textTransform: 'uppercase' }}>New password</label>
-                <div style={{ position: 'relative' }}>
-                  <input type={showPassword.new ? 'text' : 'password'} value={passwordForm.newPassword} onChange={(event) => setPasswordForm({ ...passwordForm, newPassword: event.target.value })} style={{ width: '100%', border: passwordErrors.newPassword ? '1px solid #C95D52' : '1px solid rgba(27,24,22,0.14)', background: '#F7F2EA', color: '#1B1816', borderRadius: '10px', padding: '14px 42px 14px 14px', fontSize: '14px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
-                  <button type="button" onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#5F5853', cursor: 'pointer' }} aria-label="Toggle new password visibility"><EyeToggleIcon visible={showPassword.new} /></button>
-                </div>
-                <div style={{ marginTop: '10px', display: 'grid', gap: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#6E6962' }}>
-                    <span>Password strength</span>
-                    <span style={{ color: passwordStrength.tone }}>{passwordStrength.label}</span>
-                  </div>
-                  <div style={{ height: '6px', borderRadius: '999px', background: '#E5DDD2', overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: passwordStrength.width, background: passwordStrength.tone, transition: 'width 200ms ease' }} />
-                  </div>
-                </div>
-                {passwordErrors.newPassword && <div style={{ marginTop: '6px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#B7413F' }}>{passwordErrors.newPassword}</div>}
-              </div>
-
-              <div>
-                <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#4C4743', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Confirm new password</label>
-                <div style={{ position: 'relative' }}>
-                  <input type={showPassword.confirm ? 'text' : 'password'} value={passwordForm.confirmPassword} onChange={(event) => setPasswordForm({ ...passwordForm, confirmPassword: event.target.value })} style={{ width: '100%', border: passwordErrors.confirmPassword ? '1px solid #C95D52' : '1px solid rgba(27,24,22,0.14)', background: '#F7F2EA', color: '#1B1816', borderRadius: '10px', padding: '14px 42px 14px 14px', fontSize: '14px', fontFamily: 'var(--font-sans)', outline: 'none' }} />
-                  <button type="button" onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })} style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: '#5F5853', cursor: 'pointer' }} aria-label="Toggle confirm password visibility"><EyeToggleIcon visible={showPassword.confirm} /></button>
-                </div>
-                {passwordErrors.confirmPassword && <div style={{ marginTop: '6px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#B7413F' }}>{passwordErrors.confirmPassword}</div>}
-              </div>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={() => setIsPasswordModalOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(480px, 100%)', background: 'var(--bg-surface)', borderRadius: '20px', border: '1px solid var(--border-default)', padding: '24px', boxShadow: '0 20px 48px rgba(0,0,0,0.25)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '26px', color: 'var(--text-primary)', fontWeight: 500 }}>Change Password</h3>
+              <button type="button" onClick={() => setIsPasswordModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'var(--text-primary)', padding: 0 }}>×</button>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-              <button type="button" onClick={() => setIsPasswordModalOpen(false)} style={{ background: 'transparent', border: 'none', color: '#1B1816', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', padding: '12px 8px' }}>Cancel</button>
-              <button type="button" onClick={handlePasswordSubmit} disabled={isPasswordSaving} style={{ background: '#1B1816', color: '#FDFBF7', border: 'none', borderRadius: '999px', padding: '14px 18px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer', minWidth: '180px', opacity: isPasswordSaving ? 0.75 : 1 }}>
-                {isPasswordSaving ? 'Updating...' : 'Update password'}
+            <div style={{ display: 'grid', gap: '14px' }}>
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Current Password</span>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword.current ? 'text' : 'password'}
+                    value={passwordForm.currentPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                    style={{ width: '100%', boxSizing: 'border-box', border: passwordErrors.currentPassword ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 38px 12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
+                  />
+                  <button type="button" onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })} style={{ position: 'absolute', right: '12px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
+                    <EyeToggleIcon visible={showPassword.current} />
+                  </button>
+                </div>
+                {passwordErrors.currentPassword && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{passwordErrors.currentPassword}</span>}
+              </label>
+
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>New Password</span>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword.new ? 'text' : 'password'}
+                    value={passwordForm.newPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                    style={{ width: '100%', boxSizing: 'border-box', border: passwordErrors.newPassword ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 38px 12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
+                  />
+                  <button type="button" onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })} style={{ position: 'absolute', right: '12px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
+                    <EyeToggleIcon visible={showPassword.new} />
+                  </button>
+                </div>
+                {passwordErrors.newPassword && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{passwordErrors.newPassword}</span>}
+                {passwordForm.newPassword && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <div style={{ flex: 1, height: '4px', background: 'var(--bg-surface-sunken)', borderRadius: '999px', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: passwordStrength.width, background: passwordStrength.tone, transition: 'width 200ms ease' }} />
+                    </div>
+                    <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', color: passwordStrength.tone, fontWeight: 600 }}>{passwordStrength.label}</span>
+                  </div>
+                )}
+              </label>
+
+              <label style={{ display: 'grid', gap: '6px' }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Confirm New Password</span>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPassword.confirm ? 'text' : 'password'}
+                    value={passwordForm.confirmPassword}
+                    onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                    style={{ width: '100%', boxSizing: 'border-box', border: passwordErrors.confirmPassword ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 38px 12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
+                  />
+                  <button type="button" onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })} style={{ position: 'absolute', right: '12px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
+                    <EyeToggleIcon visible={showPassword.confirm} />
+                  </button>
+                </div>
+                {passwordErrors.confirmPassword && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{passwordErrors.confirmPassword}</span>}
+              </label>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '14px', marginTop: '22px' }}>
+              <button type="button" onClick={() => setIsPasswordModalOpen(false)} disabled={isPasswordSaving} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
+              <button type="button" onClick={handlePasswordSubmit} disabled={isPasswordSaving} style={{ background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', border: 'none', borderRadius: '999px', padding: '12px 20px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: isPasswordSaving ? 'not-allowed' : 'pointer', opacity: isPasswordSaving ? 0.7 : 1 }}>
+                {isPasswordSaving ? 'Updating...' : 'Update Password'}
               </button>
             </div>
           </div>
         </div>
       )}
 
+      {/* Deactivate Account Modal */}
       {deleteDialogOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(17,14,12,0.46)', display: 'grid', placeItems: 'center', zIndex: 110 }} onClick={() => setDeleteDialogOpen(false)}>
-          <div style={{ width: 'min(540px, calc(100vw - 24px))', background: '#FDFBF7', border: '1px solid rgba(27,24,22,0.12)', boxShadow: '0 28px 60px rgba(17,14,12,0.2)', padding: '22px 22px 18px', animation: 'nsModalSlide 250ms ease both' }} onClick={(event) => event.stopPropagation()}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '8px' }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: '28px', color: '#1B1816' }}>Delete your account?</div>
-              <button type="button" onClick={() => setDeleteDialogOpen(false)} style={{ background: 'transparent', border: 'none', color: '#5F5853', fontSize: '20px', cursor: 'pointer', width: '28px', height: '28px', display: 'grid', placeItems: 'center' }} aria-label="Close delete account modal">×</button>
-            </div>
-
-            <p style={{ margin: '0 0 18px', fontFamily: 'var(--font-sans)', fontSize: '14px', lineHeight: 1.7, color: '#5F5853' }}>
-              This will permanently remove your orders history, saved addresses, wishlist, and profile data. This action cannot be undone.
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={() => setDeleteDialogOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 100%)', background: 'var(--bg-surface)', borderRadius: '20px', border: '1px solid var(--border-default)', padding: '24px', boxShadow: '0 20px 48px rgba(0,0,0,0.25)' }}>
+            <h3 style={{ margin: '0 0 10px', fontFamily: 'var(--font-serif)', fontSize: '24px', color: 'var(--color-danger)', fontWeight: 500 }}>Deactivate Account</h3>
+            <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+              You will be signed out and unable to log in. Your order history is kept for our records. You can reactivate by logging in again.
             </p>
 
-            <label style={{ display: 'block', marginBottom: '8px', fontFamily: 'var(--font-sans)', fontSize: '12px', color: '#4C4743', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Type DELETE to confirm</label>
-            <input type="text" value={deleteConfirmText} onChange={(event) => setDeleteConfirmText(event.target.value)} style={{ width: '100%', border: '1px solid rgba(27,24,22,0.14)', background: '#F7F2EA', color: '#1B1816', borderRadius: '10px', padding: '14px', fontSize: '14px', fontFamily: 'var(--font-sans)', outline: 'none', marginBottom: '18px' }} />
+            <label style={{ display: 'grid', gap: '6px', marginBottom: '14px' }}>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Confirm Password</span>
+              <input
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                placeholder="Enter your current password"
+                style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
+              />
+            </label>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
-              <button type="button" onClick={() => { setDeleteDialogOpen(false); setDeleteConfirmText(''); }} style={{ background: 'transparent', border: 'none', color: '#1B1816', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.15em', textTransform: 'uppercase', padding: '12px 8px' }}>Cancel</button>
-              <button type="button" disabled={deleteConfirmText !== 'DELETE' || isDeletingAccount} onClick={handleDeleteAccount} style={{ background: deleteConfirmText === 'DELETE' && !isDeletingAccount ? '#B7413F' : '#E6C2C0', color: deleteConfirmText === 'DELETE' && !isDeletingAccount ? '#FDFBF7' : '#9E6F6D', border: 'none', borderRadius: '999px', padding: '14px 18px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: deleteConfirmText === 'DELETE' && !isDeletingAccount ? 'pointer' : 'not-allowed', minWidth: '180px' }}>
-                {isDeletingAccount ? 'Deleting...' : 'Delete account'}
+            {deleteError && (
+              <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--color-danger)', marginBottom: '14px', padding: '8px 12px', background: 'rgba(217, 83, 79, 0.1)', borderRadius: '8px' }}>
+                {deleteError}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '14px' }}>
+              <button type="button" onClick={() => { setDeleteDialogOpen(false); setDeletePassword(''); setDeleteError(''); }} disabled={isDeletingAccount} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
+              <button
+                type="button"
+                onClick={handleDeleteAccount}
+                disabled={!deletePassword || isDeletingAccount}
+                style={{
+                  background: 'var(--color-danger)',
+                  color: 'var(--color-primary-contrast)',
+                  border: 'none',
+                  borderRadius: '999px',
+                  padding: '12px 18px',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: '10px',
+                  letterSpacing: '0.14em',
+                  textTransform: 'uppercase',
+                  cursor: deletePassword && !isDeletingAccount ? 'pointer' : 'not-allowed',
+                  opacity: deletePassword && !isDeletingAccount ? 1 : 0.5,
+                }}
+              >
+                {isDeletingAccount ? 'Deactivating...' : 'Confirm Deactivation'}
               </button>
             </div>
           </div>
         </div>
       )}
-
-      <style>{`
-        .ns-toggle-switch:focus-visible,
-        .ns-settings-menu button:focus-visible,
-        button:focus-visible,
-        input:focus-visible {
-          outline: 2px solid rgba(27,24,22,0.7);
-          outline-offset: 2px;
-        }
-
-        @keyframes nsSettingsFade {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        @keyframes nsModalSlide {
-          from { opacity: 0; transform: translateY(18px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        @media (max-width: 1023px) {
-          .ns-settings-menu {
-            left: 14px !important;
-            right: 14px !important;
-            width: auto !important;
-            top: auto !important;
-            bottom: 14px !important;
-          }
-        }
-
-        @media (max-width: 767px) {
-          .ns-settings-menu {
-            left: 12px !important;
-            right: 12px !important;
-            width: auto !important;
-            bottom: 12px !important;
-          }
-        }
-      `}</style>
     </AccountLayout>
   );
 }

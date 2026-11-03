@@ -1,418 +1,1070 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
-import { useCategories } from '../../context/CategoryContext';
+import adminApi from '../../lib/api/adminApi';
 import { productApi } from '../../lib/api/productApi';
 import './admin-product-edit.css';
 
-const originalVariants = [
-  { id: 'camel-s', color: 'Camel', size: 'S', sku: 'NS-OC-0142-CAM-S', stock: 14, price: '1450.00', shade: '#B99C78' },
-  { id: 'camel-m', color: 'Camel', size: 'M', sku: 'NS-OC-0142-CAM-M', stock: 18, price: '1450.00', shade: '#B99C78' },
-  { id: 'camel-l', color: 'Camel', size: 'L', sku: 'NS-OC-0142-CAM-L', stock: 12, price: '1450.00', shade: '#B99C78' },
-  { id: 'black-s', color: 'Black', size: 'S', sku: 'NS-OC-0142-BLK-S', stock: 16, price: '1450.00', shade: '#272624' },
-  { id: 'black-m', color: 'Black', size: 'M', sku: 'NS-OC-0142-BLK-M', stock: 22, price: '1450.00', shade: '#272624' },
-  { id: 'black-l', color: 'Black', size: 'L', stock: 2, price: '1450.00', shade: '#272624' },
-];
-
-const originalMedia = [
-  'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?auto=format&fit=crop&w=420&q=80',
-  'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?auto=format&fit=crop&w=420&q=80',
-  'https://images.unsplash.com/photo-1548126032-079a0fb0099d?auto=format&fit=crop&w=420&q=80',
-  'https://images.unsplash.com/photo-1591369822096-ffd140ec948f?auto=format&fit=crop&w=420&q=80',
-  'https://images.unsplash.com/photo-1551488831-00ddcb6c6bd3?auto=format&fit=crop&w=420&q=80',
-];
-
-function createInitialForm(isCreate = false) {
+function createInitialForm(isCreate = true) {
   return {
-    name: isCreate ? '' : 'Cashmere Overcoat',
-    description: isCreate ? '' : 'Double-faced cashmere overcoat with a notch lapel and concealed button closure. Fully lined.',
-    price: isCreate ? '' : '1450.00',
-    compareAt: isCreate ? '' : '1650.00',
-    cost: isCreate ? '' : '620.00',
-    sku: isCreate ? '' : 'NS-OC-0142',
-    lowStock: '10',
-    trackQuantity: !isCreate,
-    status: isCreate ? 'Draft' : 'Active',
+    name: '',
+    description: '',
+    price: '',
+    brand: 'NovaShop',
+    sku: 'NS-PRD',
+    status: 'active',
     category: '',
-    collections: isCreate ? [] : ['Autumn Winter', 'Best Sellers'],
-    tags: isCreate ? [] : ['cashmere', 'coat'],
-    variants: isCreate ? [] : originalVariants.map((variant) => ({ ...variant })),
-    options: isCreate ? [] : [{ name: 'Color', values: ['Camel', 'Black'] }, { name: 'Size', values: ['S', 'M', 'L'] }],
-    media: isCreate ? [] : originalMedia.map((src, index) => ({ id: `media-${index}`, src })),
+    variants: [],
+    media: [],
     stock: '0',
-    handle: isCreate ? '' : 'cashmere-overcoat',
-    metaTitle: isCreate ? '' : 'Cashmere Overcoat | NovaShop',
-    metaDescription: isCreate ? '' : 'A double-faced cashmere overcoat with a refined tailored fit.',
-    notes: isCreate ? '' : 'Autumn Winter campaign hero garment.',
-    barcode: '',
   };
 }
 
-function EditorCard({ title, tag, right, children, className = '' }) {
-  return <section className={`admin-card pe-card ${className}`}><header className="pe-card-heading"><h2>{title}</h2>{right || (tag && <span className="pe-card-tag">{tag}</span>)}</header>{children}</section>;
+function EditorCard({ title, subtitle, tag, right, children, className = '' }) {
+  return (
+    <section className={`pe-card ${className}`}>
+      <header className="pe-card-header">
+        <div>
+          <h2 className="pe-card-title">{title}</h2>
+          {subtitle && <p className="pe-card-subtitle">{subtitle}</p>}
+        </div>
+        <div className="pe-card-header-actions">
+          {tag && <span className="pe-card-tag">{tag}</span>}
+          {right}
+        </div>
+      </header>
+      <div className="pe-card-body">{children}</div>
+    </section>
+  );
 }
 
-function ProductTagField({ label, tags, onRemove, onAdd, placeholder = 'Add tag…' }) {
-  const [value, setValue] = useState('');
+function VariantEditorModal({ variant, onClose, onSave }) {
+  const [sku, setSku] = useState(variant.sku || '');
+  const [price, setPrice] = useState(variant.price ?? '');
+  const [stock, setStock] = useState(String(variant.stock ?? 0));
+  const [colorName, setColorName] = useState(
+    typeof variant.color === 'object' ? variant.color?.name || '' : variant.color || ''
+  );
+  const [colorHex, setColorHex] = useState(
+    typeof variant.color === 'object' ? variant.color?.hex || '#000000' : '#000000'
+  );
+  const [size, setSize] = useState(variant.size || '');
+
   const submit = (event) => {
-    if (event.key !== 'Enter') return;
     event.preventDefault();
-    const next = value.trim();
-    if (next) onAdd(next);
-    setValue('');
+    onSave({
+      ...variant,
+      sku: sku.trim().toUpperCase(),
+      size: size.trim().toUpperCase(),
+      color: { name: colorName.trim(), hex: colorHex },
+      price: price !== '' ? Number(price) : null,
+      stock: Math.max(0, parseInt(stock, 10) || 0),
+    });
   };
-  return <label className="pe-field pe-tag-field"><span>{label}</span><div className="pe-tag-input">{tags.map((tag) => <span className="pe-removable-tag" key={tag}>{tag}<button type="button" aria-label={`Remove ${tag}`} onClick={() => onRemove(tag)}>×</button></span>)}<input value={value} onChange={(event) => setValue(event.target.value)} onKeyDown={submit} placeholder={placeholder} /></div></label>;
+
+  return (
+    <div
+      className="pe-modal-backdrop"
+      role="presentation"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <section
+        className="pe-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pe-variant-title"
+      >
+        <header className="pe-modal-header">
+          <div>
+            <span className="pe-modal-eyebrow">Catalog Variant</span>
+            <h2 id="pe-variant-title" className="pe-modal-title">Edit Variant</h2>
+          </div>
+          <button
+            className="pe-modal-close"
+            type="button"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <AdminIcon name="close" size={16} />
+          </button>
+        </header>
+
+        <form onSubmit={submit} className="pe-modal-form">
+          <div className="pe-form-row">
+            <label className="pe-field">
+              <span>Size</span>
+              <input
+                required
+                value={size}
+                onChange={(e) => setSize(e.target.value)}
+                placeholder="e.g. S, M, L, 42"
+              />
+            </label>
+
+            <label className="pe-field">
+              <span>Color Name & Swatch</span>
+              <div className="pe-color-input-wrap">
+                <input
+                  type="color"
+                  value={colorHex}
+                  onChange={(e) => setColorHex(e.target.value)}
+                  className="pe-color-picker"
+                  title="Pick color"
+                />
+                <input
+                  required
+                  value={colorName}
+                  onChange={(e) => setColorName(e.target.value)}
+                  placeholder="e.g. Camel, Black"
+                />
+              </div>
+            </label>
+          </div>
+
+          <label className="pe-field">
+            <span>SKU</span>
+            <input
+              required
+              value={sku}
+              onChange={(e) => setSku(e.target.value)}
+              placeholder="e.g. NS-OC-CAM-S"
+            />
+          </label>
+
+          <div className="pe-form-row">
+            <label className="pe-field">
+              <span>Price Override (Optional)</span>
+              <div className="pe-input-prefix-wrap">
+                <span className="pe-input-prefix">$</span>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="Leave blank for base price"
+                />
+              </div>
+            </label>
+
+            <label className="pe-field">
+              <span>Stock Quantity</span>
+              <input
+                required
+                type="number"
+                min="0"
+                step="1"
+                value={stock}
+                onChange={(e) => setStock(e.target.value)}
+              />
+            </label>
+          </div>
+
+          <div className="pe-modal-footer">
+            <button type="button" className="pe-action-btn is-discard" onClick={onClose}>
+              Cancel
+            </button>
+            <button className="pe-action-btn is-primary" type="submit">
+              Save Variant Changes
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
 }
 
-function VariantEditor({ variant, mode, onClose, onSave }) {
-  const [price, setPrice] = useState(variant.price);
-  const [stock, setStock] = useState(String(variant.stock));
-  const submit = (event) => {
-    event.preventDefault();
-    onSave({ ...variant, price, stock: Number(stock) });
-  };
-  return <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="admin-order-modal pe-variant-modal" role="dialog" aria-modal="true" aria-labelledby="pe-variant-title"><header className="admin-modal-heading"><div><span className="admin-modal-eyebrow">Catalog variant</span><h2 id="pe-variant-title">{mode === 'stock' ? 'Adjust stock' : 'Edit variant'}</h2></div><button className="admin-icon-button" type="button" aria-label="Close variant editor" onClick={onClose}><AdminIcon name="close" /></button></header><p>{variant.color} / {variant.size} · {variant.sku}</p><form onSubmit={submit}>{mode !== 'stock' && <label>Price<input type="number" min="0" step="0.01" value={price} onChange={(event) => setPrice(event.target.value)} /></label>}<label>Inventory quantity<input type="number" min="0" step="1" value={stock} onChange={(event) => setStock(event.target.value)} /></label><button className="admin-action-button is-primary" type="submit">Save variant</button></form></section></div>;
-}
-
-function OptionBuilder({ onClose, onCreate }) {
-  const [options, setOptions] = useState([{ name: 'Color', values: 'Camel, Black' }, { name: 'Size', values: 'S, M, L' }]);
+function OptionBuilderModal({ onClose, onCreate, initialSku = 'NS-PRD', basePrice = '0' }) {
+  const [options, setOptions] = useState([
+    { name: 'Color', values: 'Camel, Black' },
+    { name: 'Size', values: 'S, M, L' },
+  ]);
+  const [defaultStock, setDefaultStock] = useState('10');
   const [error, setError] = useState('');
-  const updateOption = (index, key, value) => setOptions((current) => current.map((option, optionIndex) => optionIndex === index ? { ...option, [key]: value } : option));
-  const submit = (event) => {
-    event.preventDefault();
-    const cleaned = options.map((option) => ({ name: option.name.trim(), values: [...new Set(option.values.split(',').map((value) => value.trim()).filter(Boolean))] })).filter((option) => option.name && option.values.length);
+
+  const updateOption = (index, key, value) =>
+    setOptions((current) =>
+      current.map((opt, i) => (i === index ? { ...opt, [key]: value } : opt))
+    );
+
+  const submit = (e) => {
+    e.preventDefault();
+    const cleaned = options
+      .map((opt) => ({
+        name: opt.name.trim(),
+        values: [
+          ...new Set(
+            opt.values
+              .split(',')
+              .map((v) => v.trim())
+              .filter(Boolean)
+          ),
+        ],
+      }))
+      .filter((opt) => opt.name && opt.values.length);
+
     if (!cleaned.length) {
-      setError('Add an option name and at least one value.');
+      setError('Add an option name and at least one comma-separated value.');
       return;
     }
-    onCreate(cleaned);
+
+    const stockQty = Math.max(0, parseInt(defaultStock, 10) || 0);
+
+    const combinations = cleaned.reduce(
+      (acc, opt) => acc.flatMap((comb) => opt.values.map((v) => [...comb, { name: opt.name, value: v }])),
+      [[]]
+    );
+
+    const colorsMap = {
+      camel: '#B99C78',
+      black: '#272624',
+      ivory: '#E8E1D6',
+      navy: '#343F50',
+      brown: '#72513D',
+      white: '#FFFFFF',
+      grey: '#808080',
+      gray: '#808080',
+      beige: '#D2B48C',
+    };
+
+    const generatedVariants = combinations.map((comb, index) => {
+      const colorOpt = comb.find((o) => o.name.toLowerCase() === 'color');
+      const sizeOpt = comb.find((o) => o.name.toLowerCase() === 'size');
+      const otherOpt = comb.find((o) => o !== colorOpt && o !== sizeOpt);
+
+      const color = colorOpt?.value || otherOpt?.value || 'Default';
+      const size = sizeOpt?.value || 'One size';
+      const code = `${color}-${size}`
+        .replace(/[^a-z0-9]+/gi, '-')
+        .replace(/^-|-$/g, '')
+        .toUpperCase();
+
+      return {
+        id: `v-gen-${Date.now()}-${index}`,
+        color: { name: color, hex: colorsMap[color.toLowerCase()] || '#000000' },
+        size,
+        sku: `${initialSku.trim() || 'NS'}-${code}`,
+        stock: stockQty,
+        price: Number(basePrice) || 0,
+      };
+    });
+
+    onCreate(generatedVariants);
   };
-  return <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="admin-order-modal pe-option-modal" role="dialog" aria-modal="true" aria-labelledby="pe-options-title"><header className="admin-modal-heading"><div><span className="admin-modal-eyebrow">Product catalog</span><h2 id="pe-options-title">Add variant options</h2></div><button className="admin-icon-button" type="button" aria-label="Close options builder" onClick={onClose}><AdminIcon name="close" /></button></header><p>Use options such as color and size to build your sellable variants.</p><form onSubmit={submit}><div className="pe-option-builder-rows">{options.map((option, index) => <div className="pe-option-builder-row" key={index}><label>Option name<input value={option.name} onChange={(event) => updateOption(index, 'name', event.target.value)} placeholder="e.g. Color" /></label><label>Values<input value={option.values} onChange={(event) => updateOption(index, 'values', event.target.value)} placeholder="Separate values with commas" /></label><button type="button" aria-label={`Remove option ${index + 1}`} disabled={options.length === 1} onClick={() => setOptions((current) => current.filter((_, optionIndex) => optionIndex !== index))}>×</button></div>)}</div>{error && <span className="pe-option-error" role="alert">{error}</span>}<button className="pe-add-option-row" type="button" onClick={() => setOptions((current) => [...current, { name: '', values: '' }])}><AdminIcon name="plus" size={13} /> Add another option</button><button className="admin-action-button is-primary" type="submit">Generate variants</button></form></section></div>;
+
+  return (
+    <div
+      className="pe-modal-backdrop"
+      role="presentation"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
+      <section
+        className="pe-modal-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pe-options-title"
+      >
+        <header className="pe-modal-header">
+          <div>
+            <span className="pe-modal-eyebrow">Product Catalog</span>
+            <h2 id="pe-options-title" className="pe-modal-title">Generate Variant Matrix</h2>
+          </div>
+          <button className="pe-modal-close" type="button" onClick={onClose} aria-label="Close">
+            <AdminIcon name="close" size={16} />
+          </button>
+        </header>
+
+        <p className="pe-modal-desc">
+          Specify option axes (such as Color and Size) to automatically generate combinations with starting stock.
+        </p>
+
+        <form onSubmit={submit} className="pe-modal-form">
+          <div className="pe-option-builder-rows">
+            {options.map((opt, i) => (
+              <div className="pe-option-builder-row" key={i}>
+                <label className="pe-field">
+                  <span>Option name</span>
+                  <input
+                    value={opt.name}
+                    onChange={(e) => updateOption(i, 'name', e.target.value)}
+                    placeholder="e.g. Color"
+                  />
+                </label>
+                <label className="pe-field">
+                  <span>Values (comma-separated)</span>
+                  <input
+                    value={opt.values}
+                    onChange={(e) => updateOption(i, 'values', e.target.value)}
+                    placeholder="Camel, Black, Navy"
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="pe-option-remove-btn"
+                  aria-label="Remove option"
+                  disabled={options.length === 1}
+                  onClick={() => setOptions((curr) => curr.filter((_, idx) => idx !== i))}
+                >
+                  <AdminIcon name="trash" size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <label className="pe-field">
+            <span>Initial Stock Per Variant</span>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              value={defaultStock}
+              onChange={(e) => setDefaultStock(e.target.value)}
+            />
+          </label>
+
+          {error && <p className="pe-form-error">{error}</p>}
+
+          <div className="pe-modal-footer between">
+            <button
+              className="pe-add-option-row"
+              type="button"
+              onClick={() => setOptions((curr) => [...curr, { name: '', values: '' }])}
+            >
+              <AdminIcon name="plus" size={13} /> Add Option Axis
+            </button>
+            <button className="pe-action-btn is-primary" type="submit">
+              Generate Variants
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+  );
 }
 
-function buildVariants(options, sku, price) {
-  const combinations = options.reduce((current, option) => current.flatMap((combination) => option.values.map((value) => [...combination, { name: option.name, value }])), [[]]);
-  const colors = { camel: '#B99C78', black: '#272624', ivory: '#E8E1D6', navy: '#343F50', brown: '#72513D', white: '#F2EFEA' };
-  return combinations.map((combination, index) => {
-    const colorOption = combination.find((option) => option.name.toLowerCase() === 'color');
-    const sizeOption = combination.find((option) => option.name.toLowerCase() === 'size');
-    const otherOption = combination.find((option) => option !== colorOption && option !== sizeOption);
-    const color = colorOption?.value || otherOption?.value || 'Default';
-    const size = sizeOption?.value || 'One size';
-    const code = `${color}-${size}`.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toUpperCase();
-    return { id: `variant-${Date.now()}-${index}`, color, size, sku: `${sku || 'NEW'}-${code}`, stock: 0, price: price || '0.00', shade: colors[color.toLowerCase()] || '#B8AA98' };
-  });
-}
-
-export default function AdminProductEditPage({ go, mode = 'edit' }) {
+export default function AdminProductEditPage({ go, mode = 'create', productId }) {
   const isCreate = mode === 'create';
-  const { categories, loading: categoriesLoading, error: categoriesError, refreshCategories } = useCategories();
+  const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(() => createInitialForm(isCreate));
-  const [savedForm, setSavedForm] = useState(() => createInitialForm(isCreate));
   const [notice, setNotice] = useState('');
-  const [identifiersOpen, setIdentifiersOpen] = useState(false);
-  const [seoOpen, setSeoOpen] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [optionBuilderOpen, setOptionBuilderOpen] = useState(false);
-  const [seoPreviewOpen, setSeoPreviewOpen] = useState(false);
-  const [variantMenu, setVariantMenu] = useState(null);
-  const [variantEditor, setVariantEditor] = useState(null);
-  const [draggingMedia, setDraggingMedia] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [createdProductId, setCreatedProductId] = useState('');
-  const uploadRef = useRef(null);
-  const descriptionRef = useRef(null);
-  const mediaRef = useRef(form.media);
-  const pendingImageIdsRef = useRef(new Set());
-  const mountedRef = useRef(false);
-  const [collectionInput, setCollectionInput] = useState('');
-  const isDirty = JSON.stringify(form) !== JSON.stringify(savedForm);
-  const isProductValid = isCreate
-    ? Boolean(form.name.trim() && form.description.trim() && form.price !== '' && categories.some((category) => category._id === form.category) && form.media.length && !uploading && !saving && !createdProductId)
-    : Boolean(form.name.trim());
-  const totalStock = form.variants.length ? form.variants.reduce((total, variant) => total + Number(variant.stock || 0), 0) : Number(form.stock || 0);
-  const editedVariant = variantEditor && form.variants.find((variant) => variant.id === variantEditor.id);
+  const [loadingInitial, setLoadingInitial] = useState(!isCreate);
+  const [optionBuilderOpen, setOptionBuilderOpen] = useState(false);
+  const [editingVariant, setEditingVariant] = useState(null);
+  const fileInputRef = useRef(null);
+  const initialSnapshotRef = useRef(null);
 
-  useEffect(() => {
-    if (descriptionRef.current && descriptionRef.current.innerText !== form.description) descriptionRef.current.innerText = form.description;
-  }, [form.description]);
+  const notify = (msg) => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(''), 3500);
+  };
 
+  // Set document title
   useEffect(() => {
-    mediaRef.current = form.media;
-  }, [form.media]);
+    document.title = isCreate
+      ? 'Add Product | NovaShop Admin'
+      : `${form.name ? form.name + ' - Edit' : 'Edit Product'} | NovaShop Admin`;
+  }, [isCreate, form.name]);
 
+  // Load Categories
   useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      mediaRef.current.forEach((asset) => {
-        if (asset.src.startsWith('blob:')) URL.revokeObjectURL(asset.src);
-      });
-      if (!isCreate) return;
-      const publicIds = new Set([
-        ...mediaRef.current.map((asset) => asset.publicId).filter(Boolean),
-        ...pendingImageIdsRef.current,
-      ]);
-      void Promise.allSettled([...publicIds].map((publicId) => productApi.deleteImage(publicId)));
-    };
+    adminApi
+      .getCategories()
+      .then((res) => {
+        if (Array.isArray(res.data)) {
+          setCategories(res.data);
+          if (isCreate && res.data.length > 0 && !form.category) {
+            setForm((curr) => ({ ...curr, category: res.data[0]._id }));
+          }
+        }
+      })
+      .catch(() => {});
   }, [isCreate]);
 
-  const notify = (message) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(''), 2400);
-  };
-  const updateForm = (patch) => setForm((current) => {
-    return { ...current, ...patch };
-  });
-  const saveChanges = async (event, statusOverride) => {
-    event?.preventDefault();
-    const nextForm = statusOverride ? { ...form, status: statusOverride } : form;
-    if (isCreate) {
-      const primaryImage = nextForm.media[0];
-      if (!primaryImage?.publicId || nextForm.media.some((asset) => !asset.publicId)) {
-        notify('Upload product images before saving.');
-        return;
-      }
-      setSaving(true);
-      try {
-        const createdProduct = await productApi.createProduct({
-          name: nextForm.name.trim(),
-          price: Number(nextForm.price),
-          description: nextForm.description.trim(),
-          image: primaryImage.src,
-          images: nextForm.media.map((asset) => asset.src),
-          imagePublicIds: nextForm.media.map((asset) => asset.publicId),
-          category: nextForm.category,
-          status: (statusOverride || nextForm.status).toLowerCase(),
-          countInStock: Number(nextForm.stock) || 0,
-          variants: nextForm.variants.map((variant) => ({
-            sku: variant.sku,
-            size: variant.size.replace(/\s+/g, '_').toUpperCase(),
-            color: { name: variant.color, hex: variant.shade },
-            stock: Number(variant.stock) || 0,
-            price: Number(variant.price) || 0,
-          })),
+  // Load existing Product on Edit Mode
+  useEffect(() => {
+    if (!isCreate && productId) {
+      setLoadingInitial(true);
+      adminApi
+        .getProduct(productId)
+        .then((res) => {
+          const prod = res.data;
+          if (prod) {
+            const primaryImg = prod.image || (prod.images && prod.images[0]) || '';
+            const mediaList = (prod.images || [primaryImg]).filter(Boolean).map((src, i) => ({
+              id: `existing-img-${i}`,
+              src,
+            }));
+
+            const variantList = (prod.variants || []).map((v) => ({
+              _id: v._id,
+              id: v._id,
+              sku: v.sku,
+              size: v.size,
+              color: v.color,
+              stock: v.stock,
+              price: v.price != null ? v.price : prod.price,
+            }));
+
+            const initialLoaded = {
+              name: prod.name || '',
+              description: prod.description || '',
+              price: String(prod.price ?? ''),
+              brand: prod.brand || 'NovaShop',
+              sku: variantList[0]?.sku || prod.slug || 'NS-PRD',
+              status: prod.status || 'active',
+              category: prod.category?._id || prod.category || '',
+              variants: variantList,
+              media: mediaList,
+              stock: String(prod.countInStock || 0),
+            };
+
+            setForm(initialLoaded);
+            initialSnapshotRef.current = JSON.stringify(initialLoaded);
+          }
+        })
+        .catch((err) => {
+          notify(err.response?.data?.message || err.message || 'Failed to load product');
+        })
+        .finally(() => {
+          setLoadingInitial(false);
         });
-        mediaRef.current = [];
-        pendingImageIdsRef.current.clear();
-        setForm(nextForm);
-        setSavedForm(JSON.parse(JSON.stringify(nextForm)));
-        setCreatedProductId(createdProduct.data?._id || nextForm.name);
-        notify(`${nextForm.status} product saved to the catalog.`);
-      } catch (error) {
-        notify(error.message || 'Unable to save the product. Your uploaded images are still available to retry.');
-      } finally {
-        setSaving(false);
-      }
-      return;
+    } else if (isCreate) {
+      initialSnapshotRef.current = JSON.stringify(createInitialForm(true));
     }
-    setForm(nextForm);
-    setSavedForm(JSON.parse(JSON.stringify(nextForm)));
-    notify(isCreate ? `${statusOverride || 'Draft'} product saved.` : 'Product changes saved.');
-  };
-  const discardChanges = async () => {
-    const stagedIds = isCreate ? form.media.map((asset) => asset.publicId).filter(Boolean) : [];
-    form.media.forEach((asset) => {
-      if (asset.src.startsWith('blob:')) URL.revokeObjectURL(asset.src);
-    });
-    const results = await Promise.allSettled(stagedIds.map((publicId) => productApi.deleteImage(publicId)));
-    results.forEach((result, index) => {
-      if (result.status === 'fulfilled') pendingImageIdsRef.current.delete(stagedIds[index]);
-    });
-    if (results.some((result) => result.status === 'rejected')) {
-      notify('Some staged images could not be removed from Cloudinary.');
+  }, [isCreate, productId]);
+
+  // Derived dirty state
+  const isDirty = useMemo(() => {
+    if (!initialSnapshotRef.current) return false;
+    return JSON.stringify(form) !== initialSnapshotRef.current;
+  }, [form]);
+
+  const totalCalculatedStock = useMemo(() => {
+    if (form.variants.length > 0) {
+      return form.variants.reduce((sum, v) => sum + (Math.max(0, parseInt(v.stock, 10)) || 0), 0);
     }
-    setForm(JSON.parse(JSON.stringify(savedForm)));
-    setMenuOpen(false);
-  };
-  const addCollection = (event) => {
-    if (event.key !== 'Enter') return;
-    event.preventDefault();
-    const value = collectionInput.trim();
-    if (value && !form.collections.includes(value)) updateForm({ collections: [...form.collections, value] });
-    setCollectionInput('');
-  };
-  const addTag = (tag) => {
-    if (!form.tags.includes(tag)) updateForm({ tags: [...form.tags, tag] });
-  };
-  const updateVariant = (nextVariant) => {
-    updateForm({ variants: form.variants.map((variant) => variant.id === nextVariant.id ? nextVariant : variant) });
-    setVariantEditor(null);
-  };
-  const addMediaFiles = async (fileList) => {
+    return Math.max(0, parseInt(form.stock, 10) || 0);
+  }, [form.variants, form.stock]);
+
+  // Media Upload
+  const handleUploadFiles = async (fileList) => {
     const files = [...fileList];
-    const remainingSlots = 6 - form.media.length;
-    if (files.length > remainingSlots) {
-      notify(`Only ${remainingSlots} more image${remainingSlots === 1 ? '' : 's'} can be added.`);
-      return;
-    }
-    if (files.some((file) => !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024)) {
-      notify('Choose JPG, PNG, or WebP images up to 5 MB.');
-      return;
-    }
     if (!files.length) return;
 
-    if (!isCreate) {
-      updateForm({
-        media: [...form.media, ...files.map((file) => ({
-          id: `preview-${Date.now()}-${file.name}`,
-          src: URL.createObjectURL(file),
-        }))],
-      });
+    if (form.media.length + files.length > 6) {
+      notify('You can upload a maximum of 6 images per product.');
       return;
     }
 
     setUploading(true);
-    const uploadedAssets = [];
+    const uploaded = [];
     try {
       for (const file of files) {
-        const response = await productApi.uploadImage(file);
-        if (!response.image || !response.publicId) throw new Error('Image upload returned incomplete data.');
-        const asset = { id: response.publicId, publicId: response.publicId, src: response.image };
-        if (!mountedRef.current) {
-          await productApi.deleteImage(response.publicId).catch(() => {});
-          return;
+        if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+          notify('Only JPG, PNG, and WebP images are allowed.');
+          continue;
         }
-        pendingImageIdsRef.current.add(response.publicId);
-        uploadedAssets.push(asset);
+        if (file.size > 5 * 1024 * 1024) {
+          notify('Image size must be 5MB or less.');
+          continue;
+        }
+
+        const res = await productApi.uploadImage(file);
+        if (res.image) {
+          uploaded.push({
+            id: res.publicId || `img-${Date.now()}-${file.name}`,
+            src: res.image,
+            publicId: res.publicId,
+          });
+        }
       }
-      updateForm({ media: [...form.media, ...uploadedAssets] });
-    } catch (error) {
-      const cleanupResults = await Promise.allSettled(uploadedAssets.map((asset) => productApi.deleteImage(asset.publicId)));
-      cleanupResults.forEach((result, index) => {
-        if (result.status === 'fulfilled') {
-          pendingImageIdsRef.current.delete(uploadedAssets[index].publicId);
-        }
-      });
-      notify(error.message || 'Unable to upload images. No product was created.');
+
+      setForm((curr) => ({
+        ...curr,
+        media: [...curr.media, ...uploaded],
+      }));
+      notify('Image(s) uploaded successfully.');
+    } catch (err) {
+      notify(err.message || 'Image upload failed.');
     } finally {
       setUploading(false);
     }
   };
-  const addMedia = (event) => {
-    addMediaFiles(event.target.files);
-    event.target.value = '';
+
+  const removeMedia = (mediaId) => {
+    setForm((curr) => ({
+      ...curr,
+      media: curr.media.filter((m) => m.id !== mediaId),
+    }));
   };
-  const removeMedia = async (asset) => {
-    if (asset.publicId) {
-      try {
-        await productApi.deleteImage(asset.publicId);
-      } catch (error) {
-        notify(error.message || 'Unable to remove the uploaded image.');
-        return;
-      }
-      pendingImageIdsRef.current.delete(asset.publicId);
+
+  // Add individual variant
+  const addSingleVariant = () => {
+    const newV = {
+      id: `var-new-${Date.now()}`,
+      sku: `${form.sku || 'NS'}-NEW-${form.variants.length + 1}`,
+      size: 'M',
+      color: { name: 'Black', hex: '#000000' },
+      stock: 10,
+      price: Number(form.price) || 0,
+    };
+    setForm((curr) => ({
+      ...curr,
+      variants: [...curr.variants, newV],
+    }));
+  };
+
+  // Remove variant
+  const removeVariant = (vId) => {
+    if (form.variants.length <= 1) {
+      notify('A product must have at least one variant.');
+      return;
     }
-    if (asset.src.startsWith('blob:')) URL.revokeObjectURL(asset.src);
-    updateForm({ media: form.media.filter((item) => item.id !== asset.id) });
+    setForm((curr) => ({
+      ...curr,
+      variants: curr.variants.filter((v) => (v._id || v.id) !== vId),
+    }));
   };
-  const createVariants = (options) => {
-    updateForm({ options, variants: buildVariants(options, form.sku, form.price) });
-    setOptionBuilderOpen(false);
+
+  // Save Product (Create or Edit)
+  const handleSubmit = async (e, overrideStatus) => {
+    if (e) e.preventDefault();
+
+    if (!form.name.trim()) {
+      notify('Product name is required.');
+      return;
+    }
+    if (!form.description.trim()) {
+      notify('Product description is required.');
+      return;
+    }
+    if (form.price === '' || Number(form.price) < 0) {
+      notify('Valid base price is required.');
+      return;
+    }
+    if (!form.category) {
+      notify('Please select a category.');
+      return;
+    }
+    if (!form.media.length) {
+      notify('Please upload at least one product image.');
+      return;
+    }
+    if (!form.variants.length) {
+      notify('At least one variant with stock is required.');
+      return;
+    }
+
+    const invalidStockVariant = form.variants.find((v) => Number(v.stock) < 0 || isNaN(Number(v.stock)));
+    if (invalidStockVariant) {
+      notify(`Variant ${invalidStockVariant.sku} has invalid stock quantity.`);
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        description: form.description.trim(),
+        price: Number(form.price),
+        brand: form.brand.trim() || 'NovaShop',
+        category: form.category,
+        status: overrideStatus || form.status,
+        image: form.media[0]?.src || '',
+        images: form.media.map((m) => m.src),
+        variants: form.variants.map((v) => ({
+          _id: v._id,
+          sku: v.sku.trim().toUpperCase(),
+          size: v.size.trim().toUpperCase(),
+          color: typeof v.color === 'string' ? { name: v.color, hex: '#000000' } : v.color,
+          stock: Math.max(0, parseInt(v.stock, 10) || 0),
+          price: v.price != null && Number(v.price) >= 0 ? Number(v.price) : Number(form.price),
+        })),
+      };
+
+      if (isCreate) {
+        const res = await adminApi.createProduct(payload);
+        notify('Product created successfully!');
+        window.setTimeout(() => go(`/admin/products/${res.data?._id || ''}`), 600);
+      } else {
+        await adminApi.updateProduct(productId, payload);
+        notify('Product updated successfully!');
+        window.setTimeout(() => go(`/admin/products/${productId}`), 600);
+      }
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to save product.');
+    } finally {
+      setSaving(false);
+    }
   };
-  const reorderMedia = (sourceIndex, targetIndex) => {
-    if (!Number.isInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= form.media.length || sourceIndex === targetIndex) return;
-    setForm((current) => {
-      const nextMedia = [...current.media];
-      const [moved] = nextMedia.splice(sourceIndex, 1);
-      nextMedia.splice(targetIndex, 0, moved);
-      return { ...current, media: nextMedia };
-    });
-    setDraggingMedia(null);
+
+  const getStockStatus = (stock) => {
+    const qty = Number(stock) || 0;
+    if (qty <= 0) return { label: 'Out of stock', className: 'is-out' };
+    if (qty <= 5) return { label: 'Low stock', className: 'is-low' };
+    return { label: 'In stock', className: 'is-in' };
   };
+
+  if (loadingInitial) {
+    return (
+      <div className="pe-loading-skeleton-wrap">
+        <div className="pe-skeleton-box header" />
+        <div className="pe-skeleton-grid">
+          <div className="pe-skeleton-box main" />
+          <div className="pe-skeleton-box side" />
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`admin-dashboard pe-page${isCreate ? ' is-create' : ''}`}>
+    <div className="pe-page">
+      {/* 1. Sticky Action Bar */}
       <header className="pe-page-header">
-        <div className="pe-header-context"><button className="pe-breadcrumb" type="button" onClick={() => go('/admin/products')}><AdminIcon name="left" size={14} /> Products</button>{!isCreate && <span className="pe-record-id">ID: PRD-CSHM-88402 / Pristine State</span>}</div>
-        <div className="pe-title-actions"><div className="pe-title-copy"><h1>{isCreate ? 'Add product' : 'Edit product'}</h1><p>{isCreate ? 'Create a new product for your catalog.' : 'Update details, pricing, and inventory for Cashmere Overcoat.'}</p></div><div className="pe-actions">{isCreate ? <><button className="admin-action-button pe-discard-button" type="button" disabled={!isDirty || uploading || saving} onClick={discardChanges}>{saving ? 'Saving…' : 'Save as Draft'}</button><button className="admin-action-button is-primary pe-save-button" type="button" disabled={!isProductValid} onClick={(event) => saveChanges(event, 'Active')}>{createdProductId ? 'Product saved' : saving ? 'Saving…' : 'Publish Product'}</button></> : <><div className="pe-overflow-wrap"><button className="admin-action-button pe-overflow-button" type="button" aria-label="More product actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><AdminIcon name="more" size={17} /></button>{menuOpen && <div className="pe-overflow-menu"><button type="button" onClick={() => { setMenuOpen(false); notify('Product preview opened.'); }}>Preview storefront</button><button type="button" onClick={() => { setMenuOpen(false); notify('Product link copied.'); }}>Copy product link</button></div>}</div><button className="admin-action-button pe-discard-button" type="button" disabled={!isDirty} onClick={discardChanges}>Discard</button><button className="admin-action-button is-primary pe-save-button" type="button" disabled={!isDirty} onClick={saveChanges}>Save changes</button></>}</div></div>
+        <div className="pe-header-main">
+          <div className="pe-breadcrumb-row">
+            <button className="pe-breadcrumb-btn" type="button" onClick={() => go('/admin/products')}>
+              <AdminIcon name="chevron" size={13} style={{ transform: 'rotate(90deg)' }} />
+              <span>Products</span>
+            </button>
+            {isDirty && (
+              <span className="pe-unsaved-indicator">
+                <span className="pe-pulse-dot" /> Unsaved changes
+              </span>
+            )}
+          </div>
+
+          <div className="pe-title-row">
+            <h1 className="pe-page-title">{isCreate ? 'Add Product' : (form.name || 'Edit Product')}</h1>
+            {!isCreate && (
+              <span className={`pe-status-pill is-${form.status}`}>
+                <span className="pe-status-dot" />
+                <span>{form.status}</span>
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="pe-actions">
+          <button
+            className="pe-action-btn is-discard"
+            type="button"
+            onClick={() => go('/admin/products')}
+          >
+            Discard
+          </button>
+          <button
+            className="pe-action-btn is-secondary"
+            type="button"
+            disabled={saving || uploading}
+            onClick={(e) => handleSubmit(e, 'draft')}
+          >
+            Save as Draft
+          </button>
+          <button
+            className="pe-action-btn is-primary"
+            type="button"
+            disabled={saving || uploading}
+            onClick={(e) => handleSubmit(e, 'active')}
+          >
+            {saving ? 'Saving...' : isCreate ? 'Publish Product' : 'Save Changes'}
+          </button>
+        </div>
       </header>
 
-      <form className="pe-columns" onSubmit={saveChanges}>
-        <div className="pe-main-column">
-          <EditorCard title="Product information" tag={isCreate ? 'CORE DETAILS' : 'GENERAL'}>
-            <label className="pe-field"><span>Product name</span><input value={form.name} onChange={(event) => updateForm({ name: event.target.value })} placeholder={isCreate ? 'e.g. Cashmere Overcoat' : undefined} /></label>
-            <div className="pe-field"><span>Description</span><div className="pe-rich-editor"><div className="pe-rich-toolbar"><button type="button" aria-label="Bold" title="Bold" onMouseDown={(event) => event.preventDefault()} onClick={() => document.execCommand('bold')}><strong>B</strong></button><button type="button" aria-label="Italic" title="Italic" onMouseDown={(event) => event.preventDefault()} onClick={() => document.execCommand('italic')}><em>I</em></button><button type="button" aria-label="Bullet list" title="Bullet list" onMouseDown={(event) => event.preventDefault()} onClick={() => document.execCommand('insertUnorderedList')}>•≡</button><button type="button" aria-label="Insert link" title="Insert link" onMouseDown={(event) => event.preventDefault()} onClick={() => { const link = window.prompt('Enter storefront link'); if (link) document.execCommand('createLink', false, link); }}>↗</button><span>MARKDOWN</span></div><div className={`pe-rich-area${isCreate && !form.description ? ' is-empty' : ''}`} ref={descriptionRef} contentEditable suppressContentEditableWarning role="textbox" aria-label="Product description" data-placeholder="Describe the material, fit, and care." onInput={(event) => updateForm({ description: event.currentTarget.innerText })}>{form.description}</div></div></div>
+      {/* 2. Desktop Two-Column Layout */}
+      <div className="pe-grid-layout">
+        {/* Main Column */}
+        <div className="pe-main-col">
+          {/* Card 1: Product Information */}
+          <EditorCard
+            title="Product Information"
+            subtitle="Core item naming, merchandising details, and descriptions for storefront shoppers."
+          >
+            <div className="pe-fields-stack">
+              <label className="pe-field">
+                <span>Product Name</span>
+                <input
+                  required
+                  value={form.name}
+                  onChange={(e) => setForm((c) => ({ ...c, name: e.target.value }))}
+                  placeholder="e.g. Cashmere Overcoat"
+                />
+              </label>
+
+              <label className="pe-field">
+                <div className="pe-field-label-row">
+                  <span>Description</span>
+                  <span className="pe-char-count">{form.description.length} characters</span>
+                </div>
+                <textarea
+                  required
+                  rows="4"
+                  value={form.description}
+                  onChange={(e) => setForm((c) => ({ ...c, description: e.target.value }))}
+                  placeholder="Comprehensive description of the item, tailoring, fabrics, and fit..."
+                />
+              </label>
+            </div>
           </EditorCard>
 
-          <EditorCard title="Media" tag={isCreate ? undefined : `${form.media.length} OF 6 SLOTS`} right={isCreate && <span className="pe-media-helper">Add product imagery in 4:5 portrait ratio.</span>} className="pe-media-card">
-            {isCreate && form.media.length === 0 ? (
-              <div
-                className="pe-media-dropzone"
-                onDragOver={(event) => event.preventDefault()}
-                onDrop={(event) => {
-                  event.preventDefault();
-                  addMediaFiles(event.dataTransfer.files);
-                }}
-                aria-busy={uploading}
+          {/* Card 2: Product Images */}
+          <EditorCard
+            title="Product Images"
+            subtitle="Upload high-resolution photography. The first image is highlighted as primary."
+            tag={`${form.media.length} / 6`}
+            right={
+              <button
+                type="button"
+                className="pe-card-link-btn"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading || form.media.length >= 6}
               >
-                <svg viewBox="0 0 36 36" aria-hidden="true"><path d="M10 25h17a6 6 0 0 0 .4-12 9.5 9.5 0 0 0-18.2 2.2A5 5 0 0 0 10 25Z" /><path d="M18.5 23V12m0 0-4 4m4-4 4 4" /></svg>
-                <strong>Drag images here or <button type="button" disabled={uploading} onClick={() => uploadRef.current?.click()}>browse</button></strong>
-                <span>{uploading ? 'Uploading images…' : 'JPG, PNG or WebP, up to 5 MB each. The first image is the main image.'}</span>
-                <button type="button" className="admin-action-button pe-browse-button" disabled={uploading} onClick={() => uploadRef.current?.click()}>BROWSE FILES</button>
-                <input ref={uploadRef} className="pe-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading} onChange={addMedia} />
+                + Upload photos
+              </button>
+            }
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                if (e.target.files) handleUploadFiles(e.target.files);
+                e.target.value = '';
+              }}
+            />
+
+            <div className="pe-gallery-grid">
+              {form.media.map((item, idx) => (
+                <div key={item.id || idx} className="pe-image-tile">
+                  <img src={item.src} alt="" className="pe-image-photo" />
+                  <div className="pe-image-overlay">
+                    <button
+                      type="button"
+                      onClick={() => removeMedia(item.id)}
+                      className="pe-image-delete-btn"
+                      title="Remove photo"
+                      aria-label="Remove photo"
+                    >
+                      <AdminIcon name="trash" size={14} />
+                    </button>
+                  </div>
+                  {idx === 0 && (
+                    <span className="pe-primary-badge">
+                      <AdminIcon name="check" size={10} /> Primary
+                    </span>
+                  )}
+                </div>
+              ))}
+
+              {uploading && (
+                <div className="pe-image-tile is-uploading">
+                  <div className="pe-skeleton-pulse" />
+                  <span>Uploading...</span>
+                </div>
+              )}
+
+              {form.media.length < 6 && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="pe-dropzone-tile"
+                >
+                  <div className="pe-dropzone-icon">
+                    <AdminIcon name="plus" size={18} />
+                  </div>
+                  <strong className="pe-dropzone-text">Add photo</strong>
+                  <span className="pe-dropzone-hint">PNG, JPG, WEBP</span>
+                </button>
+              )}
+            </div>
+          </EditorCard>
+
+          {/* Card 3: Variants & Inventory Matrix */}
+          <EditorCard
+            title="Variants & Inventory Matrix"
+            subtitle="Configure sizing, color swatches, stock availability, and per-variant SKU overrides."
+            tag={`${form.variants.length} variant${form.variants.length === 1 ? '' : 's'}`}
+            right={
+              <div className="pe-variants-actions">
+                <button
+                  type="button"
+                  className="pe-action-btn is-secondary is-sm"
+                  onClick={() => setOptionBuilderOpen(true)}
+                >
+                  <AdminIcon name="sliders" size={13} /> Matrix Generator
+                </button>
+                <button
+                  type="button"
+                  className="pe-action-btn is-primary is-sm"
+                  onClick={addSingleVariant}
+                >
+                  <AdminIcon name="plus" size={13} /> Add Variant
+                </button>
+              </div>
+            }
+          >
+            {/* Total Stock Summary Strip */}
+            <div className="pe-stock-strip">
+              <span className="pe-stock-strip-label">Total derived inventory stock across all variants:</span>
+              <span className="pe-stock-strip-value">{totalCalculatedStock} units</span>
+            </div>
+
+            {form.variants.length === 0 ? (
+              <div className="pe-variants-empty">
+                <div className="pe-variants-empty-icon">
+                  <AdminIcon name="inventory" size={26} />
+                </div>
+                <h3>No variants defined yet</h3>
+                <p>Add individual variants or generate a full combinatorial matrix across sizes and colors.</p>
+                <div className="pe-variants-empty-actions">
+                  <button
+                    type="button"
+                    className="pe-action-btn is-secondary"
+                    onClick={() => setOptionBuilderOpen(true)}
+                  >
+                    <AdminIcon name="sliders" size={13} /> Open Matrix Generator
+                  </button>
+                  <button
+                    type="button"
+                    className="pe-action-btn is-primary"
+                    onClick={addSingleVariant}
+                  >
+                    <AdminIcon name="plus" size={13} /> Add Single Variant
+                  </button>
+                </div>
               </div>
             ) : (
-              <>
-                <p className="pe-card-description">{uploading ? 'Uploading images…' : 'Drag to reorder. The first image is the main image.'}</p>
-                <div className="pe-media-scroll" onDragOver={(event) => event.preventDefault()} onDrop={(event) => { if (event.dataTransfer.files.length) { event.preventDefault(); addMediaFiles(event.dataTransfer.files); } }}>
-                  <div className="pe-media-row">
-                    {form.media.map((asset, index) => (
-                      <div className={`pe-media-item${draggingMedia === index ? ' is-dragging' : ''}`} key={asset.id} draggable onDragStart={(event) => { event.dataTransfer.effectAllowed = 'move'; event.dataTransfer.setData('text/plain', String(index)); setDraggingMedia(index); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = 'move'; }} onDrop={(event) => { event.preventDefault(); reorderMedia(Number(event.dataTransfer.getData('text/plain')), index); }} onDragEnd={() => setDraggingMedia(null)}>
-                        <img src={asset.src} alt={`Product image ${index + 1}`} />
-                        {index === 0 && <span className="pe-main-badge">MAIN</span>}
-                        <button type="button" className="pe-remove-media" aria-label={`Remove image ${index + 1}`} disabled={uploading || saving} onClick={() => removeMedia(asset)}>×</button>
-                      </div>
-                    ))}
-                    {form.media.length < 6 && <button className="pe-add-image" type="button" disabled={uploading} onClick={() => uploadRef.current?.click()}><span>↑</span><strong>Add image</strong></button>}
-                    <input ref={uploadRef} className="pe-file-input" type="file" accept="image/jpeg,image/png,image/webp" multiple disabled={uploading} onChange={addMedia} />
-                  </div>
-                </div>
-              </>
+              <div className="pe-table-responsive">
+                <table className="pe-table">
+                  <thead>
+                    <tr>
+                      <th>SKU</th>
+                      <th>Size</th>
+                      <th>Color</th>
+                      <th>Price</th>
+                      <th>Stock Qty</th>
+                      <th>Status</th>
+                      <th className="text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {form.variants.map((v) => {
+                      const colorName = typeof v.color === 'object' ? v.color?.name : v.color || 'Default';
+                      const colorHex = typeof v.color === 'object' ? v.color?.hex : '#000000';
+                      const status = getStockStatus(v.stock);
+
+                      return (
+                        <tr key={v._id || v.id}>
+                          <td className="font-mono">{v.sku}</td>
+                          <td>
+                            <span className="pe-chip">{v.size}</span>
+                          </td>
+                          <td>
+                            <span className="pe-chip color">
+                              <span
+                                className="pe-color-dot"
+                                style={{ backgroundColor: colorHex }}
+                                aria-hidden="true"
+                              />
+                              <span>{colorName}</span>
+                            </span>
+                          </td>
+                          <td>
+                            ${Number(v.price != null ? v.price : form.price || 0).toFixed(2)}
+                          </td>
+                          <td className="font-bold">{v.stock}</td>
+                          <td>
+                            <span className={`pe-stock-pill ${status.className}`}>
+                              <span className="pe-stock-pill-dot" />
+                              {status.label}
+                            </span>
+                          </td>
+                          <td className="text-right">
+                            <div className="pe-row-actions">
+                              <button
+                                type="button"
+                                className="pe-icon-btn"
+                                onClick={() => setEditingVariant(v)}
+                                title="Edit variant"
+                                aria-label={`Edit variant ${v.sku}`}
+                              >
+                                <AdminIcon name="pencil" size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="pe-icon-btn is-danger"
+                                onClick={() => removeVariant(v._id || v.id)}
+                                title="Remove variant"
+                                aria-label={`Remove variant ${v.sku}`}
+                              >
+                                <AdminIcon name="trash" size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             )}
-          </EditorCard>
-
-          <EditorCard title="Pricing" tag="USD ($)" className="pe-pricing-card">
-            <div className="pe-price-grid"><label className="pe-field"><span>Price</span><div className="pe-currency-input"><span>$</span><input type="number" min="0" step="0.01" value={form.price} placeholder={isCreate ? '0.00' : undefined} onChange={(event) => updateForm({ price: event.target.value })} /></div></label><label className="pe-field"><span>Compare-at price</span><div className="pe-currency-input"><span>$</span><input type="number" min="0" step="0.01" value={form.compareAt} placeholder={isCreate ? '0.00' : undefined} onChange={(event) => updateForm({ compareAt: event.target.value })} /></div></label><label className="pe-field"><span>Cost per item</span><div className="pe-currency-input"><span>$</span><input type="number" min="0" step="0.01" value={form.cost} placeholder={isCreate ? '0.00' : undefined} onChange={(event) => updateForm({ cost: event.target.value })} /></div><small>Customers won't see this.</small></label></div>
-          </EditorCard>
-
-          <EditorCard title="Inventory" tag={isCreate ? 'STOCK MANAGEMENT' : 'WAREHOUSE 01'} className="pe-inventory-card">
-            <div className="pe-inventory-fields"><label className="pe-field"><span>SKU</span><input value={form.sku} onChange={(event) => updateForm({ sku: event.target.value })} placeholder={isCreate ? 'e.g. NS-OC-0142' : undefined} /></label><label className="pe-field"><span>Low stock alert at</span><input type="number" min="0" value={form.lowStock} onChange={(event) => updateForm({ lowStock: event.target.value })} /></label></div>
-            <label className="pe-track-row"><span><strong>Track quantity</strong><small>{isCreate ? 'Monitor warehouse inbound and outbound counts' : 'Turn on inventory depletion on orders'}</small></span><input type="checkbox" checked={form.trackQuantity} onChange={(event) => updateForm({ trackQuantity: event.target.checked })} /><i /></label>
-            {isCreate ? <label className="pe-field pe-total-stock-field"><span>Total in stock</span><input type="number" min="0" step="1" value={form.stock} onChange={(event) => updateForm({ stock: event.target.value })} /><small>Direct inventory allocation (prior to variant definitions).</small></label> : <div className="pe-stock-summary"><div><span>TOTAL IN STOCK</span><strong>{totalStock}</strong></div><small>Calculated from variants.</small></div>}
-            <button className="pe-accordion-trigger" type="button" aria-expanded={identifiersOpen} onClick={() => setIdentifiersOpen((open) => !open)}><span>More identifiers</span><span>{identifiersOpen ? '⌃' : '⌄'}</span></button>
-            {identifiersOpen && <div className="pe-extra-fields"><label className="pe-field"><span>Barcode / UPC</span><input value={form.barcode} onChange={(event) => updateForm({ barcode: event.target.value })} placeholder="Enter barcode" /></label></div>}
-          </EditorCard>
-
-          <EditorCard title="Variants" className="pe-variants-card">
-            {(!isCreate || form.variants.length > 0) && <button className="admin-text-link pe-edit-options" type="button" onClick={() => isCreate ? setOptionBuilderOpen(true) : notify('Variant options editor opened.')}><AdminIcon name="filter" size={14} /> {isCreate ? 'Edit options' : 'Edit options'}</button>}
-            {isCreate && form.variants.length === 0 ? <div className="pe-empty-variants"><AdminIcon name="categories" size={21} /><strong>No variants yet</strong><span>Add options like size or color to create variants.</span><button className="admin-action-button" type="button" onClick={() => setOptionBuilderOpen(true)}>ADD OPTIONS</button></div> : <><div className="pe-option-tags">{form.options.map((option) => <span key={option.name}>{option.name}: {option.values.join(' · ')}</span>)}</div>
-            <div className="pe-table-scroll"><table className="pe-variants-table"><thead><tr><th>VARIANT</th><th>PRICE</th><th>INVENTORY</th><th>ACTIONS</th></tr></thead><tbody>{form.variants.map((variant) => <tr key={variant.id} className={variant.id === 'black-m' ? 'is-highlighted' : ''}><td><div className="pe-variant-name"><i style={{ background: variant.shade }} /><strong>{variant.color} / {variant.size}</strong></div></td><td><span className="pe-price-pill">${Number(variant.price).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span></td><td>{variant.stock <= Number(form.lowStock) ? <span className="pe-low-stock"><i />{variant.stock} left</span> : variant.stock}</td><td><div className="pe-row-menu-wrap"><button className="products-row-menu-button" type="button" aria-label={`Variant actions ${variant.color} ${variant.size}`} aria-expanded={variantMenu === variant.id} onClick={() => setVariantMenu((current) => current === variant.id ? null : variant.id)}><AdminIcon name="more" size={16} /></button>{variantMenu === variant.id && <div className="products-row-menu"><button type="button" onClick={() => { setVariantEditor({ id: variant.id, mode: 'edit' }); setVariantMenu(null); }}>Edit variant</button><button type="button" onClick={() => { setVariantEditor({ id: variant.id, mode: 'stock' }); setVariantMenu(null); }}>Adjust stock</button><button type="button" className="is-danger" onClick={() => { updateForm({ variants: form.variants.filter((item) => item.id !== variant.id) }); setVariantMenu(null); }}>Delete variant</button></div>}</div></td></tr>)}</tbody></table></div>
-            </>}
-          </EditorCard>
-
-          <EditorCard title="Search listing" tag={isCreate ? undefined : 'SEO'} right={isCreate && <button className="pe-seo-preview-link" type="button" disabled={!form.name.trim() && !form.description.trim()} onClick={() => setSeoPreviewOpen(true)}>SEO PREVIEW</button>} className="pe-accordion-card">
-            <button className="pe-accordion-trigger pe-seo-trigger" type="button" aria-expanded={seoOpen} onClick={() => setSeoOpen((open) => !open)}><span>How this product appears in search results.</span><AdminIcon name="chevron" size={14} /></button>
-            {seoOpen && <div className="pe-seo-fields"><label className="pe-field"><span>Meta title</span><input value={form.metaTitle} onChange={(event) => updateForm({ metaTitle: event.target.value })} /></label><label className="pe-field"><span>Meta description</span><textarea rows="3" value={form.metaDescription} onChange={(event) => updateForm({ metaDescription: event.target.value })} /></label><label className="pe-field"><span>URL handle</span><input value={form.handle} onChange={(event) => updateForm({ handle: event.target.value })} /></label></div>}
           </EditorCard>
         </div>
 
-        <aside className="pe-side-column">
-          <EditorCard title="Status" className="pe-status-card"><label className={`pe-status-select${form.status === 'Draft' ? ' is-draft' : ''}`}><i /> <select value={form.status} onChange={(event) => updateForm({ status: event.target.value })}><option>Draft</option><option>Active</option></select><AdminIcon name="chevron" size={12} /></label><p>{form.status === 'Draft' ? 'Draft products are hidden from your store and storefront listings.' : 'Active products are visible in your store.'}</p></EditorCard>
-          <EditorCard title="Organization" className="pe-organization-card">
-            <label className="pe-field"><span>Category</span><select value={form.category} disabled={categoriesLoading || Boolean(categoriesError) || categories.length === 0} onChange={(event) => updateForm({ category: event.target.value })}><option value="">{categoriesLoading ? 'Loading categories…' : categoriesError ? 'Categories unavailable' : categories.length ? 'Select category' : 'No categories available'}</option>{categories.map((category) => <option key={category._id} value={category._id}>{category.name}</option>)}</select>{categoriesError && <span className="pe-field-error" role="alert">{categoriesError} <button type="button" className="admin-text-link" onClick={() => refreshCategories()}>Retry</button></span>}{!categoriesLoading && !categoriesError && categories.length === 0 && <span className="pe-field-hint">Create a category before adding products. <button type="button" className="admin-text-link" onClick={() => go('/admin/categories')}>Manage categories</button></span>}</label>
-            <label className="pe-field pe-tag-field"><span>Collection</span><div className="pe-tag-input">{form.collections.map((collection) => <span className="pe-removable-tag" key={collection}>{collection}<button type="button" aria-label={`Remove ${collection}`} onClick={() => updateForm({ collections: form.collections.filter((item) => item !== collection) })}>×</button></span>)}{isCreate && <AdminIcon name="search" size={14} />}<input value={collectionInput} onChange={(event) => setCollectionInput(event.target.value)} onKeyDown={addCollection} placeholder={isCreate ? 'Add to collection' : 'Add collection…'} /></div>{isCreate && collectionInput && <div className="pe-collection-suggestions">{['Autumn Winter', 'Best Sellers', 'Core Collection', 'New Arrivals'].filter((collection) => collection.toLowerCase().includes(collectionInput.toLowerCase()) && !form.collections.includes(collection)).map((collection) => <button type="button" key={collection} onClick={() => { updateForm({ collections: [...form.collections, collection] }); setCollectionInput(''); }}>{collection}</button>)}</div>}</label>
-            <ProductTagField label="Tags" tags={form.tags} onRemove={(tag) => updateForm({ tags: form.tags.filter((item) => item !== tag) })} onAdd={addTag} placeholder={isCreate ? 'Add tag...' : 'Add tag…'} />
+        {/* Side Column (Sticky on Desktop) */}
+        <aside className="pe-side-col">
+          {/* Card 1: Status */}
+          <EditorCard
+            title="Product Status"
+            subtitle="Controls visibility across the storefront and search catalog."
+          >
+            <div className="pe-field">
+              <div className="pe-select-status-wrap">
+                <span className={`pe-select-dot is-${form.status}`} />
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm((c) => ({ ...c, status: e.target.value }))}
+                  className="pe-select-with-dot"
+                >
+                  <option value="active">Active (Visible in Storefront)</option>
+                  <option value="draft">Draft (Staff Only)</option>
+                  <option value="archived">Archived (Unpublished)</option>
+                </select>
+              </div>
+              <p className="pe-field-hint">
+                {form.status === 'active' && 'Item is public and available for customer purchases.'}
+                {form.status === 'draft' && 'Hidden from customer browsing and checkout.'}
+                {form.status === 'archived' && 'Archived from catalog and search indices.'}
+              </p>
+            </div>
           </EditorCard>
-          <EditorCard title="Details" tag="METADATA" className="pe-accordion-card pe-details-card"><button className="pe-accordion-trigger pe-details-trigger" type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}><span>Product metadata and internal notes.</span><AdminIcon name="chevron" size={14} /></button>{detailsOpen && <div className="pe-seo-fields"><div className="pe-metadata-row"><span>Created</span><strong>Oct 12, 2026</strong></div><div className="pe-metadata-row"><span>Last updated</span><strong>Oct 22, 2026</strong></div><label className="pe-field"><span>Internal notes</span><textarea rows="3" value={form.notes} onChange={(event) => updateForm({ notes: event.target.value })} /></label><div className="pe-metadata-row"><span>Catalog ID</span><strong>PRD-CSHM-88402</strong></div></div>}</EditorCard>
-        </aside>
-      </form>
 
-      {editedVariant && <VariantEditor key={editedVariant.id} variant={editedVariant} mode={variantEditor.mode} onClose={() => setVariantEditor(null)} onSave={updateVariant} />}
-      {optionBuilderOpen && <OptionBuilder onClose={() => setOptionBuilderOpen(false)} onCreate={createVariants} />}
-      {seoPreviewOpen && <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && setSeoPreviewOpen(false)}><section className="admin-order-modal pe-seo-preview-modal" role="dialog" aria-modal="true" aria-labelledby="pe-seo-preview-title"><header className="admin-modal-heading"><div><span className="admin-modal-eyebrow">Search listing</span><h2 id="pe-seo-preview-title">SEO preview</h2></div><button className="admin-icon-button" type="button" aria-label="Close SEO preview" onClick={() => setSeoPreviewOpen(false)}><AdminIcon name="close" /></button></header><div className="pe-seo-preview"><strong>{form.metaTitle || form.name || 'Product name'} | NovaShop</strong><span>novashop.com/products/{form.handle || 'product-handle'}</span><p>{form.metaDescription || form.description || 'Product description preview will appear here.'}</p></div></section></div>}
-      {notice && <div className="admin-toast" role="status">{notice}</div>}
+          {/* Card 2: Pricing & Organization */}
+          <EditorCard
+            title="Pricing & Organization"
+            subtitle="Standard baseline price and category grouping."
+          >
+            <div className="pe-fields-stack">
+              <label className="pe-field">
+                <span>Base Price</span>
+                <div className="pe-input-prefix-wrap">
+                  <span className="pe-input-prefix">$</span>
+                  <input
+                    required
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={form.price}
+                    onChange={(e) => setForm((c) => ({ ...c, price: e.target.value }))}
+                    placeholder="0.00"
+                  />
+                  <span className="pe-input-suffix">USD</span>
+                </div>
+              </label>
+
+              <label className="pe-field">
+                <span>Category</span>
+                <select
+                  required
+                  value={form.category}
+                  onChange={(e) => setForm((c) => ({ ...c, category: e.target.value }))}
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((cat) => (
+                    <option key={cat._id} value={cat._id}>
+                      {cat.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="pe-field">
+                <span>Brand</span>
+                <input
+                  value={form.brand}
+                  onChange={(e) => setForm((c) => ({ ...c, brand: e.target.value }))}
+                  placeholder="NovaShop"
+                />
+              </label>
+            </div>
+          </EditorCard>
+        </aside>
+      </div>
+
+      {/* 3. Sticky Mobile Bottom Save Bar (< 768px) */}
+      <div className="pe-mobile-save-bar" aria-label="Mobile Save Controls">
+        <button
+          className="pe-action-btn is-discard"
+          type="button"
+          onClick={() => go('/admin/products')}
+        >
+          Discard
+        </button>
+        <button
+          className="pe-action-btn is-secondary"
+          type="button"
+          disabled={saving || uploading}
+          onClick={(e) => handleSubmit(e, 'draft')}
+        >
+          Draft
+        </button>
+        <button
+          className="pe-action-btn is-primary"
+          type="button"
+          disabled={saving || uploading}
+          onClick={(e) => handleSubmit(e, 'active')}
+        >
+          {saving ? 'Saving...' : isCreate ? 'Publish' : 'Save'}
+        </button>
+      </div>
+
+      {/* Modals */}
+      {editingVariant && (
+        <VariantEditorModal
+          variant={editingVariant}
+          onClose={() => setEditingVariant(null)}
+          onSave={(updatedV) => {
+            setForm((curr) => ({
+              ...curr,
+              variants: curr.variants.map((v) =>
+                (v._id || v.id) === (updatedV._id || updatedV.id) ? updatedV : v
+              ),
+            }));
+            setEditingVariant(null);
+            notify(`Updated variant ${updatedV.sku}`);
+          }}
+        />
+      )}
+
+      {optionBuilderOpen && (
+        <OptionBuilderModal
+          initialSku={form.sku}
+          basePrice={form.price}
+          onClose={() => setOptionBuilderOpen(false)}
+          onCreate={(generated) => {
+            setForm((curr) => ({
+              ...curr,
+              variants: generated,
+            }));
+            setOptionBuilderOpen(false);
+            notify(`Generated ${generated.length} variant combinations.`);
+          }}
+        />
+      )}
+
+      {/* Floating Feedback Toast */}
+      {notice && (
+        <div className="pe-toast" role="status">
+          <AdminIcon name="check" size={15} />
+          <span>{notice}</span>
+        </div>
+      )}
     </div>
   );
 }

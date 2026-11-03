@@ -23,7 +23,7 @@ export default function AuthLayout({
 
         {showFooter && (
           <footer className="admin-auth-footer">
-            <div className="admin-auth-footer-copy">© 2026 NovaShop Inc.</div>
+            <div className="admin-auth-footer-copy">© {new Date().getFullYear()} NovaShop</div>
             <div className="admin-auth-footer-links">
               <a href="#">Privacy</a>
               <a href="#">Terms</a>

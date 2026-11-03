@@ -620,21 +620,21 @@ describe('Cart Integrity Tests', () => {
 
   describe('GET /api/v1/products/:id — id or slug (F6)', () => {
     it('returns 200 for a valid slug', async () => {
-      const res = await request(app).get('/products/nova-fleece-hoodie');
+      const res = await request(app).get('/api/v1/products/nova-fleece-hoodie');
       expect(res.status).toBe(200);
       expect(res.body.data.slug).toBe('nova-fleece-hoodie');
     });
 
     it('returns 200 for a valid ObjectId', async () => {
       const res = await request(app).get(
-        `/products/${product._id.toString()}`
+        `/api/v1/products/${product._id.toString()}`
       );
       expect(res.status).toBe(200);
       expect(res.body.data._id).toBe(product._id.toString());
     });
 
     it('returns 400 for an invalid identifier', async () => {
-      const res = await request(app).get('/products/not%20a%20slug!');
+      const res = await request(app).get('/api/v1/products/not%20a%20slug!');
       expect(res.status).toBe(400);
     });
 
@@ -642,7 +642,7 @@ describe('Cart Integrity Tests', () => {
       product.status = 'draft';
       await product.save();
 
-      const res = await request(app).get('/products/nova-fleece-hoodie');
+      const res = await request(app).get('/api/v1/products/nova-fleece-hoodie');
       expect(res.status).toBe(404);
     });
   });

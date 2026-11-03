@@ -4,6 +4,8 @@ import upload from '../middlewares/uploadMiddleware.js';
 import { protect, restrictTo } from '../middlewares/authMiddleware.js';
 import { isCloudinaryConfigured } from '../config/cloudinary.js';
 import { deleteProductImage } from '../services/productImageService.js';
+import { MediaFile, MediaFolder } from '../models/mediaModel.js';
+import { buildCloudinaryThumbnail } from '../services/storageService.js';
 import ApiError from '../utils/ApiError.js';
 
 const router = express.Router();
@@ -100,13 +102,44 @@ router.post(
   restrictTo('admin'),
   requireCloudinaryConfiguration,
   parseProductImage,
-  (req, res) => {
+  async (req, res) => {
     if (!req.file) {
       return res.status(400).json({ success: false, message: 'No image file provided' });
     }
 
     if (!req.file.path || !req.file.filename) {
       return res.status(502).json({ success: false, message: 'Cloudinary upload returned incomplete image data' });
+    }
+
+    // Automatically create a MediaFile record so the file immediately appears in the Media Library
+    try {
+      let productFolder = await MediaFolder.findOne({ name: 'Product photography' });
+      if (!productFolder) {
+        productFolder = await MediaFolder.create({ name: 'Product photography' });
+      }
+
+      const originalName = req.file.originalname || `${req.file.filename}.jpg`;
+      const url = req.file.path;
+      const thumbnailUrl = buildCloudinaryThumbnail(url);
+
+      await MediaFile.findOneAndUpdate(
+        { url },
+        {
+          originalName,
+          storedName: req.file.filename,
+          url,
+          thumbnailUrl,
+          mimeType: req.file.mimetype || 'image/jpeg',
+          kind: 'image',
+          size: req.file.size || 0,
+          folder: productFolder._id,
+          uploadedBy: req.user?._id || null,
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    } catch (mediaErr) {
+      // Do not block upload response if background media indexing fails
+      console.error('Failed to auto-index upload in MediaFile:', mediaErr.message);
     }
 
     res.status(200).json({

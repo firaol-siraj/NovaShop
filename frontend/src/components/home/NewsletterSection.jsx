@@ -1,36 +1,52 @@
 import { useState } from 'react';
+import { homeApi } from '../../lib/api/homeApi';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function NewsletterSection() {
   const [email, setEmail] = useState('');
-  const [submitted, setSubmitted] = useState(false);
+  const [hpSource, setHpSource] = useState('');
+  const [submittedMessage, setSubmittedMessage] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleNewsletterSubscribe = (value) => {
-    window.console?.log('Newsletter subscribe:', value);
-  };
-
-  const handleSubmit = (event) => {
+  const handleSubmit = async (event) => {
     event.preventDefault();
     const trimmedEmail = email.trim();
 
     if (!trimmedEmail || !EMAIL_REGEX.test(trimmedEmail)) {
       setError('Please enter a valid email address.');
-      setSubmitted(false);
+      setSubmittedMessage('');
       return;
     }
 
     setError('');
-    handleNewsletterSubscribe(trimmedEmail);
-    setSubmitted(true);
-    setEmail('');
+    setLoading(true);
+
+    try {
+      const res = await homeApi.subscribe({
+        email: trimmedEmail,
+        hp_source: hpSource,
+        source: 'homepage_newsletter',
+      });
+      const data = res?.data || {};
+      if (data.alreadySubscribed) {
+        setSubmittedMessage("You're already subscribed to The NovaShop Journal.");
+      } else {
+        setSubmittedMessage('Please check your inbox to confirm your subscription.');
+      }
+      setEmail('');
+    } catch (err) {
+      setError(err.response?.data?.message || err.message || 'Failed to subscribe. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <section style={{ backgroundColor: '#F7F2EA', padding: '78px 0' }}>
+    <section style={{ backgroundColor: 'var(--bg-main)', padding: '78px 0' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px' }}>
-        <div style={{ borderTop: '1px solid rgba(27, 24, 22, 0.12)', paddingTop: '30px' }} />
+        <div style={{ borderTop: '1px solid var(--border-default)', paddingTop: '30px' }} />
         <div style={{ maxWidth: '560px', margin: '0 auto', textAlign: 'center' }}>
           <span
             style={{
@@ -41,7 +57,7 @@ export default function NewsletterSection() {
               fontWeight: 500,
               letterSpacing: '0.2em',
               textTransform: 'uppercase',
-              color: '#8C837C',
+              color: 'var(--text-muted)',
             }}
           >
             THE NOVASHOP JOURNAL
@@ -56,7 +72,7 @@ export default function NewsletterSection() {
               fontWeight: 400,
               fontStyle: 'italic',
               letterSpacing: '-0.03em',
-              color: '#1B1816',
+              color: 'var(--text-primary)',
             }}
           >
             Stay in the know.
@@ -69,14 +85,14 @@ export default function NewsletterSection() {
               fontFamily: 'var(--font-sans)',
               fontSize: '14px',
               lineHeight: '1.8',
-              color: '#6E6962',
+              color: 'var(--text-secondary)',
               fontWeight: 300,
             }}
           >
             New collections, seasonal edits, and exclusive releases — delivered directly to your inbox.
           </p>
 
-          {submitted ? (
+          {submittedMessage ? (
             <div
               style={{
                 display: 'flex',
@@ -87,15 +103,28 @@ export default function NewsletterSection() {
                 fontFamily: 'var(--font-sans)',
                 fontSize: '13px',
                 fontWeight: 500,
-                color: '#1B1816',
+                color: 'var(--color-success)',
+                padding: '0 16px',
+                lineHeight: 1.5,
               }}
             >
               <span aria-hidden="true" style={{ fontSize: '18px' }}>✓</span>
-              Thanks — you&apos;re subscribed.
+              {submittedMessage}
             </div>
           ) : (
             <form onSubmit={handleSubmit} noValidate style={{ maxWidth: '420px', margin: '0 auto' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-end', width: '100%', borderBottom: error ? '2px solid #B8655E' : '2px solid #1B1816', background: 'transparent' }}>
+              {/* Offscreen honeypot input for anti-bot protection */}
+              <input
+                type="text"
+                name="website"
+                value={hpSource}
+                onChange={(e) => setHpSource(e.target.value)}
+                tabIndex="-1"
+                autoComplete="off"
+                style={{ position: 'absolute', opacity: 0, height: 0, width: 0, zIndex: -1 }}
+                aria-hidden="true"
+              />
+              <div style={{ display: 'flex', alignItems: 'flex-end', width: '100%', borderBottom: error ? '2px solid var(--color-danger)' : '2px solid var(--border-focus)', background: 'transparent' }}>
                 <input
                   id="newsletter-email"
                   type="email"
@@ -115,29 +144,31 @@ export default function NewsletterSection() {
                     padding: '12px 0 10px',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '14px',
-                    color: '#1B1816',
+                    color: 'var(--text-primary)',
                     letterSpacing: '0.01em',
                   }}
                 />
                 <button
                   type="submit"
+                  disabled={loading}
                   aria-label="Subscribe to the newsletter"
                   style={{
                     height: '42px',
                     border: 'none',
-                    background: '#1B1816',
-                    color: '#FDFBF7',
+                    background: 'var(--color-primary)',
+                    color: 'var(--color-primary-contrast)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '10px',
                     fontWeight: 600,
                     letterSpacing: '0.18em',
                     textTransform: 'uppercase',
                     padding: '0 18px',
-                    cursor: 'pointer',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  SUBSCRIBE
+                  {loading ? 'SUBSCRIBING...' : 'SUBSCRIBE'}
                 </button>
               </div>
 
@@ -149,7 +180,7 @@ export default function NewsletterSection() {
                     textAlign: 'left',
                     fontFamily: 'var(--font-sans)',
                     fontSize: '11px',
-                    color: '#B8655E',
+                    color: 'var(--color-danger)',
                     letterSpacing: '0.02em',
                   }}
                 >
@@ -166,14 +197,14 @@ export default function NewsletterSection() {
               fontFamily: 'var(--font-sans)',
               fontSize: '11px',
               lineHeight: '1.7',
-              color: '#8C837C',
+              color: 'var(--text-muted)',
             }}
           >
             Never shared. Unsubscribe with one click anytime. Review our{' '}
             <a
               href="/privacy-policy"
               style={{
-                color: '#1B1816',
+                color: 'var(--text-primary)',
                 textDecoration: 'underline',
                 textUnderlineOffset: '2px',
               }}

@@ -1,29 +1,46 @@
-import nodemailer from "nodemailer";
-import dotenv from "dotenv";
+import { sendEmail as coreSendEmail } from '../services/emailService.js';
 
-dotenv.config();
-
+/**
+ * Unified sendEmail adapter backwards-compatible with legacy options { email, subject, message, html }
+ * and new options { to, subject, html, text }.
+ */
 const sendEmail = async (options) => {
-  //Create a SMTP transporter configuration
-  const transporter = nodemailer.createTransport({
-    host: process.env.EMAIL_HOST,
-    port: process.env.EMAIL_PORT,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
+  const to = options.to || options.email;
+  const subject = options.subject;
+  const html = options.html;
+  const text = options.text || options.message;
+  const type = options.type;
+  const orderId = options.orderId;
+  const userId = options.userId;
+  const statusCategory = options.statusCategory;
+  const replyTo = options.replyTo;
+
+  const inReplyTo = options.inReplyTo;
+  const references = options.references;
+  const headers = options.headers;
+  const messageId = options.messageId;
+  const idempotencyKey = options.idempotencyKey;
+  const adminUserId = options.adminUserId;
+  const adminName = options.adminName;
+
+  return coreSendEmail({
+    to,
+    subject,
+    html,
+    text,
+    type,
+    orderId,
+    userId,
+    statusCategory,
+    replyTo,
+    inReplyTo,
+    references,
+    headers,
+    messageId,
+    idempotencyKey,
+    adminUserId,
+    adminName,
   });
-
-  // Define email details and payload
-  const mailOptions = {
-    from: `${process.env.FROM_NAME} <${process.env.FROM_EMAIL}>`,
-    to: options.email,
-    subject: options.subject,
-    text: options.message,
-    html: options.html || undefined, 
-  };
-
-  await transporter.sendMail(mailOptions);
 };
 
 export default sendEmail;

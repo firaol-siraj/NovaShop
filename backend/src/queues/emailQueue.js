@@ -13,3 +13,10 @@ export const emailQueue = new Queue('emailQueue', {
     removeOnFail: 100,      // Keep last 100 failed jobs for auditing
   },
 });
+
+// Prevent unhandled exception crash when Redis connection is refused or down
+emailQueue.on('error', (err) => {
+  if (process.env.NODE_ENV !== 'test') {
+    console.warn(`[BullMQ Queue Warning]: ${err.message}`);
+  }
+});

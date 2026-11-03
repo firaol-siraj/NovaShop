@@ -872,3 +872,388 @@
   font-weight: 600;
   cursor: pointer;
 }
+
+/* ============================================================
+   DARK MODE OVERRIDES — PAYMENTS PAGE
+   ============================================================ */
+
+[data-theme="dark"] .pay-heading .admin-page-title {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-heading .admin-page-description {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-period-label {
+  color: var(--text-muted, #C4BCB1);
+}
+
+/* KPI Summary Cards */
+[data-theme="dark"] .pay-stat-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-default, #4A433B);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="dark"] .pay-stat-card .admin-stat-label {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-stat-card .admin-stat-value {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-trend-pill.is-positive {
+  color: var(--color-success, #52B376);
+  background: var(--color-success-soft, rgba(82, 179, 118, 0.16));
+}
+
+[data-theme="dark"] .pay-trend-pill.is-negative {
+  color: var(--color-danger, #E06856);
+  background: var(--color-danger-soft, rgba(224, 104, 86, 0.16));
+}
+
+[data-theme="dark"] .pay-trend-pill.is-neutral {
+  color: var(--color-warning, #DE9E43);
+  background: var(--color-warning-soft, rgba(222, 158, 67, 0.16));
+}
+
+[data-theme="dark"] .pay-trend-pill.is-date {
+  color: var(--text-muted, #C4BCB1);
+  background: var(--bg-surface-sunken, #181614);
+}
+
+/* Tabs */
+[data-theme="dark"] .pay-tabs {
+  border-bottom-color: var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .pay-tab {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-tab:hover {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-tab.is-active {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-tab.is-active::after {
+  background: var(--color-accent, #D4A662);
+}
+
+[data-theme="dark"] .pay-tab b {
+  color: var(--text-secondary, #DFD9CF);
+  background: var(--bg-surface-sunken, #181614);
+}
+
+[data-theme="dark"] .pay-tab.is-active b {
+  background: var(--color-accent-soft, rgba(212, 166, 98, 0.16));
+  color: var(--color-accent, #D4A662);
+}
+
+/* Search & Filters */
+[data-theme="dark"] .pay-search-field input {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+  box-shadow: none;
+}
+
+[data-theme="dark"] .pay-search-field input::placeholder {
+  color: var(--text-subtle, #A59E95);
+}
+
+[data-theme="dark"] .pay-search-field input:hover {
+  border-color: var(--border-strong, #7A7165);
+}
+
+[data-theme="dark"] .pay-search-field input:focus {
+  border-color: var(--color-accent, #D4A662);
+  box-shadow: 0 0 0 2px var(--color-accent-soft, rgba(212, 166, 98, 0.2));
+}
+
+[data-theme="dark"] .pay-search-field svg {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-search-field:focus-within svg {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-filter-dropdown > button {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-filter-dropdown > button:hover {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-strong, #7A7165);
+}
+
+[data-theme="dark"] .pay-filter-dropdown > button svg {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-filter-menu {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .pay-filter-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pay-filter-menu button:hover {
+  background: var(--bg-hover, #181614);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-filter-menu button.is-selected {
+  background: var(--color-accent-soft, rgba(212, 166, 98, 0.16));
+  color: var(--color-accent, #D4A662);
+}
+
+/* Table Card & Content */
+[data-theme="dark"] .pay-table-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .pay-table thead th {
+  background: var(--bg-surface-sunken, #181614);
+  border-bottom-color: var(--border-default, #4A433B);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-table tbody td {
+  border-bottom-color: var(--border-subtle, #2A2622);
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pay-table tbody tr:hover td {
+  background: var(--bg-surface-raised, #282420);
+}
+
+[data-theme="dark"] .pay-order-link strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-type-pill {
+  background: var(--bg-surface-sunken, #181614);
+  color: var(--text-muted, #C4BCB1);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .pay-customer-cell strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-customer-cell span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-method-cell strong,
+[data-theme="dark"] .pay-method-name-cell strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-method-cell span,
+[data-theme="dark"] .pay-method-cell em,
+[data-theme="dark"] .pay-method-name-cell span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-method-icon {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-amount {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-amount.is-refund {
+  color: var(--color-danger, #E06856);
+}
+
+/* Status Pills */
+[data-theme="dark"] .pay-status-pill.is-paid {
+  background: var(--color-success-soft, rgba(82, 179, 118, 0.16));
+  color: var(--color-success, #52B376);
+}
+
+[data-theme="dark"] .pay-status-pill.is-scheduled,
+[data-theme="dark"] .pay-status-pill.is-pending {
+  background: var(--color-warning-soft, rgba(222, 158, 67, 0.16));
+  color: var(--color-warning, #DE9E43);
+}
+
+[data-theme="dark"] .pay-status-pill.is-failed,
+[data-theme="dark"] .pay-status-pill.is-refunded {
+  background: var(--color-danger-soft, rgba(224, 104, 86, 0.16));
+  color: var(--color-danger, #E06856);
+}
+
+[data-theme="dark"] .pay-status-pill.is-inactive {
+  background: var(--bg-surface-sunken, #181614);
+  color: var(--text-muted, #C4BCB1);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .pay-date-cell {
+  color: var(--text-muted, #C4BCB1);
+}
+
+/* Row Action Menu */
+[data-theme="dark"] .pay-row-menu {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="dark"] .pay-row-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pay-row-menu button:hover {
+  background: var(--bg-hover, #181614);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-row-menu-divider {
+  background: var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .pay-provider-tag {
+  color: var(--text-primary, #FBF9F5);
+  background: var(--bg-surface-raised, #282420);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+/* Footer / Pagination */
+[data-theme="dark"] .pay-table-footer {
+  background: var(--bg-surface-sunken, #181614);
+  border-top-color: var(--border-default, #4A433B);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-table-footer strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-page-size select {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #4A433B);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-page-size svg {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-page-numbers button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pay-page-numbers button:hover {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-page-numbers button.is-active {
+  background: var(--color-accent, #D4A662);
+  color: #141210;
+}
+
+[data-theme="dark"] .pay-page-numbers span {
+  color: var(--text-subtle, #A59E95);
+}
+
+/* Toggles */
+[data-theme="dark"] .pay-toggle {
+  background: var(--bg-surface-sunken, #181614);
+  border: 1px solid var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .pay-toggle.is-on {
+  background: var(--color-accent, #D4A662);
+  border-color: var(--color-accent, #D4A662);
+}
+
+[data-theme="dark"] .pay-toggle span {
+  background: #FFFFFF;
+}
+
+/* Methods Tab */
+[data-theme="dark"] .pay-methods-intro {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .pay-configure-link {
+  color: var(--color-accent, #D4A662);
+}
+
+/* Slide Over Drawer */
+[data-theme="dark"] .pay-slide-over {
+  background: var(--bg-surface, #1E1B18);
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.6);
+  border-left: 1px solid var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .pay-slide-title-group span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-slide-title-group h2 {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-slide-close {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-slide-close:hover {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-slide-section-title {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-slide-card {
+  background: var(--bg-surface-raised, #282420);
+  border: 1px solid var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .pay-slide-card-divider {
+  background: var(--border-subtle, #2A2622);
+}
+
+[data-theme="dark"] .pay-slide-card-row span {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .pay-slide-card-row strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .pay-slide-footer {
+  background: var(--bg-surface-raised, #282420);
+  border-top-color: var(--border-default, #4A433B);
+}
+
+[data-theme="dark"] .pay-slide-btn-refund {
+  color: var(--color-danger, #E06856);
+}
+
+[data-theme="dark"] .pay-slide-btn-done {
+  background: var(--color-accent, #D4A662);
+  color: #141210;
+}

@@ -29,6 +29,17 @@ const categorySchema = new mongoose.Schema(
       ref: 'Category',
       default: null,
     },
+    status: {
+      type: String,
+      enum: ['active', 'hidden'],
+      default: 'active',
+      index: true,
+    },
+    sortOrder: {
+      type: Number,
+      default: 0,
+      index: true,
+    },
   },
   {
     timestamps: true,
@@ -44,7 +55,8 @@ categorySchema.virtual('children', {
   foreignField: 'parent',
 });
 
-categorySchema.index({ parent: 1 });
+categorySchema.index({ parent: 1, sortOrder: 1 });
+categorySchema.index({ status: 1, sortOrder: 1 });
 
 const Category = mongoose.model('Category', categorySchema);
 

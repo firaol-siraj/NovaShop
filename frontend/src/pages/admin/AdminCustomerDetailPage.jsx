@@ -1,132 +1,579 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
-import { hydrateCustomer, initialCustomers } from './adminCustomerData';
-import { PRODUCT_DATA } from '../../data/products';
+import adminApi from '../../lib/api/adminApi';
+import { formatCurrency, formatRelativeTime } from '../../lib/formatters';
+import AdminSendEmailModal from '../../components/admin/AdminSendEmailModal';
+import { BlockCustomerModal, SafeDeleteCustomerModal } from '../../components/admin/AdminCustomerModals';
 import './admin-customer-detail.css';
 
-const orderHistory = [
-  { id: 'NS-10482', date: 'Sep 28, 2026', items: 'Cashmere Overcoat', count: 1, image: PRODUCT_DATA[1].primaryImage, status: 'Delivered', total: '$1,450.00' },
-  { id: 'NS-10431', date: 'Sep 09, 2026', items: 'Silk Slip Dress', count: 2, image: PRODUCT_DATA[6].primaryImage, status: 'Delivered', total: '$2,110.00' },
-  { id: 'NS-10388', date: 'Aug 21, 2026', items: 'Leather Tote Bag', count: 1, image: PRODUCT_DATA[3].primaryImage, status: 'Delivered', total: '$1,120.00' },
-  { id: 'NS-10342', date: 'Jul 30, 2026', items: 'Merino Wool Sweater', count: 3, image: PRODUCT_DATA[7].primaryImage, status: 'Delivered', total: '$1,260.00' },
-  { id: 'NS-10297', date: 'Jul 04, 2026', items: 'Silk Scarf', count: 1, image: PRODUCT_DATA[10].primaryImage, status: 'Cancelled', total: '$240.00' },
-  { id: 'NS-10251', date: 'Jun 11, 2026', items: 'Suede Chelsea Boots', count: 1, image: PRODUCT_DATA[5].primaryImage, status: 'Delivered', total: '$780.00' },
-];
-
-const activityFeed = [
-  { text: <>Placed order <strong>#NS-10482</strong></>, date: 'Sep 28, 2026' },
-  { text: <>Order <strong>#NS-10431</strong> was delivered</>, date: 'Sep 14, 2026' },
-  { text: <>Left a 5-star review on <strong>Silk Slip Dress</strong></>, date: 'Sep 12, 2026' },
-  { text: <>Updated shipping address</>, date: 'Aug 29, 2026' },
-  { text: <>Subscribed to email marketing</>, date: 'Aug 14, 2026' },
-];
-
-const seededNotes = [
-  { id: 'note-1', author: 'Elena Vasquez', initials: 'EV', relative: '2 weeks ago', date: 'Aug 14, 2026', text: 'Prefers express shipping. Has requested gift wrapping on past orders.' },
-  { id: 'note-2', author: 'Elena Vasquez', initials: 'EV', relative: 'Aug 14, 2026', date: 'Aug 14, 2026', text: 'VIP client concierge consultation conducted via direct support thread.' },
-];
-
 function CustomerCard({ title, subtitle, right, children, className = '' }) {
-  return <section className={`admin-card cd-card ${className}`}><header className="cd-card-heading"><div><h2>{title}</h2>{subtitle && <p>{subtitle}</p>}</div>{right}</header>{children}</section>;
-}
-
-function OrderStatus({ status }) {
-  return <span className={`cd-order-status ${status.toLowerCase()}`}>{status}</span>;
-}
-
-function EmailModal({ customer, onClose }) {
-  const [subject, setSubject] = useState('');
-  const [message, setMessage] = useState('');
-  const [sent, setSent] = useState(false);
-  return <div className="admin-modal-backdrop" role="presentation" onMouseDown={(event) => event.target === event.currentTarget && onClose()}><section className="admin-order-modal cd-email-modal" role="dialog" aria-modal="true" aria-labelledby="cd-email-title"><header className="admin-modal-heading"><div><span className="admin-modal-eyebrow">Customer communication</span><h2 id="cd-email-title">Email {customer.name}</h2></div><button className="admin-icon-button" type="button" aria-label="Close email composer" onClick={onClose}><AdminIcon name="close" /></button></header>{sent ? <p className="cd-email-sent">Email queued for {customer.email}.</p> : <form onSubmit={(event) => { event.preventDefault(); setSent(true); }}><label>To<input value={customer.email} readOnly /></label><label>Subject<input value={subject} onChange={(event) => setSubject(event.target.value)} placeholder="Subject" /></label><label>Message<textarea rows="5" value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Write a message to your customer" /></label><button className="admin-action-button is-primary" type="submit" disabled={!subject.trim() || !message.trim()}><AdminIcon name="document" size={14} /> Send email</button></form>}</section></div>;
-}
-
-function money(amount) {
-  return `$${Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return (
+    <section className={`admin-card cd-card ${className}`}>
+      <header className="cd-card-heading">
+        <div>
+          <h2>{title}</h2>
+          {subtitle && <p>{subtitle}</p>}
+        </div>
+        {right}
+      </header>
+      {children}
+    </section>
+  );
 }
 
 export default function AdminCustomerDetailPage({ customerId, go }) {
-  const hydrated = hydrateCustomer(customerId) || hydrateCustomer('CUS-1042');
-  const [customer, setCustomer] = useState(hydrated);
-  const [notes, setNotes] = useState(() => {
-    if (hydrated.internalNotes) return [{ id: 'note-created', author: 'Elena Vasquez', initials: 'EV', relative: 'Just now', date: 'Oct 4, 2026', text: hydrated.internalNotes }];
-    return initialCustomers.some((item) => item.id === hydrated.id) ? seededNotes : [];
-  });
-  const [noteInput, setNoteInput] = useState('');
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [emailOpen, setEmailOpen] = useState(false);
+  const [customer, setCustomer] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [tagInput, setTagInput] = useState('');
+
+  // Modals state
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
+  const [blockModalOpen, setBlockModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [retryingLogId, setRetryingLogId] = useState(null);
+
+  const notify = (msg) => {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(''), 3000);
+  };
+
+  const loadCustomer = () => {
+    if (!customerId) return;
+    setLoading(true);
+    setError('');
+
+    adminApi
+      .getCustomer(customerId)
+      .then((res) => {
+        if (res.data) {
+          setCustomer(res.data);
+        }
+      })
+      .catch((err) => {
+        setError(err.response?.data?.message || err.message || 'Customer account not found.');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  };
 
   useEffect(() => {
-    const next = hydrateCustomer(customerId);
-    if (next) setCustomer(next);
-    try {
-      const flash = window.sessionStorage.getItem('novashop-customer-flash');
-      if (flash) {
-        window.sessionStorage.removeItem('novashop-customer-flash');
-        setNotice(flash);
-        window.setTimeout(() => setNotice(''), 2300);
-      }
-    } catch {
-      return undefined;
-    }
-    return undefined;
+    loadCustomer();
   }, [customerId]);
 
-  const notify = (message) => {
-    setNotice(message);
-    window.setTimeout(() => setNotice(''), 2300);
-  };
-  const addNote = (event) => {
-    event.preventDefault();
-    const text = noteInput.trim();
-    if (!text) return;
-    setNotes((current) => [{ id: `note-${Date.now()}`, author: 'Elena Vasquez', initials: 'EV', relative: 'Just now', date: 'Oct 4, 2026', text }, ...current]);
-    setNoteInput('');
-    notify('Internal note added.');
-  };
-  const exportOrderHistory = () => {
-    const rows = [['Order', 'Date', 'Items', 'Status', 'Total'], ...orderHistory.map((order) => [order.id, order.date, order.items, order.status, order.total])];
-    const csv = rows.map((row) => row.map((value) => `"${String(value).replaceAll('"', '""')}"`).join(',')).join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `${customer.name.toLowerCase().replaceAll(' ', '-')}-order-history.csv`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+  const handleBlockConfirm = async (reason) => {
+    if (!customer) return;
+    const isCurrentlyBlocked =
+      customer.status === 'blocked' || customer.status === 'deactivated' || customer.isDeactivated;
+    const nextStatus = isCurrentlyBlocked ? 'active' : 'blocked';
+
+    try {
+      await adminApi.updateCustomerStatus(customer._id, nextStatus, reason);
+      notify(`Customer account ${isCurrentlyBlocked ? 'reactivated' : 'blocked'}.`);
+      loadCustomer();
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to update customer status.');
+    }
   };
 
-  const isNewProfile = !initialCustomers.some((item) => item.id === customer.id);
-  const lifetimeSpent = customer.spent ?? 0;
-  const lifetimeOrders = customer.orders ?? 0;
-  const averageOrder = lifetimeOrders ? lifetimeSpent / lifetimeOrders : 0;
-  const visibleOrders = isNewProfile ? [] : orderHistory;
-  const visibleActivity = isNewProfile ? [] : activityFeed;
+  const handlePermanentDelete = async () => {
+    if (!customer) return;
+    try {
+      await adminApi.deleteCustomer(customer._id);
+      notify('Customer account permanently deleted.');
+      window.setTimeout(() => go('/admin/customers'), 500);
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to delete customer.');
+    }
+  };
+
+  const handleAnonymize = async () => {
+    if (!customer) return;
+    try {
+      await adminApi.deleteCustomer(customer._id, 'anonymize');
+      notify('Customer data scrubbed and account deactivated. Order records preserved for accounting.');
+      loadCustomer();
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to anonymize customer.');
+    }
+  };
+
+  const [resendingInvite, setResendingInvite] = useState(false);
+
+  const handleResendInviteOrVerification = async () => {
+    if (!customer || resendingInvite) return;
+    setResendingInvite(true);
+    try {
+      if (customer.status === 'invited') {
+        const res = await adminApi.resendCustomerInvite(customer._id);
+        notify(res.message || 'Account invitation email resent.');
+      } else {
+        const res = await adminApi.resendCustomerVerification(customer._id);
+        notify(res.message || 'Verification email dispatched.');
+      }
+      await loadCustomer();
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to send email.');
+    } finally {
+      setResendingInvite(false);
+    }
+  };
+
+  const handleRetryEmail = async (logId) => {
+    if (!customer) return;
+    setRetryingLogId(logId);
+    try {
+      const res = await adminApi.retryCustomerEmail(customer._id, logId);
+      notify(res.message || 'Email resent successfully.');
+      loadCustomer();
+    } catch (err) {
+      notify(err.response?.data?.message || err.message || 'Failed to retry email delivery.');
+    } finally {
+      setRetryingLogId(null);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="admin-dashboard p-12 text-center text-xs text-[var(--text-muted)]">
+        Loading customer record from database…
+      </div>
+    );
+  }
+
+  if (error || !customer) {
+    return (
+      <div className="admin-dashboard p-12 text-center">
+        <h2 className="text-base font-bold text-[var(--text-primary)]">Customer Not Found</h2>
+        <p className="text-xs text-[var(--text-muted)] mt-1">{error || 'This customer profile does not exist.'}</p>
+        <button
+          className="admin-action-button is-primary mt-4 inline-flex"
+          type="button"
+          onClick={() => go('/admin/customers')}
+        >
+          Back to Customers
+        </button>
+      </div>
+    );
+  }
+
+  const metrics = customer.metrics || {
+    totalOrders: 0,
+    paidOrdersCount: 0,
+    totalSpent: 0,
+    aov: 0,
+    lastOrderDate: null,
+  };
+
+  const addresses = customer.addresses || [];
+  const orders = customer.orders || [];
+  const emailLogs = customer.emailLogs || [];
+
+  const rawInitials = (customer.name || customer.email || 'Customer')
+    .split(' ')
+    .filter(Boolean)
+    .map((p) => p[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+  const initials = rawInitials || 'CU';
+  const customerStatus = customer.status || 'active';
+  const isBlocked = customerStatus === 'blocked' || customerStatus === 'deactivated';
 
   return (
     <div className="admin-dashboard cd-page">
-      <header className="cd-page-header"><button className="pe-breadcrumb" type="button" onClick={() => go('/admin/customers')}><AdminIcon name="left" size={14} /> Customers</button><div className="cd-identity-actions"><div className="cd-identity"><span className="cd-avatar">{customer.initials}</span><div><div className="cd-identity-name"><h1>{customer.name}</h1><span className={`customers-status-pill ${customer.status.toLowerCase()}`}><i />{customer.status}</span></div><p><a href={`mailto:${customer.email}`}>{customer.email}</a><span> · {customer.city}, {customer.country}</span></p></div></div><div className="cd-header-actions"><div className="cd-menu-wrap"><button className="admin-action-button cd-overflow-button" type="button" aria-label="More customer actions" aria-expanded={menuOpen} onClick={() => setMenuOpen((open) => !open)}><AdminIcon name="more" size={17} /></button>{menuOpen && <div className="cd-overflow-menu"><button type="button" onClick={() => { setMenuOpen(false); notify('Customer storefront view opened.'); }}>View as customer</button><button type="button" onClick={() => { setMenuOpen(false); exportOrderHistory(); }}>Export order history</button><button type="button" className="is-danger" onClick={() => { setCustomer((current) => ({ ...current, status: current.status === 'Blocked' ? 'Active' : 'Blocked' })); setMenuOpen(false); notify(customer.status === 'Blocked' ? 'Customer unblocked.' : 'Customer blocked.'); }}>{customer.status === 'Blocked' ? 'Unblock customer' : 'Block customer'}</button></div>}</div><button className="admin-action-button" type="button" onClick={() => setEmailOpen(true)}><AdminIcon name="document" size={14} /> Send email</button><button className="admin-action-button is-primary" type="button" onClick={() => go(`/admin/customers/${customer.id}/edit`)}><span>✎</span> Edit customer</button></div></div></header>
+      {/* Header */}
+      <section className="admin-page-heading cd-header">
+        <div className="cd-title-area">
+          <button className="pe-breadcrumb" type="button" onClick={() => go('/admin/customers')}>
+            ← Customers
+          </button>
+          <div className="flex items-center gap-3 mt-1">
+            <span className="w-10 h-10 rounded-full bg-[var(--bg-surface-raised)] border border-[var(--border-default)] text-[var(--text-primary)] flex items-center justify-center text-sm font-bold font-mono">
+              {initials}
+            </span>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="admin-page-title text-[var(--text-primary)]">{customer.name}</h1>
+                <span className={`customers-status-pill ${customerStatus.toLowerCase()}`}>
+                  <i />
+                  {customerStatus.charAt(0).toUpperCase() + customerStatus.slice(1)}
+                </span>
+                {customer.isVerified ? (
+                  <span className="rounded bg-[var(--color-success-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-success)]">
+                    ✓ Verified
+                  </span>
+                ) : (
+                  <span className="rounded bg-[var(--color-warning-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-warning)]">
+                    Unverified
+                  </span>
+                )}
+              </div>
+              <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                {customer.email} {customer.phone ? `· ${customer.phone}` : ''} · Joined {new Date(customer.createdAt).toLocaleDateString()}
+              </p>
+            </div>
+          </div>
+        </div>
 
-      <section className="cd-lifetime-section"><div className="cd-lifetime-label">LIFETIME</div><div className="admin-stat-grid cd-lifetime-grid"><article className="admin-stat-card"><div className="admin-stat-heading"><span className="admin-stat-label">Total spent</span>{lifetimeOrders > 0 && <span className="admin-trend-pill">+8.4%</span>}</div><div className="admin-stat-value">{money(lifetimeSpent)}</div></article><article className="admin-stat-card"><div className="admin-stat-heading"><span className="admin-stat-label">Total orders</span>{lifetimeOrders > 0 && <span className="admin-trend-pill">+2</span>}</div><div className="admin-stat-value">{lifetimeOrders}</div></article><article className="admin-stat-card"><div className="admin-stat-heading"><span className="admin-stat-label">Average order value</span>{lifetimeOrders > 0 && <span className="admin-trend-pill">+3.1%</span>}</div><div className="admin-stat-value">{money(averageOrder)}</div></article><article className="admin-stat-card"><div className="admin-stat-heading"><span className="admin-stat-label">Last order</span><span className="cd-last-order-tag">{customer.lastOrder || '—'}</span></div><div className="admin-stat-value">{lifetimeOrders ? (customer.lastDate || '—') : '—'}</div></article></div></section>
+        {/* Header Actions */}
+        <div className="admin-page-actions flex items-center gap-2 flex-wrap">
+          {(!customer.isVerified || customerStatus === 'invited') && (
+            <button
+              className="admin-action-button"
+              type="button"
+              disabled={resendingInvite}
+              onClick={handleResendInviteOrVerification}
+            >
+              {resendingInvite
+                ? 'Resending…'
+                : customerStatus === 'invited'
+                ? 'Resend Invite'
+                : 'Resend Verification'}
+            </button>
+          )}
 
-      <div className="cd-columns"><div className="cd-main-column"><CustomerCard title="Order history" right={<button className="admin-text-link" type="button" onClick={() => notify(lifetimeOrders ? 'Showing all customer orders.' : 'This storefront account has no orders yet.')}>View all orders <span>→</span></button>} className="cd-orders-card"><div className="cd-order-table-scroll"><table className="cd-order-table"><colgroup><col /><col /><col /><col /></colgroup><thead><tr><th>ORDER</th><th>ITEMS</th><th>STATUS</th><th>TOTAL</th></tr></thead><tbody>{visibleOrders.map((order) => <tr key={order.id}><td><div className="cd-order-id"><strong>#{order.id}</strong><span>{order.date}</span></div></td><td><div className="cd-order-item"><img src={order.image} alt="" /><strong>{order.items}</strong>{order.count > 1 && <span>+{order.count - 1}</span>}</div></td><td><OrderStatus status={order.status} /></td><td className="cd-order-total">{order.total}</td></tr>)}{visibleOrders.length === 0 && <tr><td colSpan="4" className="cd-empty-row">No orders yet · $0.00 lifetime spend</td></tr>}</tbody></table></div></CustomerCard>
+          <button
+            className="admin-action-button"
+            type="button"
+            onClick={() => go(`/admin/orders?customer=${customer._id}`)}
+          >
+            <AdminIcon name="bag" size={14} /> View Orders
+          </button>
 
-        <CustomerCard title="Recent activity" className="cd-activity-card"><ol className="cd-activity-list">{visibleActivity.map((activity, index) => <li key={`${activity.date}-${index}`}><i /><p>{activity.text}</p><time>{activity.date}</time></li>)}{visibleActivity.length === 0 && <li className="cd-empty-activity"><i /><p>No storefront activity yet.</p></li>}</ol></CustomerCard></div>
+          <button
+            className="admin-action-button"
+            type="button"
+            onClick={() => go(`/admin/returns?customer=${customer._id}`)}
+          >
+            <AdminIcon name="returns" size={14} /> View Returns
+          </button>
 
-        <aside className="cd-side-column"><CustomerCard title="Contact" right={<button className="admin-text-link" type="button" onClick={() => setEmailOpen(true)}>Send email</button>} className="cd-contact-card"><div className="cd-labeled-value"><span>Email address</span><a href={`mailto:${customer.email}`}>{customer.email}</a></div><div className="cd-labeled-value"><span>Phone</span><a href={`tel:${customer.phone}`}>{customer.phone}</a></div></CustomerCard>
+          <button
+            className="admin-action-button"
+            type="button"
+            onClick={() => setEmailModalOpen(true)}
+            disabled={isBlocked}
+          >
+            <AdminIcon name="mail" size={14} /> Send Email
+          </button>
 
-        <CustomerCard title="Addresses" className="cd-address-card"><div className="cd-address-block"><span>SHIPPING ADDRESS</span><address>{customer.name}{customer.address ? <><br />{customer.address}</> : null}{customer.city || customer.postal ? <><br />{[customer.city, customer.postal].filter(Boolean).join(', ')}</> : null}{customer.country ? <><br />{customer.country}</> : null}{!customer.address && !customer.city && !customer.country && <><br />No shipping address on file</>}</address></div><div className="cd-address-block billing"><span>BILLING ADDRESS</span><p>{customer.billingAddress || 'Same as shipping address'}</p></div>{(customer.extraAddresses || []).map((address, index) => <div className="cd-address-block billing" key={`extra-${index}`}><span>ADDRESS {index + 2}</span><address>{[address.line1, address.line2].filter(Boolean).join(', ')}<br />{[address.city, address.region, address.postal].filter(Boolean).join(', ')}<br />{address.country}</address></div>)}</CustomerCard>
+          <button
+            className="admin-action-button"
+            type="button"
+            onClick={() => go(`/admin/customers/${customer._id}/edit`)}
+          >
+            <AdminIcon name="edit" size={14} /> Edit Customer
+          </button>
 
-        <CustomerCard title="Internal Notes" subtitle="Only visible to your team." className="cd-notes-card"><form className="cd-note-form" onSubmit={addNote}><textarea rows="3" value={noteInput} onChange={(event) => setNoteInput(event.target.value)} placeholder="Add a note about this customer…" /><button className="admin-action-button is-primary" type="submit" disabled={!noteInput.trim()}>Add note</button></form><div className="cd-note-list">{notes.map((note) => <article className="cd-note" key={note.id}><span className="cd-note-avatar">{note.initials}</span><div><header><strong>{note.author}</strong><span>{note.relative} · {note.date}</span></header><p>{note.text}</p></div></article>)}</div></CustomerCard>
+          <button
+            className={`admin-action-button ${isBlocked ? 'is-primary' : 'is-danger'}`}
+            type="button"
+            onClick={() => setBlockModalOpen(true)}
+          >
+            {isBlocked ? 'Reactivate Account' : 'Block Account'}
+          </button>
 
-        <CustomerCard title="Organization" className="cd-organization-card"><span className="cd-field-label">Tags</span><div className="cd-tags">{(customer.tags || []).map((tag) => <span className="cd-tag" key={tag}>{tag}<button type="button" aria-label={`Remove ${tag} tag`} onClick={() => setCustomer((current) => ({ ...current, tags: current.tags.filter((item) => item !== tag) }))}>×</button></span>)}<input value={tagInput} onChange={(event) => setTagInput(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter' && tagInput.trim()) { event.preventDefault(); setCustomer((current) => ({ ...current, tags: [...(current.tags || []), tagInput.trim()] })); setTagInput(''); } }} placeholder="Add tag…" /></div><div className="cd-marketing"><span>Email marketing</span><strong className={customer.emailSubscribed ? 'is-subscribed' : ''}><i />{customer.emailSubscribed ? 'Subscribed' : 'Unsubscribed'}</strong></div></CustomerCard>
+          <button
+            className="admin-action-button is-danger"
+            type="button"
+            onClick={() => setDeleteModalOpen(true)}
+            aria-label="Delete or anonymize customer"
+          >
+            <AdminIcon name="trash" size={14} />
+          </button>
+        </div>
+      </section>
 
-        <CustomerCard title="Details" className="cd-details-card"><button className="pe-accordion-trigger pe-details-trigger" type="button" aria-expanded={detailsOpen} onClick={() => setDetailsOpen((open) => !open)}><span>Customer record and acquisition details.</span><AdminIcon name="chevron" size={14} /></button>{detailsOpen && <dl className="cd-details-list"><div><dt>Customer ID</dt><dd>{customer.id}</dd></div><div><dt>Account created</dt><dd>{customer.joinedAt || 'Apr 12, 2024'}</dd></div><div><dt>Acquisition source</dt><dd>Online storefront</dd></div></dl>}</CustomerCard></aside></div>
+      {/* KPI Stats */}
+      <section className="admin-stat-grid cd-stat-grid">
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Lifetime Paid Spend</span>
+          </div>
+          <div className="admin-stat-value text-[var(--text-primary)]">{formatCurrency(metrics.totalSpent)}</div>
+          <span className="text-[11px] text-[var(--text-muted)]">Paid orders total</span>
+        </article>
+
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Total Orders</span>
+          </div>
+          <div className="admin-stat-value text-[var(--text-primary)]">{metrics.totalOrders}</div>
+          <span className="text-[11px] text-[var(--text-muted)]">{metrics.paidOrdersCount} paid / completed</span>
+        </article>
+
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Average Order Value</span>
+          </div>
+          <div className="admin-stat-value text-[var(--text-primary)]">{formatCurrency(metrics.aov)}</div>
+          <span className="text-[11px] text-[var(--text-muted)]">Revenue per paid order</span>
+        </article>
+
+        <article className="admin-stat-card">
+          <div className="admin-stat-heading">
+            <span className="admin-stat-label">Last Order Date</span>
+          </div>
+          <div className="admin-stat-value text-sm font-semibold text-[var(--text-primary)]">
+            {metrics.lastOrderDate ? new Date(metrics.lastOrderDate).toLocaleDateString() : 'None yet'}
+          </div>
+          <span className="text-[11px] text-[var(--text-muted)]">
+            {metrics.lastOrderDate ? formatRelativeTime(metrics.lastOrderDate) : 'No order history'}
+          </span>
+        </article>
+      </section>
+
+      {/* Layout Grid */}
+      <div className="cd-grid">
+        {/* Left Column: Orders & Email Logs */}
+        <div className="cd-main-column space-y-6">
+          {/* Order History */}
+          <CustomerCard
+            title="Order History"
+            subtitle={`${orders.length} total order(s) placed by this customer`}
+          >
+            {orders.length === 0 ? (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">No orders placed yet.</p>
+            ) : (
+              <div className="overflow-x-auto mt-3">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[var(--border-default)] text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">
+                      <th className="py-2.5 px-3">Order Number</th>
+                      <th className="py-2.5 px-3">Date</th>
+                      <th className="py-2.5 px-3">Items Count</th>
+                      <th className="py-2.5 px-3">Total</th>
+                      <th className="py-2.5 px-3">Payment</th>
+                      <th className="py-2.5 px-3">Fulfillment</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                    {orders.map((o) => (
+                      <tr
+                        key={o._id}
+                        className="hover:bg-[var(--bg-hover)] cursor-pointer"
+                        onClick={() => go(`/admin/orders/${o._id}`)}
+                      >
+                        <td className="py-2.5 px-3 font-mono font-bold text-[var(--text-primary)]">
+                          #{o.orderNumber || o._id.slice(-6)}
+                        </td>
+                        <td className="py-2.5 px-3 text-[var(--text-secondary)]">
+                          {new Date(o.createdAt).toLocaleDateString()}
+                        </td>
+                        <td className="py-2.5 px-3 font-medium text-[var(--text-primary)]">
+                          {(o.orderItems || []).reduce((acc, it) => acc + (it.qty || 1), 0)} items
+                        </td>
+                        <td className="py-2.5 px-3 font-bold text-[var(--text-primary)]">
+                          {formatCurrency(o.totalPrice)}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
+                              o.isPaid || o.paymentStatus === 'paid'
+                                ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]'
+                                : 'bg-[var(--color-warning-soft)] text-[var(--color-warning)]'
+                            }`}
+                          >
+                            {o.isPaid || o.paymentStatus === 'paid' ? 'PAID' : 'PENDING'}
+                          </span>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span className={`products-status-pill text-[10px] ${(o.status || 'pending').toLowerCase()}`}>
+                            <i />
+                            {o.status || 'Pending'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CustomerCard>
+
+          {/* Email Communication Log */}
+          <CustomerCard
+            title="Email Communication Log"
+            subtitle="Authoritative log of transactional notices, invoices, and customer communications"
+            right={
+              <button
+                type="button"
+                className="admin-action-button"
+                onClick={() => setEmailModalOpen(true)}
+                disabled={isBlocked}
+                style={{ minHeight: '30px', padding: '0 10px', fontSize: '11px' }}
+              >
+                <AdminIcon name="plus" size={13} /> Compose Email
+              </button>
+            }
+          >
+            {emailLogs.length === 0 ? (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">No emails logged for this customer.</p>
+            ) : (
+              <div className="overflow-x-auto mt-3">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead>
+                    <tr className="border-b border-[var(--border-default)] text-[11px] uppercase tracking-wider text-[var(--text-secondary)]">
+                      <th className="py-2.5 px-3">Subject</th>
+                      <th className="py-2.5 px-3">Type</th>
+                      <th className="py-2.5 px-3">Status</th>
+                      <th className="py-2.5 px-3">Date Dispatched</th>
+                      <th className="py-2.5 px-3 text-right">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[var(--border-subtle)]">
+                    {emailLogs.map((log) => (
+                      <tr key={log._id} className="hover:bg-[var(--bg-hover)]">
+                        <td className="py-2.5 px-3 font-semibold text-[var(--text-primary)] truncate max-w-xs">
+                          {log.subject}
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px] text-[var(--text-secondary)]">
+                          {log.type}
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <span
+                            title={log.bounceReason || log.error || (log.status === 'sent' ? 'Delivered successfully via SMTP' : '')}
+                            className={`inline-flex px-2 py-0.5 rounded text-[10px] font-bold ${
+                              log.status === 'sent'
+                                ? 'bg-[var(--color-success-soft)] text-[var(--color-success)]'
+                                : log.status === 'bounced'
+                                ? 'bg-[var(--color-warning-soft)] text-[var(--color-warning)]'
+                                : log.status === 'queued'
+                                ? 'bg-[var(--color-info-soft)] text-[var(--color-info)]'
+                                : 'bg-[var(--color-danger-soft)] text-[var(--color-danger)]'
+                            }`}
+                          >
+                            {log.status ? log.status.toUpperCase() : 'UNKNOWN'}
+                          </span>
+                          {(log.bounceReason || log.error) && (
+                            <p className="text-[10px] text-[var(--text-muted)] truncate max-w-[200px] mt-0.5" title={log.bounceReason || log.error}>
+                              {log.bounceReason || log.error}
+                            </p>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-[var(--text-muted)]">
+                          {formatRelativeTime(log.createdAt)}
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          {(log.status === 'failed' || log.status === 'bounced') && (
+                            <button
+                              type="button"
+                              className="admin-action-button is-primary"
+                              disabled={retryingLogId === log._id}
+                              onClick={() => handleRetryEmail(log._id)}
+                              style={{ minHeight: '26px', padding: '0 8px', fontSize: '10px' }}
+                            >
+                              {retryingLogId === log._id ? 'Retrying…' : 'Retry'}
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CustomerCard>
+        </div>
+
+        {/* Right Column: Profile & Addresses */}
+        <div className="cd-side-column space-y-6">
+          {/* Profile Card */}
+          <CustomerCard title="Customer Profile">
+            <div className="space-y-3 text-xs">
+              <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                <span className="text-[var(--text-muted)]">Full Name</span>
+                <span className="font-semibold text-[var(--text-primary)]">{customer.name}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                <span className="text-[var(--text-muted)]">Email Address</span>
+                <span className="font-medium text-[var(--text-primary)]">{customer.email}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                <span className="text-[var(--text-muted)]">Phone Number</span>
+                <span className="font-mono text-[var(--text-primary)]">{customer.phone || 'Not provided'}</span>
+              </div>
+              <div className="flex justify-between py-1 border-b border-[var(--border-subtle)]">
+                <span className="text-[var(--text-muted)]">Account Status</span>
+                <span className="capitalize font-bold text-[var(--text-primary)]">{customer.status}</span>
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-[var(--text-muted)]">Member Since</span>
+                <span className="text-[var(--text-primary)]">{new Date(customer.createdAt).toLocaleDateString()}</span>
+              </div>
+            </div>
+          </CustomerCard>
+
+          {/* Saved Addresses */}
+          <CustomerCard
+            title="Saved Addresses"
+            subtitle={`${addresses.length} address${addresses.length === 1 ? '' : 'es'} on file`}
+          >
+            {addresses.length === 0 ? (
+              <p className="text-xs text-[var(--text-muted)] py-4 text-center">No saved addresses on file.</p>
+            ) : (
+              <div className="space-y-3 mt-2">
+                {addresses.map((addr) => (
+                  <div
+                    key={addr._id}
+                    className="p-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface-raised)] text-xs space-y-1"
+                  >
+                    <div className="flex items-center justify-between">
+                      <strong className="text-[var(--text-primary)]">{addr.label || 'Home'}</strong>
+                      {addr.isDefault && (
+                        <span className="rounded bg-[var(--color-success-soft)] text-[var(--color-success)] text-[9px] font-bold px-1.5 py-0.5">
+                          Default
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[var(--text-secondary)]">
+                      {addr.firstName} {addr.lastName} {addr.phone ? `· ${addr.phone}` : ''}
+                    </p>
+                    <p className="text-[var(--text-secondary)]">
+                      {addr.street} {addr.street2 ? `, ${addr.street2}` : ''}
+                    </p>
+                    <p className="text-[var(--text-muted)]">
+                      {addr.city}, {addr.state || ''} {addr.postalCode} · {addr.country}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CustomerCard>
+        </div>
+      </div>
+
+      {/* Send Email Modal */}
+      <AdminSendEmailModal
+        customer={customer}
+        isOpen={emailModalOpen}
+        onClose={() => setEmailModalOpen(false)}
+        onSuccess={(msg) => {
+          notify(msg);
+          loadCustomer();
+        }}
+      />
+
+      {/* Block / Reactivate Modal */}
+      <BlockCustomerModal
+        customer={customer}
+        isOpen={blockModalOpen}
+        onClose={() => setBlockModalOpen(false)}
+        onConfirm={handleBlockConfirm}
+      />
+
+      {/* Safe Delete / Anonymize Modal */}
+      <SafeDeleteCustomerModal
+        customer={customer}
+        isOpen={deleteModalOpen}
+        onClose={() => setDeleteModalOpen(false)}
+        onConfirmPermanentDelete={handlePermanentDelete}
+        onConfirmAnonymize={handleAnonymize}
+      />
 
       {notice && <div className="admin-toast" role="status">{notice}</div>}
-      {emailOpen && <EmailModal customer={customer} onClose={() => setEmailOpen(false)} />}
     </div>
   );
 }

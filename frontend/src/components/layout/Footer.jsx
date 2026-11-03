@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useCategories } from '../../context/CategoryContext';
+import { settingsApi } from '../../lib/api/settingsApi';
 
 /**
  * Central auth-aware navigation helper.
@@ -88,6 +89,18 @@ export default function Footer({ go }) {
   ];
   const [regionOpen, setRegionOpen] = useState(false);
   const [selectedRegion, setSelectedRegion] = useState(getStoredCurrency);
+  const [storeName, setStoreName] = useState('NovaShop');
+
+  useEffect(() => {
+    let isMounted = true;
+    settingsApi.getPublicSettings().then((res) => {
+      const data = res.data?.data || res.data;
+      if (isMounted && data?.storeName) {
+        setStoreName(data.storeName);
+      }
+    }).catch(() => {});
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     const sync = () => setSelectedRegion(getStoredCurrency());
@@ -116,8 +129,8 @@ export default function Footer({ go }) {
       type="button"
       onClick={() => go(path)}
       style={linkBtnStyle}
-      onMouseEnter={e => (e.currentTarget.style.color = '#1B1816')}
-      onMouseLeave={e => (e.currentTarget.style.color = '#6E6962')}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
     >
       {label}
     </button>
@@ -129,8 +142,8 @@ export default function Footer({ go }) {
       type="button"
       onClick={() => navigateProtected(go, path, isAuthenticated)}
       style={linkBtnStyle}
-      onMouseEnter={e => (e.currentTarget.style.color = '#1B1816')}
-      onMouseLeave={e => (e.currentTarget.style.color = '#6E6962')}
+      onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+      onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
     >
       {label}
     </button>
@@ -140,7 +153,7 @@ export default function Footer({ go }) {
     prot ? renderProtectedLink(path, label) : renderPublicLink(path, label);
 
   return (
-    <footer style={{ backgroundColor: '#F7F2EA', borderTop: '1px solid rgba(27,24,22,0.12)' }}>
+    <footer style={{ backgroundColor: 'var(--bg-surface-sunken)', borderTop: '1px solid var(--border-default)' }}>
       <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '52px 40px 24px' }}>
         <div
           className="footer-grid"
@@ -166,7 +179,7 @@ export default function Footer({ go }) {
                 fontWeight: 400,
                 letterSpacing: '0.18em',
                 textTransform: 'uppercase',
-                color: '#1B1816',
+                color: 'var(--text-primary)',
               }}>
                 NOVASHOP
               </span>
@@ -178,7 +191,7 @@ export default function Footer({ go }) {
               fontFamily: 'var(--font-sans)',
               fontSize: '13px',
               lineHeight: '1.8',
-              color: '#6E6962',
+              color: 'var(--text-muted)',
               fontWeight: 300,
             }}>
               Understated luxury, modern silhouettes, and effortless essentials designed for everyday movement.
@@ -192,7 +205,7 @@ export default function Footer({ go }) {
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{
-                      color: '#1B1816',
+                      color: 'var(--text-primary)',
                       textDecoration: 'none',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '11px',
@@ -264,7 +277,7 @@ export default function Footer({ go }) {
           }}
         >
           {/* Left: region + legal links */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', color: '#7B726B', fontFamily: 'var(--font-sans)', fontSize: '11px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', color: 'var(--text-muted)', fontFamily: 'var(--font-sans)', fontSize: '11px' }}>
             {/* Region picker */}
             <div id="footer-region-picker" style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
@@ -276,7 +289,7 @@ export default function Footer({ go }) {
                 onClick={() => setRegionOpen(v => !v)}
                 style={{
                   background: 'transparent', border: 'none', padding: 0,
-                  cursor: 'pointer', color: '#1B1816',
+                  cursor: 'pointer', color: 'var(--text-primary)',
                   fontFamily: 'var(--font-sans)', fontSize: '11px',
                   display: 'inline-flex', alignItems: 'center', gap: '4px',
                 }}
@@ -292,9 +305,9 @@ export default function Footer({ go }) {
                   position: 'absolute',
                   bottom: 'calc(100% + 8px)',
                   left: 0,
-                  background: '#FDFBF7',
-                  border: '1px solid rgba(27,24,22,0.12)',
-                  boxShadow: '0 12px 30px rgba(17,14,12,0.08)',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  boxShadow: 'var(--shadow-md)',
                   padding: '8px 0',
                   minWidth: '200px',
                   zIndex: 50,
@@ -308,7 +321,7 @@ export default function Footer({ go }) {
                         width: '100%', border: 'none', background: 'transparent',
                         textAlign: 'left', padding: '8px 14px', cursor: 'pointer',
                         fontFamily: 'var(--font-sans)', fontSize: '12px',
-                        color: selectedRegion === option ? '#1B1816' : '#6E6962',
+                        color: selectedRegion === option ? 'var(--text-primary)' : 'var(--text-muted)',
                         fontWeight: selectedRegion === option ? 600 : 400,
                       }}
                     >
@@ -319,23 +332,23 @@ export default function Footer({ go }) {
               )}
             </div>
 
-            <span style={{ color: '#9B9189' }}>|</span>
+            <span style={{ color: 'var(--border-strong)' }}>|</span>
             <button type="button" onClick={() => go('/privacy-policy')} style={subBarLinkStyle}
-              onMouseEnter={e => (e.currentTarget.style.color = '#1B1816')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#7B726B')}>
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
               Privacy Policy
             </button>
-            <span style={{ color: '#9B9189' }}>|</span>
+            <span style={{ color: 'var(--border-strong)' }}>|</span>
             <button type="button" onClick={() => go('/terms-of-service')} style={subBarLinkStyle}
-              onMouseEnter={e => (e.currentTarget.style.color = '#1B1816')}
-              onMouseLeave={e => (e.currentTarget.style.color = '#7B726B')}>
+              onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
+              onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}>
               Terms of Service
             </button>
           </div>
 
           {/* Right: copyright */}
-          <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: '#7B726B' }}>
-            © {new Date().getFullYear()} NovaShop. All rights reserved.
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--text-muted)' }}>
+            © {new Date().getFullYear()} {storeName}. All rights reserved.
           </div>
         </div>
       </div>
@@ -370,7 +383,7 @@ const colHeadStyle = {
   fontWeight: 600,
   letterSpacing: '0.18em',
   textTransform: 'uppercase',
-  color: '#1B1816',
+  color: 'var(--text-primary)',
 };
 
 const colBodyStyle = {
@@ -385,7 +398,7 @@ const linkBtnStyle = {
   padding: 0,
   textAlign: 'left',
   cursor: 'pointer',
-  color: '#6E6962',
+  color: 'var(--text-muted)',
   fontFamily: 'var(--font-sans)',
   fontSize: '13px',
   lineHeight: '1.6',
@@ -397,7 +410,7 @@ const subBarLinkStyle = {
   border: 'none',
   padding: 0,
   cursor: 'pointer',
-  color: '#7B726B',
+  color: 'var(--text-muted)',
   fontFamily: 'var(--font-sans)',
   fontSize: '11px',
   transition: 'color 180ms ease',

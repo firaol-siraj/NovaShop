@@ -764,3 +764,128 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* =========================================================
+   DARK MODE OVERRIDES
+========================================================= */
+
+[data-theme="dark"] .admin-trend-pill.is-neutral {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hs-card,
+[data-theme="dark"] .hs-table-card {
+  background: var(--bg-surface, #1E1B18);
+  border-color: var(--border-subtle, #332E28);
+}
+
+[data-theme="dark"] .hs-filter-button {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-filter-button svg:first-child,
+[data-theme="dark"] .hs-filter-button svg:last-child {
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hs-filter-button.is-active {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-filter-menu {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .hs-filter-menu button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .hs-filter-menu button:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-clear-filters {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .hs-quick-filter {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hs-quick-filter.is-active {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-table th {
+  background: var(--bg-surface-sunken, #181614);
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hs-table td {
+  border-color: var(--border-subtle, #332E28);
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .hs-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+[data-theme="dark"] .hs-checkbox-cell input {
+  border-color: var(--border-default, #3D3730);
+  background: var(--bg-surface-raised, #24201D);
+}
+
+[data-theme="dark"] .hs-slide-copy strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-main-text {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-status-pill.draft {
+  background: var(--bg-surface-raised, #282420);
+  color: var(--text-muted, #C4BCB1);
+}
+
+[data-theme="dark"] .hs-status-pill.expired {
+  background: rgba(220, 38, 38, 0.15);
+  color: #F87171;
+}
+
+[data-theme="dark"] .hs-empty-state strong {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-empty-state button {
+  color: var(--text-primary, #FBF9F5);
+}
+
+[data-theme="dark"] .hs-pagination-controls select {
+  background: var(--bg-surface-raised, #24201D);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .hs-pagination-controls > button {
+  color: var(--text-secondary, #DFD9CF);
+}
+
+[data-theme="dark"] .hs-pagination-controls > button.is-active {
+  background: var(--bg-surface-raised, #282420);
+  border-color: var(--border-default, #3D3730);
+  color: var(--text-primary, #FBF9F5);
+}

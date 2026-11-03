@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import { useEffect, useState, useRef } from 'react';
+import { useAdminAuth } from '../../context/AdminAuthContext';
 import BrandLogo from './BrandLogo';
+import AdminGlobalSearchModal from './AdminGlobalSearchModal';
+import AdminNotificationDropdown from './AdminNotificationDropdown';
+import { useAdminNotifications } from '../../hooks/useAdminDashboard';
+import { ThemeToggle } from '../../context/ThemeContext';
 import './admin-dashboard.css';
 
 export function AdminIcon({ name, size = 18 }) {
@@ -47,7 +51,13 @@ export function AdminIcon({ name, size = 18 }) {
     more: <><circle cx="5" cy="12" r="1" fill="currentColor" /><circle cx="12" cy="12" r="1" fill="currentColor" /><circle cx="19" cy="12" r="1" fill="currentColor" /></>,
     lock: <><rect x="4" y="10" width="16" height="11" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></>,
     warning: <><path d="M12 3 2.8 20h18.4L12 3Z" /><path d="M12 9v5m0 3h.01" /></>,
-        pencil: <><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.5 7.5 3 3" /></>,
+    alert: <><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></>,
+    refresh: <><path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M3 21v-5h5" /></>,
+    edit: <><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.5 7.5 3 3" /></>,
+    pencil: <><path d="m4 20 4.5-1 10-10a2.1 2.1 0 0 0-3-3l-10 10L4 20Z" /><path d="m13.5 7.5 3 3" /></>,
+    email: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="m3 7 9 6 9-6" /></>,
+    duplicate: <><rect x="8" y="8" width="13" height="13" rx="2" /><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3" /></>,
+    bag: <><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4zM3 6h18M16 10a4 4 0 0 1-8 0" /></>,
 
     receipt: <><path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3Z" /><path d="M9 8h6M9 12h6M9 16h3" /></>,
 
@@ -62,6 +72,8 @@ export function AdminIcon({ name, size = 18 }) {
     x: <><path d="m6 6 12 12M18 6 6 18" /></>,
     store: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
     percent: <><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></>,
+    user: <><circle cx="12" cy="8" r="4" /><path d="M6 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2" /></>,
+    logout: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></>,
   };
 
   return <svg width={size} height={size} viewBox="0 0 24 24" aria-hidden="true" {...common}>{paths[name]}</svg>;
@@ -86,9 +98,9 @@ const navigation = [
       { label: 'Customer analytics', path: '/admin/analytics/customers' },
     ],
   },
-  { 
-    label: 'Content', 
-    icon: 'content', 
+  {
+    label: 'Content',
+    icon: 'content',
     children: [
       { label: 'Homepage content', path: '/admin/content/homepage' },
       { label: 'Hero slides', path: '/admin/content/hero' },
@@ -114,8 +126,27 @@ function getChildMeta(child) {
 }
 
 export default function AdminLayout({ children, go, activePath = '/admin/dashboard', breadcrumb }) {
-  const { user, logout } = useAuth();
+  const { user, logout } = useAdminAuth();
   const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 860px)').matches);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+
+  // Real admin notifications
+  const { data: notifData, refetch: refetchNotifs, lastUpdated: notifSyncTime } = useAdminNotifications({
+    refreshInterval: 30000,
+  });
+
+  // Global search shortcut ⌘K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   const [expandedGroups, setExpandedGroups] = useState(() => {
     // Auto-expand whichever group owns the current route (e.g. landing
     // directly on /admin/analytics/overview should open "Analytics").
@@ -127,6 +158,15 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
     });
     return initial;
   });
+
+  // Keep parent group expanded when activePath matches any child route (direct navigation, refresh, route change)
+  useEffect(() => {
+    navigation.forEach((item) => {
+      if (item.children?.some((child) => getChildMeta(child).path === activePath)) {
+        setExpandedGroups((prev) => ({ ...prev, [item.label]: true }));
+      }
+    });
+  }, [activePath]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 860px)');
@@ -143,12 +183,81 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
   const toggleGroup = (label) => {
     setExpandedGroups((current) => ({ ...current, [label]: !current[label] }));
   };
-  const displayName = user?.name || 'Administrator';
+  const displayName = user?.displayName || user?.name || 'Administrator';
   const initials = displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join('').toUpperCase();
+  const avatarUrl = user?.avatar;
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPod|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+  const shortcutLabel = isMac ? '⌘ K' : 'Ctrl K';
+
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileMenuRef = useRef(null);
+
+  useEffect(() => {
+    const handleOutsideClick = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setProfileOpen(false);
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        setProfileOpen(false);
+      }
+    };
+    if (profileOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [profileOpen]);
+
   const handleLogout = async () => {
     await logout();
     go('/admin/login');
   };
+
+  const role = user?.adminRole || 'owner';
+  const roleLabel =
+    role === 'owner' ? 'Owner' :
+    role === 'admin' ? 'Administrator' :
+    role === 'manager' ? 'Store Manager' :
+    role === 'support' ? 'Support Agent' :
+    role === 'viewer' ? 'Viewer' : 'Administrator';
+
+  const permissions = user?.permissions;
+
+  const resourceMap = {
+    'Dashboard': null,
+    'Orders': 'orders',
+    'Products': 'products',
+    'Categories': 'products',
+    'Customers': 'customers',
+    'Inventory': 'inventory',
+    'Discounts': 'discounts',
+    'Reviews': 'reviews',
+    'Analytics': 'analytics',
+    'Content': 'content',
+    'Returns and refunds': 'returns',
+    'Shipping': 'shipping',
+    'Payments': 'payments',
+    'Customer support': 'support',
+    'Settings': 'settings',
+  };
+
+  const filteredNavigation = navigation.filter((item) => {
+    if (role === 'owner') return true;
+    const res = resourceMap[item.label];
+    if (!res) return true;
+    if (permissions && permissions[res]) {
+      return permissions[res].length > 0;
+    }
+    if (role === 'manager') return res !== 'settings';
+    if (role === 'support') return ['orders', 'customers', 'support', 'returns', 'products', 'reviews'].includes(res);
+    if (role === 'viewer') return ['content', 'products'].includes(res);
+    return true;
+  });
 
   return (
     <div className={`admin-app-shell${collapsed ? ' is-collapsed' : ''}`}>
@@ -162,7 +271,7 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
           </div>
 
           <nav className="admin-primary-nav">
-            {navigation.map((item) => (
+            {filteredNavigation.map((item) => (
               <div className="admin-nav-group" key={item.label}>
                 {(() => {
                   const hasActiveChild = item.children?.some(
@@ -215,25 +324,116 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
         <header className="admin-topbar">
           <div className="admin-topbar-leading">
             {breadcrumb && <div className="admin-topbar-breadcrumb"><button type="button" onClick={() => go('/admin/orders')}>Orders</button><span>/</span><strong>{breadcrumb}</strong></div>}
-            <label className="admin-global-search">
+            <div
+              className="admin-global-search cursor-pointer"
+              role="button"
+              tabIndex={0}
+              onClick={() => setIsSearchOpen(true)}
+              onKeyDown={(e) => e.key === 'Enter' && setIsSearchOpen(true)}
+              aria-label="Open search"
+            >
               <AdminIcon name="search" size={17} />
-              <input type="search" aria-label="Search admin" placeholder="Search orders, products, customers..." />
-              <kbd>⌘ K</kbd>
-            </label>
+              <span className="text-xs text-[#A8A29A] select-none flex-1">Search orders, products, customers...</span>
+              <kbd>{shortcutLabel}</kbd>
+            </div>
           </div>
           <div className="admin-topbar-actions">
-            <span className="admin-live-badge"><i /> LIVE <span>·</span> GLOBAL</span>
-            <button className="admin-icon-button admin-notification-button" type="button" aria-label="Notifications">
-              <AdminIcon name="bell" />
-              <i />
-            </button>
-            <div className="admin-profile-button" aria-label="Signed-in administrator">
-              <span className="admin-profile-avatar">{initials}</span>
-              <span className="admin-profile-name">{displayName}<small>Store Admin</small></span>
+            <ThemeToggle variant="button" className="admin-theme-toggle" />
+
+            <AdminNotificationDropdown
+              notifications={notifData?.notifications || []}
+              unreadCount={notifData?.unreadCount || 0}
+              onRefresh={refetchNotifs}
+              go={go}
+            />
+
+            <div className="relative inline-block" ref={profileMenuRef}>
+              <button
+                className="admin-profile-button"
+                type="button"
+                aria-label="Admin profile menu"
+                aria-haspopup="true"
+                aria-expanded={profileOpen}
+                onClick={() => setProfileOpen((prev) => !prev)}
+              >
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} className="admin-profile-avatar-img" />
+                ) : (
+                  <span className="admin-profile-avatar">{initials}</span>
+                )}
+                <span className="admin-profile-name">
+                  {displayName}
+                  <small>{roleLabel}</small>
+                </span>
+                <AdminIcon name="chevron" size={13} />
+              </button>
+
+              {profileOpen && (
+                <div
+                  className="admin-profile-dropdown"
+                  role="menu"
+                  aria-orientation="vertical"
+                >
+                  <div className="admin-profile-dropdown-header">
+                    <div className="admin-profile-dropdown-name">{displayName}</div>
+                    <div className="admin-profile-dropdown-email">{user?.email || 'admin@novashop.com'}</div>
+                    <span className="admin-role-badge">{roleLabel}</span>
+                  </div>
+                  <div className="admin-profile-dropdown-divider" />
+                  <button
+                    type="button"
+                    className="admin-profile-dropdown-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      go('/admin/profile');
+                    }}
+                  >
+                    <AdminIcon name="user" size={15} />
+                    <span>My profile</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="admin-profile-dropdown-item"
+                    role="menuitem"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      go('/admin/settings');
+                    }}
+                  >
+                    <AdminIcon name="settings" size={15} />
+                    <span>Settings</span>
+                  </button>
+                  <div className="admin-profile-dropdown-divider" />
+                  <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Theme</span>
+                    <ThemeToggle variant="segmented" />
+                  </div>
+                  <div className="admin-profile-dropdown-divider" />
+                  <button
+                    type="button"
+                    className="admin-profile-dropdown-item is-signout"
+                    role="menuitem"
+                    onClick={() => {
+                      setProfileOpen(false);
+                      handleLogout();
+                    }}
+                  >
+                    <AdminIcon name="logout" size={15} />
+                    <span>Sign out</span>
+                  </button>
+                </div>
+              )}
             </div>
-            <button className="admin-signout-button" type="button" onClick={handleLogout}>Sign out</button>
           </div>
         </header>
+
+        <AdminGlobalSearchModal
+          isOpen={isSearchOpen}
+          onClose={() => setIsSearchOpen(false)}
+          go={go}
+        />
+
         <main className="admin-page-content">{children}</main>
       </div>
     </div>

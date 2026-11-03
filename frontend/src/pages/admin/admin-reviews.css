@@ -1896,10 +1896,8 @@ background 120ms ease,
     color 140ms ease;
 }
 
-.admin-reviews-page
-.reviews-filter-button:hover
-svg {
-  color: #4E4943;
+.admin-reviews-page .reviews-filter-button:hover svg {
+  color: var(--text-secondary);
 }
 
 
@@ -2059,4 +2057,322 @@ svg {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* ==========================================================================
+   DARK THEME OVERRIDES (WCAG AA Compliant >= 4.5:1)
+   ========================================================================== */
+[data-theme="dark"] .admin-reviews-page {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-export-button {
+  background-color: var(--bg-surface-raised);
+  border-color: var(--border-default);
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-period-label {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-stat-top > span:first-child {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-stat-card > strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-stat-change.is-positive {
+  color: var(--color-success) !important;
+}
+
+/* ============================================================
+   DARK THEME ENHANCEMENTS & WCAG AA CONTRAST
+   ============================================================ */
+
+[data-theme="dark"] .admin-reviews-page {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-export-button {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-export-button:hover {
+  background: var(--bg-hover) !important;
+  border-color: var(--border-focus) !important;
+}
+
+[data-theme="dark"] .reviews-stat-card {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-default) !important;
+}
+
+[data-theme="dark"] .reviews-stat-change.is-positive {
+  background: var(--color-success-soft) !important;
+  color: var(--color-success) !important;
+}
+
+[data-theme="dark"] .reviews-stat-change.is-negative {
+  background: var(--color-danger-soft) !important;
+  color: var(--color-danger) !important;
+}
+
+[data-theme="dark"] .reviews-stat-change.is-warning {
+  background: var(--color-warning-soft) !important;
+  color: var(--color-warning) !important;
+}
+
+/* Search Field: dark container, transparent input, high contrast placeholder */
+[data-theme="dark"] .reviews-search {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-search:focus-within {
+  border-color: var(--admin-accent, #D4A662) !important;
+  box-shadow: 0 0 0 2px rgba(212, 166, 98, 0.2) !important;
+}
+
+[data-theme="dark"] .reviews-search input {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-search input::placeholder {
+  color: var(--text-subtle) !important;
+}
+
+/* Status Tabs Bar (Filter Pills) */
+[data-theme="dark"] .reviews-tabs {
+  background: var(--bg-surface-raised) !important;
+  border: 1px solid var(--border-subtle) !important;
+}
+
+[data-theme="dark"] .reviews-tabs button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-tabs button:hover {
+  color: var(--text-primary) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+
+[data-theme="dark"] .reviews-tabs button.is-active {
+  background: #FBF9F5 !important;
+  color: #141210 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .reviews-tabs button.is-active .reviews-tab-count {
+  background: rgba(0, 0, 0, 0.14) !important;
+  color: #141210 !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="dark"] .reviews-tab-count {
+  background: rgba(255, 255, 255, 0.08) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Filter Dropdown buttons & popovers */
+[data-theme="dark"] .reviews-filter-button {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-filter-button svg {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .admin-reviews-page .reviews-filter-button.is-active {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--admin-accent, #D4A662) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .admin-reviews-page .reviews-filter-menu {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .admin-reviews-page .reviews-filter-menu > button {
+  background: transparent !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .admin-reviews-page .reviews-filter-menu > button:hover {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .admin-reviews-page .reviews-filter-menu > button.is-selected {
+  background: rgba(212, 166, 98, 0.15) !important;
+  color: #D4A662 !important;
+}
+
+/* Checkboxes */
+[data-theme="dark"] .reviews-checkbox span {
+  background: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+}
+
+[data-theme="dark"] .reviews-checkbox input:checked + span {
+  background: var(--admin-primary) !important;
+  border-color: var(--admin-primary) !important;
+}
+
+[data-theme="dark"] .reviews-checkbox input:checked + span::after {
+  border-color: #141210 !important;
+}
+
+/* Star Ratings: Warm gold with high contrast */
+[data-theme="dark"] .reviews-star-button:hover,
+[data-theme="dark"] .reviews-star-button.is-starred {
+  color: #D4A662 !important;
+}
+
+[data-theme="dark"] .reviews-star-rating span.is-filled {
+  color: #D4A662 !important;
+}
+
+[data-theme="dark"] .reviews-star-rating span {
+  color: var(--border-default);
+}
+
+/* Table */
+[data-theme="dark"] .reviews-table-container {
+  background: var(--bg-surface) !important;
+  border-color: var(--border-default) !important;
+}
+
+[data-theme="dark"] .reviews-table th {
+  background: var(--bg-surface-raised) !important;
+  border-bottom: 1px solid var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-table td {
+  background: var(--bg-surface) !important;
+  border-bottom: 1px solid var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-table tbody tr:hover,
+[data-theme="dark"] .reviews-table tbody tr.is-selected {
+  background: var(--bg-surface-raised) !important;
+}
+
+[data-theme="dark"] .reviews-review-content strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-review-content span {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-product-cell strong,
+[data-theme="dark"] .reviews-customer-cell strong,
+[data-theme="dark"] .reviews-date-cell strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-customer-cell span,
+[data-theme="dark"] .reviews-date-cell span {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-more-button {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-more-button:hover {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-per-page select {
+  background: var(--bg-input) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-pagination > button,
+[data-theme="dark"] .reviews-pagination > span {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+/* Reply Textarea focus ring */
+.reviews-reply-textarea:focus {
+  border-color: var(--admin-accent, #D4A662) !important;
+  box-shadow: 0 0 0 3px rgba(212, 166, 98, 0.25) !important;
+}
+
+[data-theme="dark"] .reviews-product-icon {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-action-menu {
+  background: var(--bg-surface-raised) !important;
+  border-color: var(--border-default) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+}
+
+[data-theme="dark"] .reviews-action-menu button {
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-action-menu button:hover {
+  background: var(--bg-surface) !important;
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-action-menu button svg {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-action-menu button.is-danger {
+  color: var(--color-danger) !important;
+}
+
+[data-theme="dark"] .reviews-action-menu button.is-danger svg {
+  color: var(--color-danger) !important;
+}
+
+[data-theme="dark"] .reviews-empty > div {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .reviews-empty strong {
+  color: var(--text-primary) !important;
+}
+
+[data-theme="dark"] .reviews-table-footer {
+  border-top-color: var(--border-subtle) !important;
+  color: var(--text-secondary) !important;
+}
+
+[data-theme="dark"] .reviews-per-page svg {
+  color: var(--text-muted) !important;
+}
+
+[data-theme="dark"] .admin-reviews-page .reviews-filter-button svg {
+  color: var(--text-secondary) !important;
 }

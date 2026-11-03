@@ -3,14 +3,21 @@ import {
   addOrderItems,
   getOrderById,
   getMyOrders,
+  getMyOrderById,
+  resendOrderConfirmation,
   updateOrderToPaid,
   getOrders,
   updateOrderToDelivered,
+  initializeOrderPayment,
+  getPaymentStatus,
+  handleChapaWebhook,
+  verifyTransactionByRef,
+  updateOrderStatus,
 } from '../controllers/orderController.js';
 import { protect, restrictTo } from '../middlewares/authMiddleware.js';
 import validate from '../middlewares/validateMiddleware.js';
 import { idParamSchema } from '../validators/commonValidator.js';
-import { createOrderSchema } from '../validators/orderValidator.js';
+import { createOrderSchema, initializePaymentSchema, updateOrderStatusSchema } from '../validators/orderValidator.js';
 
 const router = express.Router();
 
@@ -218,6 +225,15 @@ router
  *         description: Unauthorized
  */
 router.route('/myorders').get(protect, getMyOrders);
+router.route('/my').get(protect, getMyOrders);
+router.route('/my/:id').get(protect, getMyOrderById);
+router.route('/:id/resend-confirmation').post(protect, validate(idParamSchema, 'params'), resendOrderConfirmation);
+
+// Chapa Webhook endpoint (Public, validated by x-chapa-signature)
+router.route('/webhook/chapa').post(handleChapaWebhook);
+
+// Chapa Transaction Verification endpoint (Verifies by tx_ref)
+router.route('/transaction/verify/:tx_ref').get(verifyTransactionByRef);
 /**
  * @openapi
  * /orders/{id}:
@@ -345,6 +361,17 @@ router.route('/:id').get(protect, validate(idParamSchema, "params"), getOrderByI
  *         description: Order not found
  */
 router.route('/:id/pay').put(protect, validate(idParamSchema, "params"), updateOrderToPaid);
+
+// Customer initiates payment attempt for an order
+router
+  .route('/:id/initialize-payment')
+  .post(protect, validate(idParamSchema, 'params'), validate(initializePaymentSchema, 'body'), initializeOrderPayment);
+
+// Customer queries verified payment status for an order
+router
+  .route('/:id/payment-status')
+  .get(protect, validate(idParamSchema, 'params'), getPaymentStatus);
+
 /**
  * @openapi
  * /orders/{id}/deliver:
@@ -391,6 +418,11 @@ router.route('/:id/pay').put(protect, validate(idParamSchema, "params"), updateO
  */
 router
   .route('/:id/deliver')
-  .put(protect, restrictTo('admin'), validate(idParamSchema, "params"), validate(createOrderSchema, "body"), updateOrderToDelivered);
+  .put(protect, restrictTo('admin'), validate(idParamSchema, "params"), updateOrderToDelivered);
+
+// Admin updates order status (pending, processing, shipped, delivered, cancelled)
+router
+  .route('/:id/status')
+  .put(protect, restrictTo('admin'), validate(idParamSchema, 'params'), validate(updateOrderStatusSchema, 'body'), updateOrderStatus);
 
 export default router;

@@ -1,13 +1,15 @@
 const API_ORIGIN = (
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api/v1"
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_URL) || "http://localhost:5000/api/v1"
 ).replace(/\/api\/v1\/?$/, "");
 const PLACEHOLDER_IMAGE =
   "https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=900&q=85";
 
 export function resolveImage(image) {
   if (!image) return PLACEHOLDER_IMAGE;
-  if (/^https?:\/\//i.test(image)) return image;
-  return `${API_ORIGIN}${image.startsWith("/") ? image : `/${image}`}`;
+  const src = typeof image === "string" ? image : (image?.url || image?.secure_url || image?.src || "");
+  if (!src) return PLACEHOLDER_IMAGE;
+  if (/^https?:\/\//i.test(src) || src.startsWith("data:") || src.startsWith("blob:")) return src;
+  return `${API_ORIGIN}${src.startsWith("/") ? src : `/${src}`}`;
 }
 
 function normalizePrice(value) {
@@ -21,11 +23,29 @@ function normalizeCategory(category) {
 }
 
 function normalizeVariant(variant, fallbackImage) {
+  if (!variant || typeof variant !== "object") {
+    const id = typeof variant === "string" ? variant : undefined;
+    return {
+      name: "Default",
+      hex: "#000000",
+      hasOwnImage: false,
+      image: fallbackImage,
+      size: "One Size",
+      available: false,
+      stock: 0,
+      id,
+      sku: id,
+    };
+  }
+
   const color = variant?.color?.name || variant?.color || "Default";
   // The backend copies the product's main image onto every variant that has no
   // photo of its own, so only a *different* image counts as a variant photo.
   const hasOwnImage =
     Boolean(variant?.image) && resolveImage(variant.image) !== fallbackImage;
+
+  const rawStock = Number(variant?.stock ?? variant?.countInStock);
+  const stock = Number.isFinite(rawStock) && rawStock >= 0 ? rawStock : 0;
 
   return {
     name: color,
@@ -34,10 +54,10 @@ function normalizeVariant(variant, fallbackImage) {
     // Variants without their own photo use the product's uploaded images.
     image: hasOwnImage ? resolveImage(variant.image) : fallbackImage,
     size: variant?.size || "One Size",
-    available: Number(variant?.stock) > 0,
-    stock: Number(variant?.stock) || 0,
-    id: variant._id,
-    sku: variant.sku,
+    available: stock > 0,
+    stock,
+    id: variant._id || variant.id,
+    sku: variant.sku || variant._id || variant.id,
   };
 }
 
@@ -53,25 +73,50 @@ export function normalizeProduct(product) {
     .map(resolveImage);
   if (productImages.length === 0) productImages.push(PLACEHOLDER_IMAGE);
 
-  const variants = Array.isArray(product.variants)
+  const rawVariants = Array.isArray(product.variants)
     ? product.variants.map((variant) =>
         normalizeVariant(variant, productImages[0]),
       )
     : [];
-  const variantStockSum = variants.reduce(
+
+  const fallbackStock = Number(
+    product.countInStock != null
+      ? product.countInStock
+      : (product.stockTotal != null ? product.stockTotal : product.stock)
+  ) || 0;
+
+  const variantStockSum = rawVariants.reduce(
     (sum, variant) => sum + Number(variant?.stock || 0),
     0,
   );
-  const stockTotal =
-    variants.length > 0
-      ? variantStockSum
-      : Number(product.countInStock) || 0;
-  const stockLabel =
-    stockTotal <= 0
-      ? "out-of-stock"
-      : stockTotal <= 5
-        ? "low-stock"
-        : "in-stock";
+
+  const stockTotal = rawVariants.length > 0 ? variantStockSum : fallbackStock;
+
+  const variants =
+    rawVariants.length > 0
+      ? rawVariants.map((variant) => {
+          const vStock = Number(variant.stock) >= 0 ? Number(variant.stock) : 0;
+          return {
+            ...variant,
+            stock: vStock,
+            available: vStock > 0,
+          };
+        })
+      : [
+          {
+            name: "Default",
+            hex: "#000000",
+            hasOwnImage: false,
+            image: productImages[0],
+            size: "One Size",
+            available: stockTotal > 0,
+            stock: Math.max(0, stockTotal),
+            id: product._id || product.slug,
+            sku: product.slug,
+          },
+        ];
+
+  const stockLabel = stockTotal <= 0 ? "out-of-stock" : stockTotal <= 5 ? "low-stock" : "in-stock";
   const primaryVariant = variants[0];
   const primaryImage = primaryVariant?.hasOwnImage
     ? primaryVariant.image
@@ -105,7 +150,7 @@ export function normalizeProduct(product) {
       : [],
     description: product.description,
     brand: product.brand || "NovaShop",
-    countInStock: Number(product.countInStock) || 0,
+    countInStock: stockTotal,
     stock: stockLabel,
     stockTotal,
     numReviews: Number(product.numReviews) || 0,
@@ -129,7 +174,7 @@ export function normalizeProduct(product) {
                   !existing.images.includes(variant.image)
                 )
                   existing.images.push(variant.image);
-                existing.available = existing.available || variant.available;
+                if (variant.available) existing.available = true;
                 if (!existing.sizes.some((size) => size.label === variant.size && size.variantId === variant.id)) {
                   existing.sizes.push({
                     label: variant.size,
@@ -165,7 +210,15 @@ export function normalizeProduct(product) {
               name: "Default",
               hex: "#000000",
               images: productImages,
-              available: true,
+              available: stockTotal > 0,
+              sizes: [
+                {
+                  label: "One Size",
+                  available: stockTotal > 0,
+                  variantId: product._id || product.slug,
+                  stock: Math.max(0, stockTotal),
+                },
+              ],
             },
           ],
     swatches:
@@ -191,8 +244,10 @@ export function normalizeProduct(product) {
         ? variants.map((variant) => ({
             label: variant.size,
             available: variant.available,
+            stock: variant.stock,
+            variantId: variant.id,
           }))
-        : [{ label: "One Size", available: true }],
+        : [{ label: "One Size", available: stockTotal > 0, stock: Math.max(0, stockTotal), variantId: product._id || product.slug }],
     details: {
       material: product.material || "Not specified",
       fit: product.fit || "Regular fit",
@@ -208,5 +263,6 @@ export function normalizeProduct(product) {
 }
 
 export function normalizeCatalog(products) {
+  if (!Array.isArray(products)) return [];
   return products.map(normalizeProduct).filter(Boolean);
 }

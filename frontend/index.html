@@ -7,6 +7,22 @@
     <meta name="theme-color" content="#231E1B" />
     <meta name="description" content="NovaShop — Premium minimalist fashion. New Arrivals, Collections, and Seasonal Essentials." />
     <title>NovaShop — Warm Editorial Minimalism</title>
+    <script>
+      (function() {
+        try {
+          var saved = localStorage.getItem('novashop-theme') || 'system';
+          var theme = saved;
+          if (saved === 'system') {
+            theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+          }
+          document.documentElement.setAttribute('data-theme', theme);
+          document.documentElement.setAttribute('data-theme-preference', saved);
+          document.documentElement.style.colorScheme = theme;
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
