@@ -159,7 +159,7 @@ cd NovaShop
 ### 2. Configure and run the backend
 
 ```bash
-cd server
+cd backend
 npm install
 cp .env.example .env     # then fill in your own values
 npm run dev
@@ -168,7 +168,7 @@ npm run dev
 ### 3. Configure and run the frontend
 
 ```bash
-cd client
+cd frontend
 npm install
 cp .env.example .env     # if the frontend provides one
 npm run dev
@@ -182,7 +182,7 @@ The Vite dev server prints the local storefront URL when it starts. The backend 
 
 Configuration is read from environment variables. Copy `.env.example` to `.env` and fill in your own values. **Never commit `.env` files or real credentials.**
 
-<!-- VERIFY: variable names below are illustrative. Keep this table in sync with server/.env.example -->
+<!-- VERIFY: variable names below are illustrative. Keep this table in sync with backend/.env.example -->
 
 | Variable | Purpose |
 |---|---|
@@ -215,7 +215,7 @@ Protected endpoints use JWT access tokens. Admin endpoints are restricted by rol
 Backend tests use Jest and Supertest.
 
 ```bash
-cd server
+cd backend
 npm test
 ```
 
