@@ -124,10 +124,10 @@ Administration interface with business analytics and revenue overview.
 
 ```text
 NovaShop/
-├── client/                 # React + Vite storefront and admin interface
+├── frontend/                 # React + Vite storefront and admin interface
 │   ├── src/
 │   └── package.json
-├── server/                 # Express API
+├── backend/                 # Express API
 │   ├── src/
 │   ├── tests/
 │   ├── .env.example
