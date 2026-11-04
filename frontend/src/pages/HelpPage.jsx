@@ -216,16 +216,19 @@ function ContactModal({ onClose }) {
       {/* backdrop */}
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(3px)' }} onClick={onClose} />
 
-      <div style={{
-        position: 'relative', zIndex: 1,
-        background: T.surface, width: '100%', maxWidth: '480px',
-        padding: '36px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
-        border: `1px solid ${T.border}`,
-        animation: 'hpFadeUp 0.28s ease',
-      }}>
+      <div
+        className="hp-modal-box"
+        style={{
+          position: 'relative', zIndex: 1,
+          background: T.surface, width: '100%', maxWidth: '480px',
+          padding: '36px', boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+          border: `1px solid ${T.border}`,
+          animation: 'hpFadeUp 0.28s ease',
+        }}
+      >
         <button
           type="button" onClick={onClose} aria-label="Close"
-          style={{ position: 'absolute', top: '18px', right: '18px', background: 'none', border: 'none', cursor: 'pointer', color: T.muted, display: 'flex' }}
+          style={{ position: 'absolute', top: '12px', right: '12px', background: 'none', border: 'none', cursor: 'pointer', color: T.muted, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         >
           <CloseIcon />
         </button>
@@ -402,6 +405,16 @@ export default function HelpPage({ go }) {
           .hp-cat-grid { grid-template-columns: 1fr !important; }
           .hp-container { padding-left: 20px !important; padding-right: 20px !important; }
           .hp-search-wrap { padding: 36px 20px 28px !important; }
+          .hp-modal-box {
+            padding: 24px 18px !important;
+            max-height: 88dvh !important;
+            overflow-y: auto !important;
+          }
+          .hp-modal-box input,
+          .hp-modal-box textarea,
+          #help-search {
+            font-size: 16px !important;
+          }
         }
       `}</style>
 

@@ -535,7 +535,7 @@ export default function AdminCustomerSupportPage({ go, search: searchProp }) {
         </button>
       </div>
 
-      <div className="support-workspace">
+      <div className={`support-workspace ${selectedConversation ? 'has-selection' : ''}`}>
         <div className="support-list-col">
           <div className="support-list-scroll">
             {loading ? (
@@ -577,6 +577,15 @@ export default function AdminCustomerSupportPage({ go, search: searchProp }) {
             <>
               <div className="support-detail-header">
                 <div className="support-detail-header-left">
+                  <button
+                    type="button"
+                    className="support-mobile-back-btn"
+                    onClick={() => setSelectedId(null)}
+                    aria-label="Back to conversations list"
+                  >
+                    <AdminIcon name="left" size={14} />
+                    <span>Back</span>
+                  </button>
                   <div className="support-item-avatar">{selectedConversation.customer.avatar}</div>
                   <div className={`support-detail-status-badge ${selectedConversation.status.toLowerCase()}`}>
                     <i className={`status-dot ${selectedConversation.status.toLowerCase()}`}></i> {selectedConversation.status}

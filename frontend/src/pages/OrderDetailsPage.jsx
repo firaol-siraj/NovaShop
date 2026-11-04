@@ -263,7 +263,63 @@ export default function OrderDetailsPage({ go, orderId }) {
   const orderItems = order.orderItems || [];
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', padding: '28px 24px 48px' }}>
+    <div className="order-details-container">
+      <style>{`
+        .order-details-container {
+          min-height: 100vh;
+          background: var(--bg-main);
+          padding: 28px 24px 48px;
+        }
+        .order-details-stepper {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 14px;
+          position: relative;
+        }
+        .order-details-stepper-line {
+          position: absolute;
+          top: 18px;
+          left: 8%;
+          right: 8%;
+          height: 1px;
+          background: var(--border-subtle);
+        }
+        .order-details-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+          gap: 26px;
+        }
+
+        @media (max-width: 1023px) {
+          .order-details-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .order-details-container {
+            padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+          }
+          .order-details-modal {
+            max-height: 85dvh !important;
+            padding: 20px 16px !important;
+          }
+          .order-details-input {
+            font-size: 16px !important;
+          }
+        }
+
+        @media (max-width: 639px) {
+          .order-details-stepper {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+          }
+          .order-details-stepper-line {
+            display: none;
+          }
+        }
+      `}</style>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '18px', marginBottom: '22px', flexWrap: 'wrap' }}>
           <button type="button" onClick={() => go('/account/orders')} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', padding: 0, fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>
@@ -374,8 +430,8 @@ export default function OrderDetailsPage({ go, orderId }) {
 
         {/* Timeline */}
         <div style={{ maxWidth: '1000px', margin: '0 auto 26px', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '18px', padding: '22px 20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: '14px', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '18px', left: '8%', right: '8%', height: '1px', background: 'var(--border-subtle)' }} />
+          <div className="order-details-stepper">
+            <div className="order-details-stepper-line" />
             {timelineSteps.map((step, index) => {
               const isFilled = step.filled || index === 0;
               return (
@@ -398,7 +454,7 @@ export default function OrderDetailsPage({ go, orderId }) {
         </div>
 
         {/* Main Content Grid */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)', gap: '26px' }}>
+        <div className="order-details-grid">
           {/* Purchased Items List */}
           <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '18px', padding: '24px 22px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '18px', flexWrap: 'wrap' }}>
@@ -557,6 +613,7 @@ export default function OrderDetailsPage({ go, orderId }) {
           onClick={() => !submittingReturn && setReturnModalOpen(false)}
         >
           <div
+            className="order-details-modal"
             style={{
               background: 'var(--bg-surface)',
               borderRadius: '20px',
@@ -581,7 +638,7 @@ export default function OrderDetailsPage({ go, orderId }) {
                 type="button"
                 onClick={() => setReturnModalOpen(false)}
                 disabled={submittingReturn}
-                style={{ background: 'none', border: 'none', fontSize: '20px', cursor: 'pointer', color: 'var(--text-muted)', padding: '4px 8px' }}
+                style={{ background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: 'var(--text-muted)', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
                 ✕
               </button>

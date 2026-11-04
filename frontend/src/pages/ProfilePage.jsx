@@ -347,7 +347,27 @@ export default function ProfilePage({ go, currentPath }) {
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', marginBottom: '18px' }}>
               <div id="profile-edit-title" style={{ fontFamily: 'var(--font-serif)', fontSize: '32px', color: 'var(--text-primary)', fontWeight: 500, lineHeight: 1.1 }}>Edit Profile</div>
-              <button type="button" onClick={() => setIsEditOpen(false)} aria-label="Close profile editor" style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '26px', lineHeight: 1, padding: 0 }}>×</button>
+              <button
+                type="button"
+                onClick={() => setIsEditOpen(false)}
+                aria-label="Close profile editor"
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--text-primary)',
+                  cursor: 'pointer',
+                  fontSize: '28px',
+                  lineHeight: 1,
+                  padding: 0,
+                  width: '44px',
+                  height: '44px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ×
+              </button>
             </div>
 
             <form onSubmit={handleSave} style={{ display: 'grid', gap: '18px' }}>
@@ -361,15 +381,15 @@ export default function ProfilePage({ go, currentPath }) {
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarSelect} style={{ display: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>Change Photo</button>
+                  <button type="button" onClick={() => fileInputRef.current?.click()} style={{ background: 'none', border: 'none', padding: '8px 12px', minHeight: '38px', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>Change Photo</button>
                   {form.avatar && (
-                    <button type="button" onClick={() => setForm((current) => ({ ...current, avatar: '' }))} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>Remove Photo</button>
+                    <button type="button" onClick={() => setForm((current) => ({ ...current, avatar: '' }))} style={{ background: 'none', border: 'none', padding: '8px 12px', minHeight: '38px', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>Remove Photo</button>
                   )}
                 </div>
                 {errors.avatar && <div style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{errors.avatar}</div>}
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '18px 16px' }}>
+              <div className="ns-modal-inputs-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '18px 16px' }}>
                 <div style={{ display: 'grid', gap: '8px' }}>
                   <label style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>First Name</label>
                   <input value={form.firstName} onChange={(event) => handleFieldChange('firstName', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.firstName ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
@@ -401,9 +421,49 @@ export default function ProfilePage({ go, currentPath }) {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '18px', marginTop: '6px' }}>
-                <button type="button" onClick={() => setIsEditOpen(false)} disabled={isSaving} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: 'pointer' }}>Cancel</button>
-                <button type="submit" disabled={isSaving} style={{ background: 'var(--color-primary)', border: 'none', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '14px 22px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '16px', marginTop: '6px', flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsEditOpen(false)}
+                  disabled={isSaving}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    minHeight: '44px',
+                    padding: '10px 16px',
+                    color: 'var(--text-primary)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '11px',
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  style={{
+                    background: 'var(--color-primary)',
+                    border: 'none',
+                    color: 'var(--color-primary-contrast)',
+                    borderRadius: '999px',
+                    minHeight: '44px',
+                    padding: '12px 22px',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: '10px',
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    cursor: isSaving ? 'not-allowed' : 'pointer',
+                    opacity: isSaving ? 0.7 : 1,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
                   {isSaving ? 'Saving...' : 'Save Changes'}
                 </button>
               </div>
@@ -413,7 +473,7 @@ export default function ProfilePage({ go, currentPath }) {
       )}
 
       {toast && (
-        <div style={{ position: 'fixed', right: '22px', bottom: '22px', zIndex: 250, background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '12px 18px', fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', boxShadow: '0 16px 36px rgba(0, 0, 0, 0.25)' }}>
+        <div style={{ position: 'fixed', right: '22px', bottom: 'calc(22px + env(safe-area-inset-bottom, 0px))', zIndex: 250, background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '12px 18px', fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.08em', textTransform: 'uppercase', boxShadow: '0 16px 36px rgba(0, 0, 0, 0.25)' }}>
           {toast}
         </div>
       )}
@@ -450,6 +510,12 @@ export default function ProfilePage({ go, currentPath }) {
           }
           .ns-profile-fields-grid {
             gap: 16px !important;
+          }
+          .ns-modal-inputs-grid {
+            grid-template-columns: 1fr !important;
+          }
+          div[role="dialog"] input {
+            font-size: 16px !important;
           }
         }
       `}</style>

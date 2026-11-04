@@ -165,6 +165,13 @@ export default function OrderHistoryPage({ go, currentPath }) {
 
   return (
     <AccountLayout go={go} currentPath={currentPath || '/account/orders'}>
+      <style>{`
+        @media (max-width: 639px) {
+          .order-card-item {
+            padding: 16px 14px !important;
+          }
+        }
+      `}</style>
       <div style={{ display: 'grid', gap: '20px' }}>
         <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
           <button type="button" onClick={() => go('/')} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit', letterSpacing: 'inherit', textTransform: 'inherit' }}>Home</button>
@@ -182,7 +189,7 @@ export default function OrderHistoryPage({ go, currentPath }) {
         <div style={{ height: '1px', width: '100%', background: 'var(--border-default)' }} />
 
         {/* Filter Tabs */}
-        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '6px' }}>
           {FILTER_TABS.map((tab) => {
             const active = statusFilter === tab.key;
             return (
@@ -195,7 +202,8 @@ export default function OrderHistoryPage({ go, currentPath }) {
                   background: active ? 'var(--color-primary)' : 'transparent',
                   color: active ? 'var(--color-primary-contrast)' : 'var(--text-secondary)',
                   borderRadius: '999px',
-                  padding: '9px 18px',
+                  padding: '10px 18px',
+                  minHeight: '42px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '11px',
                   letterSpacing: '0.12em',
@@ -262,6 +270,7 @@ export default function OrderHistoryPage({ go, currentPath }) {
               return (
                 <article
                   key={order._id}
+                  className="order-card-item"
                   onClick={() => go(`/account/orders/${order._id}`)}
                   style={{
                     background: 'var(--bg-surface)',

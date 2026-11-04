@@ -237,6 +237,8 @@ const iconBtn = {
   border: "none",
   cursor: "pointer",
   padding: "4px",
+  minWidth: "44px",
+  minHeight: "44px",
   color: T.espresso,
   display: "flex",
   alignItems: "center",
@@ -307,6 +309,17 @@ export default function Navbar({
     setActiveMenu(null);
     setMobileOpen(false);
   }, [currentPath]);
+
+  // Body scroll lock when off-canvas mobile drawer is open
+  useEffect(() => {
+    if (mobileOpen) {
+      const origOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = origOverflow;
+      };
+    }
+  }, [mobileOpen]);
 
   // Load featured products once per session
   useEffect(() => {
@@ -1231,29 +1244,101 @@ export default function Navbar({
         </div>
 
         {/* ══════════════════════════════════════════════════════
-            MOBILE DRAWER (Accordion for Shop & Collections)
+            MOBILE OFF-CANVAS BACKDROP OVERLAY
+        ══════════════════════════════════════════════════════ */}
+        <div
+          className="ns-drawer-overlay"
+          aria-hidden="true"
+          onClick={() => setMobileOpen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            backgroundColor: "var(--bg-overlay, rgba(28, 25, 23, 0.48))",
+            zIndex: 299,
+            opacity: mobileOpen ? 1 : 0,
+            pointerEvents: mobileOpen ? "auto" : "none",
+            transition: "opacity 0.22s ease",
+          }}
+        />
+
+        {/* ══════════════════════════════════════════════════════
+            MOBILE OFF-CANVAS DRAWER (Slide-in)
         ══════════════════════════════════════════════════════ */}
         <div
           id="ns-mobile-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Navigation menu"
           aria-hidden={!mobileOpen}
           style={{
-            overflow: "hidden",
-            maxHeight: mobileOpen ? "800px" : "0",
-            transition: "max-height 0.38s cubic-bezier(0.4,0,0.2,1)",
-            borderTop: `1px solid ${T.border}`,
+            position: "fixed",
+            top: 0,
+            left: 0,
+            bottom: 0,
+            width: "min(340px, 86vw)",
+            height: "100dvh",
             backgroundColor: T.ivory,
+            zIndex: 300,
+            display: "flex",
+            flexDirection: "column",
+            boxShadow: mobileOpen ? "0 10px 40px rgba(0,0,0,0.22)" : "none",
+            transform: mobileOpen ? "translateX(0)" : "translateX(-100%)",
+            transition: "transform 0.24s cubic-bezier(0.32, 0.72, 0, 1)",
+            willChange: "transform",
           }}
         >
+          {/* Drawer Top Header */}
+          <div
+            style={{
+              padding: "16px 20px",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              borderBottom: `1px solid ${T.border}`,
+              flexShrink: 0,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "18px",
+                fontWeight: 700,
+                letterSpacing: "0.2em",
+                textTransform: "uppercase",
+                color: T.espresso,
+              }}
+            >
+              NOVASHOP
+            </span>
+            <button
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close menu"
+              style={{
+                ...iconBtn,
+                padding: "8px",
+                fontSize: "24px",
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Drawer Scrollable Body */}
           <nav
             aria-label="Mobile navigation"
-            style={{ padding: "12px 24px 32px" }}
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: "12px 20px calc(24px + env(safe-area-inset-bottom, 0px))",
+            }}
           >
             {/* Mobile Shop Accordion */}
             <MobileAccordionSection
               title="Shop"
               onTitleClick={() => navigateTo("/shop")}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px", paddingBottom: "12px" }}>
                 <button
                   onClick={() => navigateTo("/shop")}
                   style={mobileSubLink}
@@ -1289,7 +1374,7 @@ export default function Navbar({
               title="Collections"
               onTitleClick={() => navigateTo("/collections")}
             >
-              <div style={{ display: "flex", flexDirection: "column", gap: "8px", paddingBottom: "12px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px", paddingBottom: "12px" }}>
                 <button
                   onClick={() => navigateTo("/collections")}
                   style={{ ...mobileSubLink, fontWeight: 700 }}
@@ -1317,13 +1402,15 @@ export default function Navbar({
                 key={link.path}
                 onClick={() => navigateTo(link.path)}
                 style={{
-                  display: "block",
+                  display: "flex",
+                  alignItems: "center",
                   width: "100%",
+                  minHeight: "48px",
                   textAlign: "left",
                   background: "none",
                   border: "none",
                   cursor: "pointer",
-                  padding: "16px 0",
+                  padding: "12px 0",
                   borderBottom: `1px solid ${T.border}`,
                   fontSize: "13px",
                   fontFamily: "var(--font-serif)",
@@ -1337,50 +1424,111 @@ export default function Navbar({
               </button>
             ))}
 
-            {/* Utility links */}
+            {/* Quick Actions (Wishlist & Account) */}
             <div
               style={{
-                display: "flex",
-                gap: "24px",
-                marginTop: "24px",
-                flexWrap: "wrap",
+                display: "grid",
+                gap: "10px",
+                marginTop: "20px",
+                paddingTop: "16px",
+                borderTop: `1px solid ${T.border}`,
               }}
             >
-              {[
-                { l: "Wishlist", p: "/wishlist" },
-                { l: "Account", p: "/account" },
-                { l: "Search", p: "/search" },
-              ].map(({ l, p }) => (
-                <button
-                  key={p}
-                  onClick={() => {
-                    if (p === "/account") {
-                      handleAccountNavigation();
-                      return;
-                    }
-                    navigateTo(p);
-                  }}
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: 0,
-                    fontSize: "11px",
-                    fontFamily: "var(--font-sans)",
-                    fontWeight: 500,
-                    letterSpacing: "0.13em",
-                    textTransform: "uppercase",
-                    color: T.muted,
-                  }}
-                >
-                  {l}
-                </button>
-              ))}
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  openWishlist();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  minHeight: "44px",
+                  background: "none",
+                  border: `1px solid ${T.border}`,
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: T.espresso,
+                  cursor: "pointer",
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <HeartIcon />
+                  Wishlist
+                </span>
+                {wishlistCount > 0 && (
+                  <span
+                    style={{
+                      background: T.espresso,
+                      color: T.ivory,
+                      borderRadius: "999px",
+                      padding: "2px 8px",
+                      fontSize: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {wishlistCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => {
+                  setMobileOpen(false);
+                  handleAccountNavigation();
+                }}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "10px",
+                  minHeight: "44px",
+                  background: "none",
+                  border: `1px solid ${T.border}`,
+                  borderRadius: "8px",
+                  padding: "10px 14px",
+                  fontFamily: "var(--font-sans)",
+                  fontSize: "11px",
+                  fontWeight: 600,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: T.espresso,
+                  cursor: "pointer",
+                }}
+              >
+                <AvatarCircle image={user?.avatar} />
+                <span>{isAuthenticated ? (user?.name || "My Account") : "Sign In / Register"}</span>
+              </button>
             </div>
 
             {/* Mobile Theme Preference */}
-            <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: `1px solid ${T.border}`, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <span style={{ fontSize: "11px", fontFamily: "var(--font-sans)", letterSpacing: "0.12em", textTransform: "uppercase", color: T.muted, fontWeight: 600 }}>Theme</span>
+            <div
+              style={{
+                marginTop: "20px",
+                paddingTop: "16px",
+                borderTop: `1px solid ${T.border}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                minHeight: "44px",
+              }}
+            >
+              <span
+                style={{
+                  fontSize: "11px",
+                  fontFamily: "var(--font-sans)",
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: T.muted,
+                  fontWeight: 600,
+                }}
+              >
+                Theme
+              </span>
               <ThemeToggle variant="segmented" />
             </div>
           </nav>
@@ -1389,21 +1537,28 @@ export default function Navbar({
 
       {/* ══ RESPONSIVE OVERRIDES ═══════════════════════════════ */}
       <style>{`
-        @media (max-width: 767px) {
+        @media (max-width: 1023px) {
           .ns-navbar-grid {
             grid-template-columns: 1fr auto !important;
-            padding: 15px 20px !important;
+            padding: 14px 20px !important;
           }
           .ns-desktop-nav  { display: none !important; }
           .ns-hide-mobile  { display: none !important; }
           .ns-show-mobile  { display: flex !important; }
         }
-        @media (min-width: 768px) {
+        @media (min-width: 1024px) {
           .ns-show-mobile  { display: none !important; }
+        }
+        @media (max-width: 400px) {
+          .ns-navbar-grid {
+            padding: 12px 14px !important;
+            gap: 8px !important;
+          }
         }
         @media (prefers-reduced-motion: reduce) {
           #ns-mega-menu-shop,
-          #ns-mega-menu-collections {
+          #ns-mega-menu-collections,
+          #ns-mobile-drawer {
             transition: none !important;
             transform: none !important;
           }
@@ -1477,13 +1632,15 @@ function MobileAccordionSection({ title, onTitleClick, children }) {
 }
 
 const mobileSubLink = {
-  display: "block",
+  display: "flex",
+  alignItems: "center",
   width: "100%",
+  minHeight: "44px",
   textAlign: "left",
   background: "none",
   border: "none",
   cursor: "pointer",
-  padding: "6px 0",
+  padding: "8px 0",
   fontSize: "12px",
   fontFamily: "var(--font-sans)",
   fontWeight: 500,

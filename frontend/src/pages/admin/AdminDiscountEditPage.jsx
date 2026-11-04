@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { AdminIcon } from '../../components/admin/AdminLayout';
+import AdminRowActionMenu from '../../components/admin/AdminRowActionMenu';
 import './admin-discount-edit.css';
 
 const INITIAL_DISCOUNT = {
@@ -146,6 +147,8 @@ export default function AdminDiscountEditPage({ go }) {
 
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [notice, setNotice] = useState('');
+  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
+  const moreMenuTriggerRef = useRef(null);
 
   const isDirty =
     JSON.stringify(discount) !== JSON.stringify(savedDiscount);
@@ -273,12 +276,62 @@ export default function AdminDiscountEditPage({ go }) {
 
         <div className="admin-page-actions discounts-edit-actions">
           <button
+            ref={moreMenuTriggerRef}
             type="button"
             className="admin-action-button discounts-edit-more"
             aria-label="More discount actions"
+            aria-expanded={moreMenuOpen}
+            onClick={() => setMoreMenuOpen((v) => !v)}
           >
             <LocalIcon name="more" size={15} />
           </button>
+
+          <AdminRowActionMenu
+            isOpen={moreMenuOpen}
+            onClose={() => setMoreMenuOpen(false)}
+            triggerRef={moreMenuTriggerRef}
+            header={{
+              title: discount.name,
+              subtitle: discount.code ? `${discount.code} · ${discount.format}` : discount.format,
+            }}
+            items={[
+              {
+                id: 'orders',
+                label: 'View redemptions in orders',
+                icon: 'bag',
+                onClick: () => {
+                  if (go) go(`/admin/orders?discount=${encodeURIComponent(discount.code || discount.name)}`);
+                },
+              },
+              {
+                id: 'copy',
+                label: 'Copy discount code',
+                icon: 'code',
+                hidden: !discount.code,
+                onClick: copyCode,
+              },
+              {
+                id: 'duplicate',
+                label: 'Duplicate as new discount',
+                icon: 'copy',
+                onClick: () => {
+                  if (go) go('/admin/discounts/add');
+                },
+              },
+              {
+                id: 'divider',
+                isDivider: true,
+              },
+              {
+                id: 'back',
+                label: 'Back to all discounts',
+                icon: 'chevron',
+                onClick: () => {
+                  if (go) go('/admin/discounts');
+                },
+              },
+            ]}
+          />
 
           <button
             type="button"

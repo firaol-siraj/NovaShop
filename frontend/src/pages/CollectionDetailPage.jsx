@@ -33,7 +33,7 @@ export default function CollectionDetailPage({ go, slug, search = '' }) {
           padding: '48px 0 36px',
         }}
       >
-        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '0 40px' }}>
+        <div style={{ maxWidth: '1440px', margin: '0 auto', padding: '0 clamp(16px, 4vw, 40px)' }}>
           {/* Breadcrumb */}
           <nav
             aria-label="Breadcrumb"
@@ -124,7 +124,8 @@ export default function CollectionDetailPage({ go, slug, search = '' }) {
               style={{
                 background: 'transparent',
                 border: '1px solid var(--border-strong)',
-                padding: '10px 20px',
+                minHeight: '44px',
+                padding: '11px 20px',
                 fontSize: '11px',
                 fontFamily: 'var(--font-sans)',
                 letterSpacing: '0.12em',
@@ -133,6 +134,9 @@ export default function CollectionDetailPage({ go, slug, search = '' }) {
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 transition: 'background 180ms ease, color 180ms ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ← Back to All Collections

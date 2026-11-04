@@ -329,11 +329,22 @@ export default function CategorySection({ go }) {
           }
           .category-explore-btn {
             width: 100% !important;
+            min-height: 44px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
             text-align: center !important;
           }
           .category-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 16px !important;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .category-grid {
             grid-template-columns: 1fr !important;
-            gap: 32px !important;
+            gap: 24px !important;
           }
         }
       `}</style>

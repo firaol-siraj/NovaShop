@@ -45,7 +45,7 @@ export default function NewsletterUnsubscribePage({ go, search = '' }) {
           width: '100%',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
-          padding: '48px 40px',
+          padding: 'clamp(28px, 6vw, 48px) clamp(18px, 5vw, 40px)',
           textAlign: 'center',
           boxShadow: '0 8px 30px rgba(0,0,0,0.04)',
         }}
@@ -81,7 +81,7 @@ export default function NewsletterUnsubscribePage({ go, search = '' }) {
             <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: 1.6, marginBottom: '28px' }}>
               Are you sure you would like to stop receiving seasonal previews, new release alerts, and editorial stories from NovaShop?
             </p>
-            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
                 onClick={() => go('/')}

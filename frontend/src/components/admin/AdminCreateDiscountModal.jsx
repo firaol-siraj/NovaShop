@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { AdminIcon } from './AdminLayout';
+import './admin-create-discount-modal.css';
 
 function generateRandomCode() {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -199,71 +200,20 @@ export default function AdminCreateDiscountModal({
 
   return createPortal(
     <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-overlay, rgba(20, 18, 16, 0.75))',
-        backdropFilter: 'blur(3px)',
-        padding: '16px',
-      }}
+      className="create-discount-overlay"
       role="dialog"
       aria-modal="true"
       aria-labelledby="discount-modal-title"
       onMouseDown={(e) => e.target === e.currentTarget && handleAttemptClose()}
     >
-      <div
-        style={{
-          width: '100%',
-          maxWidth: '860px',
-          maxHeight: '90vh',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-default)',
-          borderRadius: '12px',
-          boxShadow: 'var(--shadow-xl)',
-          color: 'var(--text-primary)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          animation: 'modalSlideUp 150ms cubic-bezier(0.16, 1, 0.3, 1)',
-        }}
-      >
+      <div className="create-discount-dialog">
         {/* Sticky Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '16px 24px',
-            borderBottom: '1px solid var(--border-subtle)',
-            background: 'var(--bg-surface)',
-          }}
-        >
-          <div>
-            <span
-              style={{
-                fontSize: '11px',
-                fontWeight: 600,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--color-accent, #D4A662)',
-              }}
-            >
+        <div className="create-discount-header">
+          <div className="create-discount-header-copy">
+            <span className="create-discount-header-category">
               Promotions & Marketing
             </span>
-            <h2
-              id="discount-modal-title"
-              style={{
-                margin: '2px 0 0',
-                fontSize: '20px',
-                fontFamily: 'var(--font-serif)',
-                fontWeight: 600,
-                color: 'var(--text-primary)',
-              }}
-            >
+            <h2 id="discount-modal-title" className="create-discount-header-title">
               {isEditing ? `Edit Discount: ${discountToEdit.name}` : 'Create New Discount'}
             </h2>
           </div>
@@ -271,36 +221,27 @@ export default function AdminCreateDiscountModal({
             type="button"
             onClick={handleAttemptClose}
             aria-label="Close"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: '32px',
-              height: '32px',
-              border: 0,
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              borderRadius: '6px',
-              cursor: 'pointer',
-            }}
+            className="create-discount-close-btn"
           >
             <AdminIcon name="close" size={16} />
           </button>
         </div>
 
-        {/* Scrollable Form Body: 2 Columns on Desktop */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
-          <form id="discount-create-form" onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.35fr) minmax(260px, 0.85fr)', gap: '24px' }}>
+        {/* Scrollable Form Body: 2 Columns on Desktop, 1 Column on Tablet/Mobile */}
+        <div className="create-discount-body">
+          <form id="discount-create-form" className="create-discount-form-layout" onSubmit={handleSubmit}>
             {/* LEFT COLUMN: Form Inputs */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div className="create-discount-form-col">
               {/* Section 1: Basics */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+              <div className="create-discount-section">
+                <h3 className="create-discount-section-title">
                   1. Basics
                 </h3>
 
-                <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  Discount Title <span style={{ color: 'var(--color-danger)' }}>*</span>
+                <label className="create-discount-field">
+                  <span>
+                    Discount Title <span className="create-discount-field-required">*</span>
+                  </span>
                   <input
                     type="text"
                     required
@@ -310,23 +251,15 @@ export default function AdminCreateDiscountModal({
                       setIsDirty(true);
                     }}
                     placeholder="e.g. Summer VIP Sale, Welcome 10% Off"
-                    style={{
-                      height: '38px',
-                      padding: '0 12px',
-                      borderRadius: '8px',
-                      border: '1px solid var(--border-default)',
-                      background: 'var(--bg-input)',
-                      color: 'var(--text-primary)',
-                      fontSize: '13px',
-                    }}
+                    className="create-discount-input"
                   />
                 </label>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Discount Code <span style={{ color: 'var(--color-danger)' }}>*</span>
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+                <div className="create-discount-field">
+                  <span>
+                    Discount Code <span className="create-discount-field-required">*</span>
+                  </span>
+                  <div className="create-discount-code-row">
                     <input
                       type="text"
                       required
@@ -336,68 +269,36 @@ export default function AdminCreateDiscountModal({
                         setIsDirty(true);
                       }}
                       placeholder="e.g. SUMMER25"
-                      style={{
-                        flex: 1,
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        fontFamily: 'ui-monospace, monospace',
-                        fontWeight: 700,
-                        fontSize: '14px',
-                        textTransform: 'uppercase',
-                      }}
+                      className="create-discount-input create-discount-code-input"
                     />
-                    <button
-                      type="button"
-                      onClick={handleGenerateCode}
-                      style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-surface-raised)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Generate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCopyCode}
-                      style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-surface-raised)',
-                        color: 'var(--text-primary)',
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {copied ? 'Copied!' : 'Copy'}
-                    </button>
+                    <div className="create-discount-code-buttons">
+                      <button
+                        type="button"
+                        onClick={handleGenerateCode}
+                        className="create-discount-code-btn"
+                      >
+                        Generate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCopyCode}
+                        className="create-discount-code-btn"
+                      >
+                        {copied ? 'Copied!' : 'Copy'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               </div>
 
               {/* Section 2: Method & Type */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+              <div className="create-discount-section">
+                <h3 className="create-discount-section-title">
                   2. Method & Type
                 </h3>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <div className="create-discount-grid-2">
+                  <label className="create-discount-field">
                     Method
                     <select
                       value={method}
@@ -405,22 +306,14 @@ export default function AdminCreateDiscountModal({
                         setMethod(e.target.value);
                         setIsDirty(true);
                       }}
-                      style={{
-                        height: '38px',
-                        padding: '0 10px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                      }}
+                      className="create-discount-select"
                     >
                       <option value="code">Code (Customer enters at checkout)</option>
                       <option value="automatic">Automatic (Applied automatically)</option>
                     </select>
                   </label>
 
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <label className="create-discount-field">
                     Discount Type
                     <select
                       value={type}
@@ -428,15 +321,7 @@ export default function AdminCreateDiscountModal({
                         setType(e.target.value);
                         setIsDirty(true);
                       }}
-                      style={{
-                        height: '38px',
-                        padding: '0 10px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                      }}
+                      className="create-discount-select"
                     >
                       <option value="percentage">Percentage (%)</option>
                       <option value="fixed_amount">Fixed Amount ($)</option>
@@ -446,8 +331,10 @@ export default function AdminCreateDiscountModal({
                 </div>
 
                 {type !== 'free_shipping' && (
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                    Discount Value {type === 'percentage' ? '(%)' : '($)'} <span style={{ color: 'var(--color-danger)' }}>*</span>
+                  <label className="create-discount-field">
+                    <span>
+                      Discount Value {type === 'percentage' ? '(%)' : '($)'} <span className="create-discount-field-required">*</span>
+                    </span>
                     <input
                       type="number"
                       step={type === 'percentage' ? '1' : '0.01'}
@@ -459,16 +346,10 @@ export default function AdminCreateDiscountModal({
                         setValue(e.target.value);
                         setIsDirty(true);
                       }}
+                      className="create-discount-input"
                       style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
                         fontFamily: 'ui-monospace, monospace',
                         fontWeight: 600,
-                        fontSize: '14px',
                       }}
                     />
                   </label>
@@ -476,13 +357,13 @@ export default function AdminCreateDiscountModal({
               </div>
 
               {/* Section 3: Applies To */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+              <div className="create-discount-section">
+                <h3 className="create-discount-section-title">
                   3. Applies To
                 </h3>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                <div className="create-discount-radio-group">
+                  <label className="create-discount-radio-label">
                     <input
                       type="radio"
                       name="appliesTo"
@@ -495,7 +376,7 @@ export default function AdminCreateDiscountModal({
                     />
                     All products across store
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <label className="create-discount-radio-label">
                     <input
                       type="radio"
                       name="appliesTo"
@@ -508,7 +389,7 @@ export default function AdminCreateDiscountModal({
                     />
                     Specific categories
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                  <label className="create-discount-radio-label">
                     <input
                       type="radio"
                       name="appliesTo"
@@ -524,7 +405,7 @@ export default function AdminCreateDiscountModal({
                 </div>
 
                 {appliesTo === 'specific_categories' && categories.length > 0 && (
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '6px' }}>
+                  <div className="create-discount-chips-wrap">
                     {categories.map((cat) => {
                       const id = String(cat.id || cat._id);
                       const isSelected = selectedCategoryIds.includes(id);
@@ -538,14 +419,11 @@ export default function AdminCreateDiscountModal({
                             );
                             setIsDirty(true);
                           }}
+                          className="create-discount-chip-btn"
                           style={{
-                            padding: '4px 10px',
-                            borderRadius: '99px',
-                            fontSize: '12px',
                             border: isSelected ? '1px solid var(--color-accent, #D4A662)' : '1px solid var(--border-default)',
                             background: isSelected ? 'var(--bg-surface-sunken)' : 'var(--bg-surface)',
                             color: isSelected ? 'var(--color-accent, #D4A662)' : 'var(--text-secondary)',
-                            cursor: 'pointer',
                           }}
                         >
                           {cat.name}
@@ -557,13 +435,13 @@ export default function AdminCreateDiscountModal({
               </div>
 
               {/* Section 4: Requirements & Limits */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingBottom: '16px', borderBottom: '1px solid var(--border-subtle)' }}>
-                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+              <div className="create-discount-section">
+                <h3 className="create-discount-section-title">
                   4. Requirements & Limits
                 </h3>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <div className="create-discount-grid-2">
+                  <label className="create-discount-field">
                     Minimum Spend ($)
                     <input
                       type="number"
@@ -575,19 +453,11 @@ export default function AdminCreateDiscountModal({
                         setMinimumSpend(e.target.value);
                         setIsDirty(true);
                       }}
-                      style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                      }}
+                      className="create-discount-input"
                     />
                   </label>
 
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <label className="create-discount-field">
                     Total Usage Limit
                     <input
                       type="number"
@@ -599,21 +469,13 @@ export default function AdminCreateDiscountModal({
                         setUsageLimit(e.target.value);
                         setIsDirty(true);
                       }}
-                      style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                      }}
+                      className="create-discount-input"
                     />
                   </label>
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <label className="create-discount-field">
                     Per Customer Usage Limit
                     <input
                       type="number"
@@ -625,21 +487,13 @@ export default function AdminCreateDiscountModal({
                         setPerCustomerLimit(e.target.value);
                         setIsDirty(true);
                       }}
-                      style={{
-                        height: '38px',
-                        padding: '0 12px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        fontSize: '13px',
-                      }}
+                      className="create-discount-input"
                     />
                   </label>
                 </div>
 
                 {/* First-time customer toggle with HIGH CONTRAST */}
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 500, color: 'var(--text-primary)', cursor: 'pointer', marginTop: '4px' }}>
+                <label className="create-discount-checkbox-label" style={{ marginTop: '4px' }}>
                   <input
                     type="checkbox"
                     checked={firstOrderOnly}
@@ -654,13 +508,13 @@ export default function AdminCreateDiscountModal({
               </div>
 
               {/* Section 5: Active Dates */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '13px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-primary)' }}>
+              <div className="create-discount-section" style={{ borderBottom: 'none', paddingBottom: 0 }}>
+                <h3 className="create-discount-section-title">
                   5. Active Dates
                 </h3>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                <div className="create-discount-grid-2">
+                  <label className="create-discount-field">
                     Starts At
                     <input
                       type="date"
@@ -670,21 +524,13 @@ export default function AdminCreateDiscountModal({
                         setStartsAt(e.target.value);
                         setIsDirty(true);
                       }}
-                      style={{
-                        height: '38px',
-                        padding: '0 10px',
-                        borderRadius: '8px',
-                        border: '1px solid var(--border-default)',
-                        background: 'var(--bg-input)',
-                        color: 'var(--text-primary)',
-                        colorScheme: 'dark light',
-                        fontSize: '13px',
-                      }}
+                      className="create-discount-input"
+                      style={{ colorScheme: 'dark light' }}
                     />
                   </label>
 
                   {hasEndDate && (
-                    <label style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    <label className="create-discount-field">
                       Ends At
                       <input
                         type="date"
@@ -694,22 +540,14 @@ export default function AdminCreateDiscountModal({
                           setEndsAt(e.target.value);
                           setIsDirty(true);
                         }}
-                        style={{
-                          height: '38px',
-                          padding: '0 10px',
-                          borderRadius: '8px',
-                          border: '1px solid var(--border-default)',
-                          background: 'var(--bg-input)',
-                          color: 'var(--text-primary)',
-                          colorScheme: 'dark light',
-                          fontSize: '13px',
-                        }}
+                        className="create-discount-input"
+                        style={{ colorScheme: 'dark light' }}
                       />
                     </label>
                   )}
                 </div>
 
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', color: 'var(--text-primary)', cursor: 'pointer' }}>
+                <label className="create-discount-checkbox-label">
                   <input
                     type="checkbox"
                     checked={hasEndDate}
@@ -726,39 +564,19 @@ export default function AdminCreateDiscountModal({
 
               {/* Inline Error */}
               {error && (
-                <div
-                  style={{
-                    padding: '10px 14px',
-                    borderRadius: '8px',
-                    background: 'var(--color-danger-soft)',
-                    border: '1px solid var(--color-danger)',
-                    color: 'var(--color-danger)',
-                    fontSize: '13px',
-                  }}
-                >
+                <div className="create-discount-error-banner">
                   {error}
                 </div>
               )}
             </div>
 
             {/* RIGHT COLUMN: Live Interactive Preview Card */}
-            <div style={{ position: 'sticky', top: 0, display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <span style={{ fontSize: '12px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-secondary)' }}>
+            <div className="create-discount-preview-col">
+              <span className="create-discount-preview-title">
                 Live Customer Preview
               </span>
 
-              <div
-                style={{
-                  padding: '18px',
-                  borderRadius: '12px',
-                  background: 'var(--bg-surface-raised)',
-                  border: '1px solid var(--border-default)',
-                  boxShadow: 'var(--shadow-md)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                }}
-              >
+              <div className="create-discount-preview-card">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span
                     style={{
@@ -801,19 +619,7 @@ export default function AdminCreateDiscountModal({
                   </span>
                 </div>
 
-                <div
-                  style={{
-                    padding: '10px 12px',
-                    borderRadius: '6px',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    fontSize: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '4px',
-                    color: 'var(--text-muted)',
-                  }}
-                >
+                <div className="create-discount-preview-meta">
                   <div>
                     Applies to:{' '}
                     <strong style={{ color: 'var(--text-primary)' }}>
@@ -848,7 +654,7 @@ export default function AdminCreateDiscountModal({
               </div>
 
               {/* Informational Hint */}
-              <p style={{ margin: 0, fontSize: '11px', color: 'var(--text-muted)', lineHeight: 1.4 }}>
+              <p className="create-discount-preview-hint">
                 Customers entering this code at checkout will have the discount applied immediately against eligible cart items and taxes.
               </p>
             </div>
@@ -856,38 +662,17 @@ export default function AdminCreateDiscountModal({
         </div>
 
         {/* Sticky Footer */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '14px 24px',
-            borderTop: '1px solid var(--border-subtle)',
-            background: 'var(--bg-surface)',
-          }}
-        >
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+        <div className="create-discount-footer">
+          <div className="create-discount-footer-status">
             {isDirty && '● Unsaved changes'}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="create-discount-footer-actions">
             <button
               type="button"
               onClick={handleAttemptClose}
               disabled={submitting}
-              style={{
-                height: '38px',
-                padding: '0 18px',
-                borderRadius: '8px',
-                border: '1px solid var(--border-default)',
-                background: 'transparent',
-                color: 'var(--text-primary)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '13px',
-                fontWeight: 500,
-                cursor: 'pointer',
-                transition: 'all 120ms ease',
-              }}
+              className="create-discount-btn-cancel"
             >
               Cancel
             </button>
@@ -895,22 +680,10 @@ export default function AdminCreateDiscountModal({
               type="submit"
               form="discount-create-form"
               disabled={submitting}
+              className="create-discount-btn-submit"
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                height: '38px',
-                padding: '0 22px',
-                borderRadius: '8px',
-                border: 'none',
-                background: 'var(--color-primary, #1B1816)',
-                color: 'var(--color-sand, #F9F6F0)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: '13px',
-                fontWeight: 600,
                 cursor: submitting ? 'not-allowed' : 'pointer',
                 opacity: submitting ? 0.7 : 1,
-                boxShadow: 'var(--shadow-sm)',
               }}
             >
               {submitting && (

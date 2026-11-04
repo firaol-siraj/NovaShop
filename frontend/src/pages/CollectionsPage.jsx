@@ -508,6 +508,16 @@ export default function CollectionsPage({ go }) {
             font-size: 16px;
           }
         }
+
+        @media (max-width: 360px) {
+          .col-container {
+            padding: 36px 16px 56px;
+          }
+          .col-grid {
+            grid-template-columns: 1fr;
+            gap: 28px;
+          }
+        }
       `}</style>
 
       <main className="col-page">

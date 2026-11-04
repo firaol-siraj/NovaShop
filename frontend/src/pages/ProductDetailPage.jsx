@@ -238,7 +238,144 @@ export default function ProductDetailPage({ go, slug }) {
 
   return (
     <div style={{ backgroundColor: 'var(--bg-main)' }}>
-      <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 40px 80px' }}>
+      <style>{`
+        .pdp-container {
+          max-width: 1400px;
+          margin: 0 auto;
+          padding: 0 40px 80px;
+        }
+        .pdp-main-section {
+          display: grid;
+          grid-template-columns: 110px minmax(0, 1fr) minmax(320px, 520px);
+          gap: 20px;
+          align-items: start;
+          padding-top: 12px;
+        }
+        .pdp-thumbs-col {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          padding-top: 8px;
+        }
+        .pdp-thumbs-list {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+        .pdp-details-grid {
+          margin-top: 28px;
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          border-top: 1px solid var(--border-default);
+          border-bottom: 1px solid var(--border-default);
+        }
+        .pdp-reviews-grid {
+          margin-top: 82px;
+          display: grid;
+          grid-template-columns: 320px 1fr;
+          gap: 28px;
+          align-items: start;
+        }
+        .pdp-related-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 26px;
+        }
+        .pdp-recent-grid {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 20px;
+        }
+        .pdp-sticky-bar {
+          display: none;
+        }
+
+        @media (max-width: 1023px) {
+          .pdp-container {
+            padding: 0 24px 60px;
+          }
+          .pdp-main-section {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          .pdp-thumbs-col {
+            order: 2;
+            padding-top: 0;
+          }
+          .pdp-thumbs-list {
+            flex-direction: row;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 6px;
+          }
+          .pdp-main-image-wrap {
+            order: 1;
+          }
+          .pdp-buy-box {
+            order: 3;
+          }
+          .pdp-reviews-grid {
+            grid-template-columns: 1fr;
+            gap: 20px;
+          }
+          .pdp-related-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+          }
+          .pdp-recent-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .pdp-container {
+            padding: 0 16px 80px;
+          }
+          .pdp-details-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+          .pdp-details-grid > div {
+            border-left: none !important;
+            border-bottom: 1px solid var(--border-default);
+          }
+          .pdp-sticky-bar {
+            display: flex;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-default);
+            padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+            z-index: 90;
+            box-shadow: var(--shadow-lg);
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+          }
+          .pdp-modal-input {
+            font-size: 16px !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .pdp-recent-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (max-width: 360px) {
+          .pdp-details-grid {
+            grid-template-columns: 1fr;
+          }
+          .pdp-related-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
+      <div className="pdp-container">
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '28px 0 18px', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.13em', textTransform: 'uppercase', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
           <button onClick={() => go('/')} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}>Home</button>
           <span>/</span>
@@ -249,10 +386,10 @@ export default function ProductDetailPage({ go, slug }) {
           <span style={{ color: 'var(--text-primary)' }}>{product.name}</span>
         </div>
 
-        <section style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) minmax(320px, 520px)', gap: '20px', alignItems: 'start', paddingTop: '12px' }}>
-          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: '12px', paddingTop: '8px' }}>
+        <section className="pdp-main-section">
+          <div className="pdp-thumbs-col">
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)', paddingLeft: '8px' }}>{String(Math.min(selectedImage + 1, galleryImages.length)).padStart(2, '0')} / {String(galleryImages.length).padStart(2, '0')}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="pdp-thumbs-list">
               {galleryImages.map((src, index) => (
                 <button
                   key={`${activeColor.name}-${index}`}
@@ -260,6 +397,7 @@ export default function ProductDetailPage({ go, slug }) {
                   style={{
                     width: '64px',
                     height: '64px',
+                    minWidth: '64px',
                     padding: 0,
                     border: index === selectedImage ? '2px solid var(--color-primary)' : '1px solid var(--border-default)',
                     background: 'var(--bg-surface-sunken)',
@@ -275,7 +413,7 @@ export default function ProductDetailPage({ go, slug }) {
             </div>
           </div>
 
-          <div style={{ position: 'relative' }}>
+          <div className="pdp-main-image-wrap" style={{ position: 'relative' }}>
             <div style={{ position: 'relative', borderRadius: '18px', overflow: 'hidden', background: 'var(--bg-surface-sunken)', aspectRatio: '4 / 5', boxShadow: 'var(--shadow-md)' }}>
               <img
                 src={galleryImages[selectedImage] || galleryImages[0]}
@@ -286,7 +424,7 @@ export default function ProductDetailPage({ go, slug }) {
               <button
                 onClick={() => setLightboxOpen(true)}
                 aria-label="Open image gallery"
-                style={{ position: 'absolute', top: '16px', right: '16px', width: '38px', height: '38px', borderRadius: '50%', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+                style={{ position: 'absolute', top: '16px', right: '16px', width: '44px', height: '44px', borderRadius: '50%', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
               >
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M21 3l-9 9M21 14v6H3V4h6" /></svg>
               </button>
@@ -294,7 +432,7 @@ export default function ProductDetailPage({ go, slug }) {
             </div>
           </div>
 
-          <div style={{ paddingTop: '6px' }}>
+          <div className="pdp-buy-box" style={{ paddingTop: '6px' }}>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '14px' }}>{product.collection}</div>
             <h1 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(34px, 3.2vw, 46px)', lineHeight: 1.05, letterSpacing: '-0.04em', fontWeight: 400, color: 'var(--text-primary)', fontStyle: 'italic' }}>{product.name}</h1>
 
@@ -384,9 +522,9 @@ export default function ProductDetailPage({ go, slug }) {
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '26px', flexWrap: 'wrap' }}>
               <div style={{ display: 'inline-flex', alignItems: 'center', border: '1px solid var(--border-default)', borderRadius: '999px', overflow: 'hidden', background: 'var(--bg-surface)' }}>
-                <button type="button" aria-label="Decrease quantity" disabled={isSoldOut || quantity <= 1} onClick={() => setQuantity((v) => Math.max(1, v - 1))} style={{ width: '42px', height: '42px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: isSoldOut || quantity <= 1 ? 'not-allowed' : 'pointer', fontSize: '20px', opacity: isSoldOut || quantity <= 1 ? 0.4 : 1 }}>−</button>
+                <button type="button" aria-label="Decrease quantity" disabled={isSoldOut || quantity <= 1} onClick={() => setQuantity((v) => Math.max(1, v - 1))} style={{ width: '44px', height: '44px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: isSoldOut || quantity <= 1 ? 'not-allowed' : 'pointer', fontSize: '20px', opacity: isSoldOut || quantity <= 1 ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
                 <span aria-live="polite" style={{ width: '42px', textAlign: 'center', fontFamily: 'var(--font-sans)', fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{quantity}</span>
-                <button type="button" aria-label="Increase quantity" disabled={isSoldOut || quantity >= maxQty} onClick={() => setQuantity((v) => Math.min(maxQty, v + 1))} style={{ width: '42px', height: '42px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: isSoldOut || quantity >= maxQty ? 'not-allowed' : 'pointer', fontSize: '20px', opacity: isSoldOut || quantity >= maxQty ? 0.4 : 1 }}>+</button>
+                <button type="button" aria-label="Increase quantity" disabled={isSoldOut || quantity >= maxQty} onClick={() => setQuantity((v) => Math.min(maxQty, v + 1))} style={{ width: '44px', height: '44px', background: 'none', border: 'none', color: 'var(--text-primary)', cursor: isSoldOut || quantity >= maxQty ? 'not-allowed' : 'pointer', fontSize: '20px', opacity: isSoldOut || quantity >= maxQty ? 0.4 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
               </div>
               <button
                 type="button"
@@ -447,7 +585,7 @@ export default function ProductDetailPage({ go, slug }) {
 
         <section style={{ marginTop: '80px', borderTop: '1px solid var(--border-subtle)', paddingTop: '40px' }}>
           <h2 style={{ margin: 0, textAlign: 'center', fontFamily: 'var(--font-serif)', fontSize: 'clamp(32px, 3vw, 46px)', fontStyle: 'italic', fontWeight: 400, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>Details & Materials</h2>
-          <div style={{ marginTop: '28px', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)' }}>
+          <div className="pdp-details-grid">
             {Object.entries(product.details).map(([key, value], index) => (
               <div key={key} style={{ padding: '22px 20px', textAlign: 'center', borderLeft: index > 0 ? '1px solid var(--border-default)' : 'none' }}>
                 <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '8px' }}>{key}</div>
@@ -457,7 +595,7 @@ export default function ProductDetailPage({ go, slug }) {
           </div>
         </section>
 
-        <section id="reviews-section" style={{ marginTop: '82px', display: 'grid', gridTemplateColumns: '320px 1fr', gap: '28px', alignItems: 'start' }}>
+        <section id="reviews-section" className="pdp-reviews-grid">
           <div>
             <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(30px, 2.8vw, 42px)', fontStyle: 'italic', fontWeight: 400, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>Customer Reviews</h2>
             <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)' }}>
@@ -607,6 +745,7 @@ export default function ProductDetailPage({ go, slug }) {
                   <input
                     type="text"
                     required
+                    className="pdp-modal-input"
                     value={newReviewTitle}
                     onChange={(e) => setNewReviewTitle(e.target.value)}
                     placeholder="Headline for your reflection..."
@@ -627,6 +766,7 @@ export default function ProductDetailPage({ go, slug }) {
                   <textarea
                     required
                     rows={4}
+                    className="pdp-modal-input"
                     value={newReviewBody}
                     onChange={(e) => setNewReviewBody(e.target.value)}
                     placeholder="Describe the fit, craftsmanship, and wearability..."
@@ -695,7 +835,7 @@ export default function ProductDetailPage({ go, slug }) {
               <p style={{ margin: '8px 0 0', fontFamily: 'var(--font-sans)', fontSize: '14px', color: 'var(--text-secondary)' }}>Complete the look with pieces selected from the NovaShop collection.</p>
             </div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '26px' }}>
+          <div className="pdp-related-grid">
             {relatedProducts.map((item) => (
               <div key={item.productId || item.id}>
                 <ProductCard
@@ -717,7 +857,7 @@ export default function ProductDetailPage({ go, slug }) {
             <h2 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: 'clamp(28px, 2.6vw, 38px)', fontStyle: 'italic', fontWeight: 400, letterSpacing: '-0.04em', color: 'var(--text-primary)' }}>Recently Viewed</h2>
             <button style={{ background: 'none', border: 'none', padding: 0, color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase' }} onClick={() => { localStorage.removeItem('novashop_recently_viewed'); setRecentlyViewed([]); }}>Clear History</button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '20px' }}>
+          <div className="pdp-recent-grid">
             {recentlyViewed.length > 0 ? recentlyViewed.map((item) => {
               const isCurrent = item.slug === product.slug;
               return (
@@ -738,16 +878,62 @@ export default function ProductDetailPage({ go, slug }) {
         </div>
       </div>
 
+      {/* Mobile Sticky Add to Bag Bar */}
+      <div className="pdp-sticky-bar">
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {product.name}
+          </div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+            {formatPrice(currentPrice)}
+            {selectedSize && <span style={{ marginLeft: '6px', color: 'var(--text-muted)' }}>· Size {selectedSize}</span>}
+          </div>
+        </div>
+        <button
+          type="button"
+          disabled={isSoldOut || !selectedVariantId}
+          onClick={async () => {
+            const result = await addProductToBag(product, {
+              qty: quantity,
+              variantId: selectedVariantId,
+              color: activeColor?.name,
+              size: selectedSize,
+            });
+            if (result?.ok) {
+              openCart?.();
+            }
+          }}
+          style={{
+            minHeight: '44px',
+            background: isSoldOut ? 'var(--border-strong)' : 'var(--color-primary)',
+            color: 'var(--color-primary-contrast)',
+            border: 'none',
+            borderRadius: '999px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: '11px',
+            letterSpacing: '0.14em',
+            textTransform: 'uppercase',
+            fontWeight: 600,
+            cursor: isSoldOut ? 'not-allowed' : 'pointer',
+            padding: '0 20px',
+            whiteSpace: 'nowrap',
+            opacity: isSoldOut ? 0.7 : 1,
+          }}
+        >
+          {isSoldOut ? 'Sold out' : 'Add to Bag'}
+        </button>
+      </div>
+
       {isLightboxOpen && (
-        <div onClick={() => setLightboxOpen(false)} style={{ position: 'fixed', inset: 0, background: 'var(--bg-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200 }}>
-          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: 'min(900px, 88vw)', maxHeight: '88vh', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '18px', padding: '18px', boxShadow: 'var(--shadow-lg)' }}>
-            <button onClick={() => setLightboxOpen(false)} style={{ position: 'absolute', top: '14px', right: '14px', border: 'none', background: 'var(--bg-surface-raised)', color: 'var(--text-primary)', width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer', fontSize: '24px', lineHeight: 1 }}>×</button>
+        <div onClick={() => setLightboxOpen(false)} style={{ position: 'fixed', inset: 0, background: 'var(--bg-overlay)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: '16px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ position: 'relative', width: 'min(900px, 94vw)', maxHeight: '90dvh', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '18px', padding: '16px', boxShadow: 'var(--shadow-lg)' }}>
+            <button onClick={() => setLightboxOpen(false)} style={{ position: 'absolute', top: '14px', right: '14px', border: 'none', background: 'var(--bg-surface-raised)', color: 'var(--text-primary)', width: '44px', height: '44px', borderRadius: '50%', cursor: 'pointer', fontSize: '24px', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10 }}>×</button>
             <div style={{ display: 'grid', gap: '12px' }}>
-              <img src={galleryImages[selectedImage]} alt={product.name} style={{ width: '100%', height: '74vh', objectFit: 'cover', borderRadius: '12px' }} />
+              <img src={galleryImages[selectedImage]} alt={product.name} style={{ width: '100%', height: 'calc(80dvh - 80px)', objectFit: 'contain', borderRadius: '12px' }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <button onClick={() => setSelectedImage((prev) => (prev === 0 ? galleryImages.length - 1 : prev - 1))} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>← Prev</button>
+                <button onClick={() => setSelectedImage((prev) => (prev === 0 ? galleryImages.length - 1 : prev - 1))} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.14em', textTransform: 'uppercase', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center' }}>← Prev</button>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{selectedImage + 1} / {galleryImages.length}</span>
-                <button onClick={() => setSelectedImage((prev) => (prev + 1) % galleryImages.length)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Next →</button>
+                <button onClick={() => setSelectedImage((prev) => (prev + 1) % galleryImages.length)} style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '12px', letterSpacing: '0.14em', textTransform: 'uppercase', minHeight: '44px', minWidth: '44px', display: 'flex', alignItems: 'center' }}>Next →</button>
               </div>
             </div>
           </div>

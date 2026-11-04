@@ -60,10 +60,10 @@ export default function ProductCard({ product, go, onAddToCart, onAddToWishlist,
             toggleWishlist(product);
             onAddToWishlist?.(product);
           }}
-          className={`absolute top-3 right-3 z-10 p-1.5 transition-opacity duration-200 border border-[var(--border-subtle)] shadow-sm ${
+          className={`absolute top-2 right-2 sm:top-3 sm:right-3 z-10 min-w-[38px] min-h-[38px] flex items-center justify-center transition-opacity duration-200 border border-[var(--border-subtle)] shadow-sm ${
             wishlisted
               ? 'opacity-100 bg-[var(--bg-surface)] text-[var(--color-primary)]'
-              : 'opacity-0 group-hover:opacity-100 bg-[var(--bg-surface)] text-[var(--text-primary)] hover:text-[var(--color-accent)]'
+              : 'opacity-90 sm:opacity-0 sm:group-hover:opacity-100 bg-[var(--bg-surface)] text-[var(--text-primary)] hover:text-[var(--color-accent)]'
           }`}
           aria-label={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
         >

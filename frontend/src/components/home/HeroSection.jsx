@@ -34,7 +34,7 @@ function ArrowBtn({ direction, onClick, label }) {
       onClick={onClick}
       aria-label={label}
       style={{
-        width: '40px', height: '40px',
+        width: '44px', height: '44px',
         borderRadius: '50%',
         border: '1px solid rgba(255,255,255,0.3)',
         background: 'rgba(0,0,0,0.35)',
@@ -92,6 +92,24 @@ export default function HeroSection({ go }) {
 
   const timerRef = useRef(null);
   const trackedImpressionsRef = useRef(new Set());
+  const touchStartXRef = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const deltaX = e.changedTouches[0].clientX - touchStartXRef.current;
+    if (Math.abs(deltaX) > 40) {
+      if (deltaX > 0) {
+        handleManualNav(goPrev);
+      } else {
+        handleManualNav(goNext);
+      }
+    }
+    touchStartXRef.current = null;
+  };
 
   const [heroHeight, setHeroHeight] = useState(720);
 
@@ -309,6 +327,8 @@ export default function HeroSection({ go }) {
       className="hero-section-box"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       style={{
         position: 'relative',
         width: '100%',
@@ -712,7 +732,7 @@ export default function HeroSection({ go }) {
       <style>{`
         /* Consistent crisp presentation without blurry GPU transforms */
         .hero-section-box {
-          height: clamp(480px, 80vh, 820px);
+          height: clamp(480px, 80dvh, 820px);
         }
 
         /* Staggered text reveal */
@@ -734,7 +754,7 @@ export default function HeroSection({ go }) {
         /* ── Responsive ─────────────────────────────────────────────── */
         @media (max-width: 768px) {
           .hero-section-box {
-            height: clamp(420px, 65vh, 560px) !important;
+            height: clamp(420px, 65dvh, 560px) !important;
           }
           .hero-foreground-contain {
             justify-content: center !important;
@@ -757,6 +777,12 @@ export default function HeroSection({ go }) {
             align-items: flex-start !important;
             gap: 16px !important;
           }
+          .hero-cta-row button {
+            min-height: 44px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+          }
           .hero-arrows {
             align-self: flex-end;
           }
@@ -764,7 +790,7 @@ export default function HeroSection({ go }) {
 
         @media (max-width: 480px) {
           .hero-section-box {
-            height: clamp(360px, 55vh, 480px) !important;
+            height: clamp(360px, 55dvh, 480px) !important;
           }
           .hero-bottom-row {
             padding: 0 20px 28px !important;

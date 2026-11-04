@@ -324,12 +324,25 @@ export default function EditProfilePage({ go, currentPath }) {
             </div>
           </section>
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', alignItems: 'center' }}>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
             <button
               type="button"
               onClick={handleBack}
               disabled={isSaving}
-              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}
+              style={{
+                background: 'none',
+                border: 'none',
+                minHeight: '44px',
+                padding: '10px 16px',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-sans)',
+                fontSize: '11px',
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--text-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+              }}
             >
               Cancel
             </button>
@@ -338,16 +351,20 @@ export default function EditProfilePage({ go, currentPath }) {
               disabled={isSaveDisabled}
               style={{
                 border: 'none',
+                minHeight: '44px',
                 background: 'var(--color-primary)',
                 color: 'var(--color-primary-contrast)',
                 borderRadius: '999px',
-                padding: '14px 26px',
+                padding: '12px 26px',
                 fontFamily: 'var(--font-sans)',
                 fontSize: '11px',
                 letterSpacing: '0.14em',
                 textTransform: 'uppercase',
                 cursor: isSaveDisabled ? 'not-allowed' : 'pointer',
                 opacity: isSaveDisabled ? 0.6 : 1,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               {isSaving ? 'Saving...' : 'Save Profile'}
@@ -360,6 +377,9 @@ export default function EditProfilePage({ go, currentPath }) {
         @media (max-width: 767px) {
           .ns-names-grid {
             grid-template-columns: 1fr !important;
+          }
+          .ns-edit-profile-page input {
+            font-size: 16px !important;
           }
         }
       `}</style>

@@ -1580,6 +1580,11 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
                   fontSize: '28px',
                   lineHeight: 1,
                   padding: 0,
+                  minWidth: '44px',
+                  minHeight: '44px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
                 aria-label="Close filters"
               >
@@ -1694,12 +1699,14 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
                       onChange={(e) => setDraftMinPrice(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '8px 10px',
+                        padding: '10px 12px',
                         border: '1px solid var(--border-input)',
                         background: 'var(--bg-input)',
                         color: 'var(--text-primary)',
                         fontFamily: 'var(--font-sans)',
-                        fontSize: '12px',
+                        fontSize: '16px',
+                        minHeight: '44px',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
@@ -1715,12 +1722,14 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
                       onChange={(e) => setDraftMaxPrice(e.target.value)}
                       style={{
                         width: '100%',
-                        padding: '8px 10px',
+                        padding: '10px 12px',
                         border: '1px solid var(--border-input)',
                         background: 'var(--bg-input)',
                         color: 'var(--text-primary)',
                         fontFamily: 'var(--font-sans)',
-                        fontSize: '12px',
+                        fontSize: '16px',
+                        minHeight: '44px',
+                        boxSizing: 'border-box',
                       }}
                     />
                   </div>
@@ -1878,7 +1887,7 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
               style={{
                 display: 'flex',
                 gap: '12px',
-                padding: '20px 28px',
+                padding: '16px 24px calc(16px + env(safe-area-inset-bottom, 0px))',
                 borderTop: '1px solid var(--border-default)',
                 background: 'var(--bg-surface)',
               }}
@@ -1892,6 +1901,7 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
                   border: '1px solid var(--border-default)',
                   color: 'var(--text-primary)',
                   padding: '12px',
+                  minHeight: '44px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '11px',
                   letterSpacing: '0.14em',
@@ -1911,6 +1921,7 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
                   border: '1px solid var(--color-primary)',
                   color: 'var(--color-primary-contrast)',
                   padding: '12px',
+                  minHeight: '44px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '11px',
                   letterSpacing: '0.14em',
@@ -1946,6 +1957,16 @@ export default function ShopPage({ go, search = '', initialCategory = '' }) {
           .novashop-product-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
             gap: 16px !important;
+          }
+        }
+        @media (max-width: 640px) {
+          aside[role="dialog"][aria-label="Filter products"] {
+            width: 100vw !important;
+          }
+        }
+        @media (max-width: 360px) {
+          .novashop-product-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

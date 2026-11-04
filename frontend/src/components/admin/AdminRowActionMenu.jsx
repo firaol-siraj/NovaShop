@@ -153,13 +153,23 @@ export default function AdminRowActionMenu({
     // Re-check right after render if actual height changed
     const animFrame = requestAnimationFrame(updatePosition);
 
-    // Close on window/container scroll or resize
-    window.addEventListener('scroll', handleClose, true);
+    // Close on window/container scroll or resize (unless scroll is inside the menu or on mobile)
+    const handleScroll = (event) => {
+      if (menuRef.current && (menuRef.current === event.target || menuRef.current.contains(event.target))) {
+        return;
+      }
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        return;
+      }
+      handleClose();
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
     window.addEventListener('resize', handleClose);
 
     return () => {
       cancelAnimationFrame(animFrame);
-      window.removeEventListener('scroll', handleClose, true);
+      window.removeEventListener('scroll', handleScroll, true);
       window.removeEventListener('resize', handleClose);
     };
   }, [menuOpen, activeTriggerRef, handleClose, width, visibleItems.length]);
@@ -223,35 +233,45 @@ export default function AdminRowActionMenu({
   const headerTitle = header?.title || title || item?.name || item?.headline || item?.title || customer?.name;
   const headerSubtitle = header?.subtitle || subtitle || item?.subtitle || item?.sku || item?.code || customer?.email;
 
+  const isMobileSheet = typeof window !== 'undefined' && window.innerWidth <= 768;
+  const isHiddenCoord = !isMobileSheet && coords.top === 0 && coords.left === 0;
+
   const menuPortal = menuOpen
     ? createPortal(
-    <div
-      ref={menuRef}
-      role="menu"
-      aria-label="Table row actions"
-      tabIndex={-1}
-      onKeyDown={handleMenuKeyDown}
-      style={{
-        position: 'fixed',
-        top: `${coords.top}px`,
-        left: `${coords.left}px`,
-        width: `${width}px`,
-        maxHeight: 'calc(100vh - 20px)',
-        overflowY: 'auto',
-        zIndex: 99999,
-        padding: '8px',
-        borderRadius: '12px',
-        background: 'var(--bg-surface)',
-        border: '1px solid var(--border-default)',
-        boxShadow: 'var(--shadow-lg)',
-        color: 'var(--text-primary)',
-        opacity: (coords.top === 0 && coords.left === 0) ? 0 : 1,
-        pointerEvents: (coords.top === 0 && coords.left === 0) ? 'none' : 'auto',
-        animation: 'menuScaleFadeIn 120ms cubic-bezier(0.16, 1, 0.3, 1)',
-        transformOrigin: coords.placement === 'top' ? 'bottom right' : 'top right',
-      }}
-      className="admin-portal-action-menu"
-    >
+    <>
+      <div
+        className="admin-row-menu-backdrop-mobile"
+        onClick={handleClose}
+        aria-hidden="true"
+      />
+      <div
+        ref={menuRef}
+        role="menu"
+        aria-label="Table row actions"
+        tabIndex={-1}
+        onKeyDown={handleMenuKeyDown}
+        style={{
+          position: 'fixed',
+          top: isMobileSheet ? 'auto' : `${coords.top}px`,
+          left: isMobileSheet ? '0px' : `${coords.left}px`,
+          width: isMobileSheet ? '100%' : `${width}px`,
+          maxHeight: isMobileSheet ? '80dvh' : 'calc(100vh - 20px)',
+          overflowY: 'auto',
+          zIndex: 99999,
+          padding: '8px',
+          borderRadius: '12px',
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border-default)',
+          boxShadow: 'var(--shadow-lg)',
+          color: 'var(--text-primary)',
+          opacity: isHiddenCoord ? 0 : 1,
+          pointerEvents: isHiddenCoord ? 'none' : 'auto',
+          animation: 'menuScaleFadeIn 120ms cubic-bezier(0.16, 1, 0.3, 1)',
+          transformOrigin: coords.placement === 'top' ? 'bottom right' : 'top right',
+        }}
+        className="admin-portal-action-menu"
+      >
+        <div className="admin-sheet-drag-handle" aria-hidden="true" />
       {/* Subtle header with item name and muted subtitle */}
       {(headerTitle || headerSubtitle) && (
         <div
@@ -409,7 +429,8 @@ export default function AdminRowActionMenu({
           }
         }
       `}</style>
-    </div>,
+      </div>
+    </>,
     document.body
   ) : null;
 

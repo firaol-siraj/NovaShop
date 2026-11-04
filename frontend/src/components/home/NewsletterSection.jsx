@@ -153,7 +153,8 @@ export default function NewsletterSection() {
                   disabled={loading}
                   aria-label="Subscribe to the newsletter"
                   style={{
-                    height: '42px',
+                    height: '44px',
+                    minHeight: '44px',
                     border: 'none',
                     background: 'var(--color-primary)',
                     color: 'var(--color-primary-contrast)',
@@ -166,6 +167,9 @@ export default function NewsletterSection() {
                     cursor: loading ? 'not-allowed' : 'pointer',
                     opacity: loading ? 0.7 : 1,
                     whiteSpace: 'nowrap',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
                   }}
                 >
                   {loading ? 'SUBSCRIBING...' : 'SUBSCRIBE'}
@@ -215,6 +219,16 @@ export default function NewsletterSection() {
           </p>
         </div>
       </div>
+      <style>{`
+        @media (max-width: 640px) {
+          #newsletter-email {
+            font-size: 16px !important;
+          }
+          section:has(#newsletter-email) > div {
+            padding: 0 20px !important;
+          }
+        }
+      `}</style>
     </section>
   );
 }

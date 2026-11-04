@@ -54,7 +54,7 @@ export default function NewsletterConfirmPage({ go, search = '' }) {
           width: '100%',
           backgroundColor: 'var(--bg-surface)',
           border: '1px solid var(--border-default)',
-          padding: '48px 40px',
+          padding: 'clamp(28px, 6vw, 48px) clamp(18px, 5vw, 40px)',
           textAlign: 'center',
           boxShadow: '0 8px 30px rgba(0,0,0,0.04)',
         }}

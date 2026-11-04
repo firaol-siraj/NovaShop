@@ -855,16 +855,83 @@
   background: #332E29;
 }
 
+@media (max-width: 1023px) {
+  .admin-auth-shell {
+    flex-direction: column;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+  .admin-auth-right-panel {
+    display: none !important;
+  }
+  .admin-auth-left-panel {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 28px 20px calc(24px + var(--safe-area-bottom, 0px)) !important;
+    align-items: center;
+  }
+  .admin-auth-left-inner,
+  .admin-auth-form-panel {
+    width: 100% !important;
+    max-width: 420px !important;
+    margin-left: 0 !important;
+  }
+  .admin-auth-brand-wrap {
+    width: 100%;
+    max-width: 420px;
+    margin-bottom: 32px;
+  }
+  .admin-auth-footer {
+    width: 100%;
+    max-width: 420px;
+    margin-top: 36px;
+  }
+}
+
+@media (max-width: 639px) {
+  .admin-auth-form-signin #admin-email,
+  .admin-auth-form-signin #admin-password,
+  .admin-field-input,
+  .admin-auth-form input {
+    font-size: 16px !important;
+  }
+  .admin-auth-form-signin .admin-field-wrap,
+  .admin-auth-form-signin .admin-auth-password-field > div {
+    height: 44px !important;
+  }
+  .admin-auth-signin-button,
+  .admin-submit-button,
+  .admin-reset-submit,
+  .admin-reset-continue {
+    min-height: 44px !important;
+  }
+  .admin-auth-checkbox-row {
+    min-height: 44px;
+    padding: 4px 0;
+  }
+  .admin-auth-checkbox {
+    width: 18px;
+    height: 18px;
+  }
+  .admin-auth-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}
+
 @media (max-width: 640px) {
   .admin-auth-shell-reset {
     min-height: 100vh;
+    min-height: 100dvh;
   }
 
   .admin-auth-shell-reset .admin-auth-left-panel {
     width: 100%;
     flex: 1 1 auto;
     min-height: 100vh;
-    padding: 32px 24px 0;
+    min-height: 100dvh;
+    padding: 32px 24px calc(22px + var(--safe-area-bottom, 0px));
   }
 
   .admin-auth-shell-reset .admin-auth-form-panel {

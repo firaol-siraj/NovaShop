@@ -133,7 +133,9 @@ export default function ForgotPasswordPage({ go }) {
         }
 
         @media (max-width: 767px) {
-          .fp-toast { right: 16px !important; left: 16px !important; max-width: none !important; }
+          .fp-toast { right: 16px !important; left: 16px !important; max-width: none !important; bottom: calc(16px + var(--safe-area-bottom, 0px)) !important; }
+          .fp-input-field { font-size: 16px !important; min-height: 44px !important; }
+          .fp-submit-btn { min-height: 48px !important; }
         }
       `}</style>
 
@@ -239,6 +241,7 @@ export default function ForgotPasswordPage({ go }) {
 
                 <input
                   id="fp-email"
+                  className="fp-input-field"
                   ref={inputRef}
                   type="email"
                   name="email"
@@ -275,6 +278,7 @@ export default function ForgotPasswordPage({ go }) {
 
               <button
                 type="submit"
+                className="fp-submit-btn"
                 disabled={isSending}
                 style={{
                   width: '100%',

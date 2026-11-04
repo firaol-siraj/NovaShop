@@ -69,6 +69,8 @@ export function AdminIcon({ name, size = 18 }) {
 
     sliders: <><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="2" /><circle cx="15" cy="12" r="2" /><circle cx="10" cy="18" r="2" /></>,
 
+    menu: <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>,
+
     x: <><path d="m6 6 12 12M18 6 6 18" /></>,
     store: <><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></>,
     percent: <><line x1="19" y1="5" x2="5" y2="19"></line><circle cx="6.5" cy="6.5" r="2.5"></circle><circle cx="17.5" cy="17.5" r="2.5"></circle></>,
@@ -127,7 +129,8 @@ function getChildMeta(child) {
 
 export default function AdminLayout({ children, go, activePath = '/admin/dashboard', breadcrumb }) {
   const { user, logout } = useAdminAuth();
-  const [collapsed, setCollapsed] = useState(() => window.matchMedia('(max-width: 860px)').matches);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
 
   // Real admin notifications
@@ -146,6 +149,44 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Lock body scroll and handle Escape for mobile off-canvas drawer
+  useEffect(() => {
+    if (!isMobileDrawerOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setIsMobileDrawerOpen(false);
+      }
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isMobileDrawerOpen]);
+
+  // Close mobile drawer on route changes or resize to desktop
+  useEffect(() => {
+    setIsMobileDrawerOpen(false);
+  }, [activePath]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) {
+        setIsMobileDrawerOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleNavigate = (path) => {
+    setIsMobileDrawerOpen(false);
+    if (go && path) {
+      go(path);
+    }
+  };
 
   const [expandedGroups, setExpandedGroups] = useState(() => {
     // Auto-expand whichever group owns the current route (e.g. landing
@@ -167,17 +208,6 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
       }
     });
   }, [activePath]);
-
-  useEffect(() => {
-    const media = window.matchMedia('(max-width: 860px)');
-    const updateSidebar = () => setCollapsed(media.matches);
-    window.addEventListener('resize', updateSidebar);
-    media.addEventListener('change', updateSidebar);
-    return () => {
-      window.removeEventListener('resize', updateSidebar);
-      media.removeEventListener('change', updateSidebar);
-    };
-  }, []);
 
   const toggleSidebar = () => setCollapsed((current) => !current);
   const toggleGroup = (label) => {
@@ -260,13 +290,29 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
   });
 
   return (
-    <div className={`admin-app-shell${collapsed ? ' is-collapsed' : ''}`}>
-      <aside className="admin-sidebar" aria-label="Admin navigation">
+    <div className={`admin-app-shell${collapsed ? ' is-collapsed' : ''}${isMobileDrawerOpen ? ' is-mobile-open' : ''}`}>
+      {isMobileDrawerOpen && (
+        <div
+          className="admin-sidebar-overlay"
+          onClick={() => setIsMobileDrawerOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      <aside id="admin-sidebar" className={`admin-sidebar${isMobileDrawerOpen ? ' is-mobile-open' : ''}`} aria-label="Admin navigation" aria-modal={isMobileDrawerOpen ? 'true' : undefined}>
         <div className="admin-sidebar-scroll">
           <div className="admin-sidebar-brand-row">
             <BrandLogo label="Admin Dashboard" />
             <button className="admin-icon-button admin-sidebar-toggle" type="button" onClick={toggleSidebar} aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
               <AdminIcon name="collapse" />
+            </button>
+            <button
+              className="admin-icon-button admin-sidebar-close-mobile"
+              type="button"
+              onClick={() => setIsMobileDrawerOpen(false)}
+              aria-label="Close navigation menu"
+            >
+              <AdminIcon name="close" />
             </button>
           </div>
 
@@ -282,7 +328,7 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
                 <button
                   className={`admin-nav-item${isActive ? ' is-active' : ''}${item.children ? ' has-children' : ''}`}
                   type="button"
-                  onClick={item.children ? () => toggleGroup(item.label) : item.path ? () => go(item.path) : undefined}
+                  onClick={item.children ? () => toggleGroup(item.label) : item.path ? () => handleNavigate(item.path) : undefined}
                   title={collapsed ? item.label : undefined}
                   aria-label={item.label}
                   aria-current={isActive ? 'page' : undefined}
@@ -294,7 +340,7 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
                 </button>
                   );
                 })()}
-                {item.children && expandedGroups[item.label] && !collapsed && (
+                {item.children && expandedGroups[item.label] && (!collapsed || isMobileDrawerOpen) && (
                   <div className="admin-nav-submenu">
                     {item.children.map((child) => {
                       const { label: childLabel, path: childPath } = getChildMeta(child);
@@ -306,7 +352,7 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
                           key={childLabel}
                           className={isChildActive ? 'is-active' : ''}
                           aria-current={isChildActive ? 'page' : undefined}
-                          onClick={childPath ? () => go(childPath) : () => toggleGroup(item.label)}
+                          onClick={childPath ? () => handleNavigate(childPath) : () => toggleGroup(item.label)}
                         >
                           {childLabel}
                         </button>
@@ -323,7 +369,25 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
       <div className="admin-main">
         <header className="admin-topbar">
           <div className="admin-topbar-leading">
-            {breadcrumb && <div className="admin-topbar-breadcrumb"><button type="button" onClick={() => go('/admin/orders')}>Orders</button><span>/</span><strong>{breadcrumb}</strong></div>}
+            <button
+              className="admin-icon-button admin-mobile-menu-btn"
+              type="button"
+              onClick={() => setIsMobileDrawerOpen((prev) => !prev)}
+              aria-label={isMobileDrawerOpen ? 'Close navigation menu' : 'Open navigation menu'}
+              aria-expanded={isMobileDrawerOpen}
+              aria-controls="admin-sidebar"
+            >
+              <AdminIcon name="menu" size={20} />
+            </button>
+            {breadcrumb && <div className="admin-topbar-breadcrumb"><button type="button" onClick={() => handleNavigate('/admin/orders')}>Orders</button><span>/</span><strong>{breadcrumb}</strong></div>}
+            <button
+              className="admin-icon-button admin-mobile-search-btn"
+              type="button"
+              onClick={() => setIsSearchOpen(true)}
+              aria-label="Open search"
+            >
+              <AdminIcon name="search" size={18} />
+            </button>
             <div
               className="admin-global-search cursor-pointer"
               role="button"
@@ -344,7 +408,7 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
               notifications={notifData?.notifications || []}
               unreadCount={notifData?.unreadCount || 0}
               onRefresh={refetchNotifs}
-              go={go}
+              go={handleNavigate}
             />
 
             <div className="relative inline-block" ref={profileMenuRef}>
@@ -369,60 +433,68 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
               </button>
 
               {profileOpen && (
-                <div
-                  className="admin-profile-dropdown"
-                  role="menu"
-                  aria-orientation="vertical"
-                >
-                  <div className="admin-profile-dropdown-header">
-                    <div className="admin-profile-dropdown-name">{displayName}</div>
-                    <div className="admin-profile-dropdown-email">{user?.email || 'admin@novashop.com'}</div>
-                    <span className="admin-role-badge">{roleLabel}</span>
+                <>
+                  <div
+                    className="admin-profile-backdrop-mobile"
+                    onClick={() => setProfileOpen(false)}
+                    aria-hidden="true"
+                  />
+                  <div
+                    className="admin-profile-dropdown"
+                    role="menu"
+                    aria-orientation="vertical"
+                  >
+                    <div className="admin-sheet-drag-handle" aria-hidden="true" />
+                    <div className="admin-profile-dropdown-header">
+                      <div className="admin-profile-dropdown-name">{displayName}</div>
+                      <div className="admin-profile-dropdown-email">{user?.email || 'admin@novashop.com'}</div>
+                      <span className="admin-role-badge">{roleLabel}</span>
+                    </div>
+                    <div className="admin-profile-dropdown-divider" />
+                    <button
+                      type="button"
+                      className="admin-profile-dropdown-item"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleNavigate('/admin/profile');
+                      }}
+                    >
+                      <AdminIcon name="user" size={15} />
+                      <span>My profile</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="admin-profile-dropdown-item"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleNavigate('/admin/settings');
+                      }}
+                    >
+                      <AdminIcon name="settings" size={15} />
+                      <span>Settings</span>
+                    </button>
+                    <div className="admin-profile-dropdown-divider" />
+                    <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Theme</span>
+                      <ThemeToggle variant="segmented" />
+                    </div>
+                    <div className="admin-profile-dropdown-divider" />
+                    <button
+                      type="button"
+                      className="admin-profile-dropdown-item is-signout"
+                      role="menuitem"
+                      onClick={() => {
+                        setProfileOpen(false);
+                        handleLogout();
+                      }}
+                    >
+                      <AdminIcon name="logout" size={15} />
+                      <span>Sign out</span>
+                    </button>
                   </div>
-                  <div className="admin-profile-dropdown-divider" />
-                  <button
-                    type="button"
-                    className="admin-profile-dropdown-item"
-                    role="menuitem"
-                    onClick={() => {
-                      setProfileOpen(false);
-                      go('/admin/profile');
-                    }}
-                  >
-                    <AdminIcon name="user" size={15} />
-                    <span>My profile</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="admin-profile-dropdown-item"
-                    role="menuitem"
-                    onClick={() => {
-                      setProfileOpen(false);
-                      go('/admin/settings');
-                    }}
-                  >
-                    <AdminIcon name="settings" size={15} />
-                    <span>Settings</span>
-                  </button>
-                  <div className="admin-profile-dropdown-divider" />
-                  <div style={{ padding: '6px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted)' }}>Theme</span>
-                    <ThemeToggle variant="segmented" />
-                  </div>
-                  <div className="admin-profile-dropdown-divider" />
-                  <button
-                    type="button"
-                    className="admin-profile-dropdown-item is-signout"
-                    role="menuitem"
-                    onClick={() => {
-                      setProfileOpen(false);
-                      handleLogout();
-                    }}
-                  >
-                    <AdminIcon name="logout" size={15} />
-                    <span>Sign out</span>
-                  </button>
-                </div>
+                </>
               )}
             </div>
           </div>
@@ -431,7 +503,7 @@ export default function AdminLayout({ children, go, activePath = '/admin/dashboa
         <AdminGlobalSearchModal
           isOpen={isSearchOpen}
           onClose={() => setIsSearchOpen(false)}
-          go={go}
+          go={handleNavigate}
         />
 
         <main className="admin-page-content">{children}</main>

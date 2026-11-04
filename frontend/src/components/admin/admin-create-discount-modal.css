@@ -1,0 +1,489 @@
+/* =========================================================
+   ADMIN CREATE / EDIT DISCOUNT MODAL
+   Pixel-identical on desktop (>= 1024px)
+   Fluid and responsive on tablet & mobile (< 1024px, <= 640px)
+========================================================= */
+
+.create-discount-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-overlay, rgba(20, 18, 16, 0.75));
+  backdrop-filter: blur(3px);
+  padding: 16px;
+}
+
+.create-discount-dialog {
+  width: 100%;
+  max-width: 860px;
+  max-height: 90vh;
+  max-height: 90dvh;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 12px;
+  box-shadow: var(--shadow-xl);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modalSlideUp 150ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.create-discount-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.create-discount-header-copy {
+  min-width: 0;
+}
+
+.create-discount-header-category {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent, #D4A662);
+}
+
+.create-discount-header-title {
+  margin: 2px 0 0;
+  font-size: 20px;
+  font-family: var(--font-serif);
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.2;
+}
+
+.create-discount-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.create-discount-close-btn:hover {
+  background: var(--bg-surface-sunken);
+  color: var(--text-primary);
+}
+
+.create-discount-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.create-discount-form-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(260px, 0.85fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.create-discount-form-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  min-width: 0;
+}
+
+.create-discount-preview-col {
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.create-discount-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.create-discount-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.create-discount-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.create-discount-field-required {
+  color: var(--color-danger);
+}
+
+.create-discount-input {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 100%;
+}
+
+.create-discount-input:focus {
+  outline: none;
+  border-color: var(--color-accent, #D4A662);
+  box-shadow: 0 0 0 2px var(--color-accent-soft, rgba(212, 166, 98, 0.2));
+}
+
+.create-discount-code-input {
+  font-family: ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.create-discount-code-row {
+  display: flex;
+  gap: 8px;
+}
+
+.create-discount-code-buttons {
+  display: flex;
+  gap: 8px;
+}
+
+.create-discount-code-btn {
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.create-discount-code-btn:hover {
+  background: var(--bg-surface-sunken);
+}
+
+.create-discount-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.create-discount-select {
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-size: 13px;
+  width: 100%;
+}
+
+.create-discount-select:focus {
+  outline: none;
+  border-color: var(--color-accent, #D4A662);
+  box-shadow: 0 0 0 2px var(--color-accent-soft, rgba(212, 166, 98, 0.2));
+}
+
+.create-discount-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.create-discount-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.create-discount-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.create-discount-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.create-discount-chip-btn {
+  padding: 4px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.create-discount-error-banner {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--color-danger-soft);
+  border: 1px solid var(--color-danger);
+  color: var(--color-danger);
+  font-size: 13px;
+}
+
+.create-discount-preview-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.create-discount-preview-card {
+  padding: 18px;
+  border-radius: 12px;
+  background: var(--bg-surface-raised);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.create-discount-preview-meta {
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--text-muted);
+}
+
+.create-discount-preview-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.create-discount-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-top: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+  flex-shrink: 0;
+}
+
+.create-discount-footer-status {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.create-discount-footer-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.create-discount-btn-cancel {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border-default);
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.create-discount-btn-cancel:hover {
+  background: var(--bg-surface-sunken);
+}
+
+.create-discount-btn-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 22px;
+  border-radius: 8px;
+  border: none;
+  background: var(--color-primary, #1B1816);
+  color: var(--color-sand, #F9F6F0);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+}
+
+/* =========================================================
+   TABLET RESPONSIVENESS (max-width: 1023px)
+========================================================= */
+
+@media (max-width: 1023px) {
+  .create-discount-form-layout {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 24px !important;
+  }
+
+  .create-discount-preview-col {
+    position: static !important;
+    top: auto !important;
+    width: 100% !important;
+    margin-top: 12px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-subtle);
+  }
+}
+
+/* =========================================================
+   MOBILE RESPONSIVENESS (max-width: 640px)
+   Step 2 Rule 5: Modals become full-screen/sheet on phones
+   Step 3 Rule 6: 16px min font, 44px min target
+========================================================= */
+
+@media (max-width: 640px) {
+  .create-discount-overlay {
+    padding: 0 !important;
+    align-items: flex-end !important;
+  }
+
+  .create-discount-dialog {
+    max-width: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none !important;
+  }
+
+  .create-discount-header {
+    padding: 14px 16px !important;
+  }
+
+  .create-discount-header-title {
+    font-size: 18px !important;
+  }
+
+  .create-discount-close-btn {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  .create-discount-body {
+    padding: 16px !important;
+  }
+
+  .create-discount-grid-2 {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .create-discount-input:not([type="checkbox"]):not([type="radio"]),
+  .create-discount-select {
+    font-size: 16px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .create-discount-code-btn {
+    min-height: 44px !important;
+    padding: 0 16px !important;
+    font-size: 13px !important;
+  }
+
+  .create-discount-footer {
+    padding: 12px 16px calc(12px + var(--safe-area-bottom, 0px)) !important;
+    flex-direction: column-reverse;
+    gap: 10px;
+    align-items: stretch;
+  }
+
+  .create-discount-footer-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    width: 100% !important;
+    gap: 10px !important;
+  }
+
+  .create-discount-btn-cancel,
+  .create-discount-btn-submit {
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 14px !important;
+    width: 100% !important;
+  }
+
+  .create-discount-chip-btn {
+    min-height: 36px;
+    padding: 6px 14px;
+    font-size: 13px;
+  }
+}
+
+/* Phones <= 480px: Wrap code buttons */
+@media (max-width: 480px) {
+  .create-discount-code-row {
+    flex-wrap: wrap;
+  }
+
+  .create-discount-code-row input {
+    width: 100% !important;
+    flex: 1 1 100% !important;
+  }
+
+  .create-discount-code-buttons {
+    display: flex;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .create-discount-code-buttons button {
+    flex: 1;
+  }
+}

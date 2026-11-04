@@ -126,13 +126,39 @@ export default function LoginPage({ go }) {
   };
 
   return (
+    <>
+      <style>{`
+        @media (max-width: 1023px) {
+          .login-shell {
+            display: block !important;
+          }
+          .login-visual {
+            display: none !important;
+          }
+          .login-form-panel {
+            width: 100% !important;
+            flex: 1 1 auto !important;
+            min-height: auto !important;
+            padding: 32px 20px calc(32px + var(--safe-area-bottom, 0px)) !important;
+          }
+        }
+        @media (max-width: 639px) {
+          .login-form-panel input {
+            font-size: 16px !important;
+          }
+          .login-form-panel button[type="submit"] {
+            min-height: 48px !important;
+          }
+        }
+      `}</style>
       <div
         style={{
           display: 'flex',
           flex: 1,
           flexDirection: 'column',
           background: 'var(--bg-main)',
-          position: 'relative'
+          position: 'relative',
+          minHeight: '100dvh',
         }}
       >
         {toastMessage && (
@@ -156,8 +182,9 @@ export default function LoginPage({ go }) {
             {toastMessage}
           </div>
         )}
-        <div style={{ display: 'flex', flex: 1 }}>
+        <div className="login-shell" style={{ display: 'flex', flex: 1 }}>
         <aside
+          className="login-visual"
           style={{
             position: 'relative',
             flex: '0 0 46%',
@@ -239,6 +266,7 @@ export default function LoginPage({ go }) {
         </aside>
 
         <main
+          className="login-form-panel"
           style={{
             flex: 1,
             background: 'var(--bg-main)',
@@ -407,7 +435,7 @@ export default function LoginPage({ go }) {
                     onClick={() => setShowPassword((value) => !value)}
                     style={{
                       position: 'absolute',
-                      right: '14px',
+                      right: '6px',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       border: 'none',
@@ -417,6 +445,8 @@ export default function LoginPage({ go }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      width: '44px',
+                      height: '44px',
                       padding: 0,
                     }}
                   >
@@ -601,5 +631,6 @@ export default function LoginPage({ go }) {
         </main>
       </div>
     </div>
-  );
+  </>
+);
 }

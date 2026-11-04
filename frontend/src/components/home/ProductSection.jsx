@@ -492,6 +492,7 @@ export default function ProductSection({
           </div>
 
           <div
+            className="trending-controls"
             style={{
               display: "flex",
               alignItems: "center",
@@ -702,6 +703,14 @@ export default function ProductSection({
           .trending-header {
             flex-direction: column !important;
             align-items: flex-start !important;
+            gap: 24px !important;
+          }
+          .trending-controls {
+            width: 100% !important;
+            display: flex !important;
+            justifyContent: space-between !important;
+            align-items: center !important;
+            gap: 16px !important;
           }
           .trending-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
@@ -709,13 +718,40 @@ export default function ProductSection({
         }
 
         @media (max-width: 640px) {
-          .trending-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-            gap: 16px !important;
+          .trending-header {
+            margin-bottom: 28px !important;
+          }
+          .trending-controls {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 14px !important;
           }
           .trending-filters {
-            width: 100%;
-            padding-bottom: 0;
+            width: 100% !important;
+            max-width: 100% !important;
+            display: flex !important;
+            overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 6px !important;
+            scrollbar-width: none !important;
+          }
+          .trending-filters::-webkit-scrollbar {
+            display: none !important;
+          }
+          .trending-filters button {
+            flex-shrink: 0 !important;
+            min-height: 44px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+          }
+          .trending-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+            gap: 14px !important;
+          }
+        }
+        @media (max-width: 360px) {
+          .trending-grid {
+            grid-template-columns: 1fr !important;
           }
         }
       `}</style>

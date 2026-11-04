@@ -45,17 +45,19 @@ function AccountSidebar({ go, currentPath, onSignOut }) {
             <button
               key={item.key}
               type="button"
+              className={isActive ? 'is-active' : ''}
               onClick={() => handleNavAction(item)}
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 width: '100%',
+                minHeight: '44px',
                 textAlign: 'left',
                 border: 'none',
                 background: isActive ? 'var(--bg-selected)' : 'transparent',
                 borderLeft: isActive ? '2px solid var(--color-primary)' : '2px solid transparent',
-                padding: '12px 12px 12px 14px',
+                padding: '12px 14px',
                 cursor: 'pointer',
                 color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                 transition: 'background 180ms ease, color 180ms ease',
@@ -81,7 +83,8 @@ function AccountSidebar({ go, currentPath, onSignOut }) {
             gap: '10px',
             background: 'none',
             border: 'none',
-            padding: 0,
+            padding: '8px 0',
+            minHeight: '44px',
             cursor: 'pointer',
             color: 'var(--text-muted)',
             fontFamily: 'var(--font-sans)',
@@ -150,6 +153,9 @@ export default function AccountLayout({ children, go, currentPath }) {
             min-width: max-content;
             border-left: none !important;
             border-bottom: 2px solid transparent;
+          }
+          .ns-account-shell nav button.is-active {
+            border-bottom: 2px solid var(--color-primary) !important;
           }
         }
         @media (max-width: 767px) {

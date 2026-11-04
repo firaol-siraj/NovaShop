@@ -137,7 +137,13 @@ export default function ResetPasswordPage({ go, search }) {
 
   return (
     <>
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '42px 20px' }}>
+      <style>{`
+        @media (max-width: 640px) {
+          .rp-input-field { font-size: 16px !important; min-height: 44px !important; }
+          .rp-submit-btn { min-height: 48px !important; }
+        }
+      `}</style>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '42px 20px', minHeight: '100dvh' }}>
         <div
           style={{
             width: '100%',
@@ -227,6 +233,7 @@ export default function ResetPasswordPage({ go, search }) {
                   <div style={{ position: 'relative' }}>
                     <input
                       id="reset-password"
+                      className="rp-input-field"
                       ref={inputRef}
                       type={showPassword ? 'text' : 'password'}
                       name="password"
@@ -255,7 +262,7 @@ export default function ResetPasswordPage({ go, search }) {
                       onClick={() => setShowPassword((v) => !v)}
                       style={{
                         position: 'absolute',
-                        right: '14px',
+                        right: '6px',
                         top: '50%',
                         transform: 'translateY(-50%)',
                         border: 'none',
@@ -265,6 +272,8 @@ export default function ResetPasswordPage({ go, search }) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        width: '44px',
+                        height: '44px',
                         padding: 0,
                       }}
                     >
@@ -323,6 +332,7 @@ export default function ResetPasswordPage({ go, search }) {
                   <div style={{ position: 'relative' }}>
                     <input
                       id="reset-confirm-password"
+                      className="rp-input-field"
                       type={showConfirmPassword ? 'text' : 'password'}
                       name="confirmPassword"
                       value={confirmPassword}
@@ -346,7 +356,7 @@ export default function ResetPasswordPage({ go, search }) {
                       onClick={() => setShowConfirmPassword((v) => !v)}
                       style={{
                         position: 'absolute',
-                        right: '14px',
+                        right: '6px',
                         top: '50%',
                         transform: 'translateY(-50%)',
                         border: 'none',
@@ -356,6 +366,8 @@ export default function ResetPasswordPage({ go, search }) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
+                        width: '44px',
+                        height: '44px',
                         padding: 0,
                       }}
                     >

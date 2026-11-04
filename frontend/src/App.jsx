@@ -581,29 +581,29 @@ export default function App() {
   // ADMIN Analaytics
   // =========================================================
 
-  } else if(path === '/admin/analytics/overview' ) {
+  } else if (path === '/admin/analytics' || path === '/admin/analytics/overview') {
     page = <AdminAnalyticsOverviewPage go={go} />;
 
-  } else if(path === '/admin/analytics/sales' ) {
+  } else if (path === '/admin/analytics/sales') {
     page = <AdminSalesAnalyticsPage go={go} />;
 
   }
-  else if(path === '/admin/analytics/products' ) {
+  else if (path === '/admin/analytics/products') {
     page = <AdminProductAnalyticsPage go={go} />;
 
-  } else if(path === '/admin/analytics/customers' ) {
+  } else if (path === '/admin/analytics/customers') {
     page = <AdminCustomerAnalyticsPage go={go} />;
 
     // =========================================================
   // Admin Contents
   // =========================================================
-  } else if(path === '/admin/content/homepage' ) {
+  } else if (path === '/admin/content' || path === '/admin/content/homepage') {
     page = <AdminHomepageContentPage go={go} />;
 
-  } else if(path === '/admin/content/hero' ) {
+  } else if (path === '/admin/content/hero' || path === '/admin/content/hero-slides') {
     page = <AdminHeroSlidesPage go={go} />;
 
-  } else if(path === '/admin/content/media' ) {
+  } else if (path === '/admin/content/media') {
     page = <AdminMediaLibraryPage title="Media library" />;
 
     // =========================================================
@@ -910,25 +910,25 @@ export default function App() {
 
         } else if (path.startsWith('/admin/reviews')) {
           activePath = '/admin/reviews';
-        } else if (path.startsWith('/admin/analytics/overview' )) {
+        } else if (path === '/admin/analytics' || path.startsWith('/admin/analytics/overview')) {
           activePath = '/admin/analytics/overview';
 
-        } else if (path.startsWith('/admin/analytics/sales' )) {
+        } else if (path.startsWith('/admin/analytics/sales')) {
           activePath = '/admin/analytics/sales';
 
-        } else if (path.startsWith('/admin/analytics/products' )) {
+        } else if (path.startsWith('/admin/analytics/products')) {
           activePath = '/admin/analytics/products';
 
-        } else if (path.startsWith('/admin/analytics/customers' )) {
+        } else if (path.startsWith('/admin/analytics/customers')) {
           activePath = '/admin/analytics/customers';
 
-        } else if (path.startsWith('/admin/content/homepage' )) {
+        } else if (path === '/admin/content' || path.startsWith('/admin/content/homepage')) {
           activePath = '/admin/content/homepage';
 
-        } else if (path.startsWith('/admin/content/hero' )) {
+        } else if (path.startsWith('/admin/content/hero') || path.startsWith('/admin/content/hero-slides')) {
           activePath = '/admin/content/hero';
 
-        } else if (path.startsWith('/admin/content/media' )) {
+        } else if (path.startsWith('/admin/content/media')) {
           activePath = '/admin/content/media';
 
         // Returns & refunds detail pages (/admin/returns/RT-2041) should

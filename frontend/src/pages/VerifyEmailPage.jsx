@@ -60,8 +60,15 @@ export default function VerifyEmailPage({ go, search, path }) {
   }, [token]);
 
   return (
-    <div style={{ minHeight: '80vh', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 24px' }}>
-      <div style={{ maxWidth: '520px', width: '100%', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', padding: '48px 36px', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.1)' }}>
+    <div style={{ minHeight: '80vh', background: 'var(--bg-main)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 16px' }}>
+      <style>{`
+        @media (max-width: 639px) {
+          .verify-card {
+            padding: 32px 18px !important;
+          }
+        }
+      `}</style>
+      <div className="verify-card" style={{ maxWidth: '520px', width: '100%', background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '16px', padding: '48px 36px', textAlign: 'center', boxShadow: '0 8px 30px rgba(0,0,0,0.1)' }}>
 
         {loading && (
           <div>

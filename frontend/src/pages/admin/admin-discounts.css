@@ -775,6 +775,42 @@
     min-width: 1080px;
   }
 
+  .discounts-table-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .discounts-actions-cell,
+  .discounts-table th.discounts-actions-heading {
+    position: sticky;
+    right: 0;
+    z-index: 5;
+    background: var(--bg-surface, #FFFFFF);
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.08);
+  }
+
+  .discounts-table th.discounts-actions-heading {
+    background: var(--bg-surface-sunken, #F7F5F0);
+  }
+
+  [data-theme="dark"] .discounts-actions-cell {
+    background: var(--bg-surface, #1E1B18);
+    box-shadow: -4px 0 10px rgba(0, 0, 0, 0.4);
+  }
+
+  [data-theme="dark"] .discounts-table th.discounts-actions-heading {
+    background: var(--bg-surface-sunken, #171513);
+  }
+
+  .discounts-actions-cell .products-row-menu-button {
+    min-width: 44px !important;
+    min-height: 44px !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
   .discounts-pagination {
     align-items: flex-start;
     flex-direction: column;

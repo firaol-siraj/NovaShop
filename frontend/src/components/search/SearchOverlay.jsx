@@ -440,7 +440,7 @@ export default function SearchOverlay() {
               />
 
               {/* Right-side controls */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 {rawQuery && (
                   <button
                     type="button"
@@ -450,7 +450,9 @@ export default function SearchOverlay() {
                       background: 'none', border: 'none', cursor: 'pointer',
                       fontFamily: T.fontSans, fontSize: '11px',
                       fontWeight: 500, letterSpacing: '0.10em', textTransform: 'uppercase',
-                      color: T.muted, padding: 0,
+                      color: T.muted, minHeight: '44px', minWidth: '44px',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      padding: '0 8px',
                       transition: 'color 120ms',
                     }}
                     onMouseEnter={e => e.currentTarget.style.color = T.espresso}
@@ -465,7 +467,8 @@ export default function SearchOverlay() {
                   onClick={() => handleClose()}
                   style={{
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: T.muted, display: 'flex', alignItems: 'center',
+                    color: T.muted, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    minWidth: '44px', minHeight: '44px',
                     padding: 0, lineHeight: 0,
                     transition: 'color 120ms',
                   }}
@@ -649,17 +652,28 @@ export default function SearchOverlay() {
             grid-template-columns: repeat(3, 1fr) !important;
           }
         }
-        /* Mobile: 2-column grid, tighter padding */
+        /* Mobile: 2-column grid, tighter padding, full-height on phones */
         @media (max-width: 600px) {
+          [role="dialog"][aria-label="Search"] {
+            top: 0 !important;
+            max-height: 100dvh !important;
+            height: 100dvh !important;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+          }
           .ns-search-grid {
             grid-template-columns: repeat(2, 1fr) !important;
-            gap: 16px !important;
+            gap: 14px !important;
           }
           [role="dialog"][aria-label="Search"] > div:first-of-type > div {
-            padding: 16px 20px 18px !important;
+            padding: 14px 16px 16px !important;
           }
           [role="dialog"][aria-label="Search"] > div:last-of-type > div {
-            padding: 20px 20px 28px !important;
+            padding: 16px 16px 28px !important;
+          }
+        }
+        @media (max-width: 360px) {
+          .ns-search-grid {
+            grid-template-columns: 1fr !important;
           }
         }
         /* Remove browser default search input clear button */

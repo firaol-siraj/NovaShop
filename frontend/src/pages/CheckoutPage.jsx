@@ -518,7 +518,67 @@ export default function CheckoutPage({ go }) {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', color: 'var(--text-primary)', padding: '28px 24px 40px' }}>
+    <div className="checkout-page-container">
+      <style>{`
+        .checkout-page-container {
+          min-height: 100vh;
+          background: var(--bg-main);
+          color: var(--text-primary);
+          padding: 28px 24px 40px;
+        }
+        .checkout-grid {
+          display: grid;
+          grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.9fr);
+          gap: 32px;
+          align-items: start;
+        }
+        .checkout-name-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 14px;
+        }
+        .checkout-location-grid {
+          display: grid;
+          grid-template-columns: 1.2fr 1fr 1fr;
+          gap: 14px;
+        }
+        .checkout-aside {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: 18px;
+          padding: 24px;
+          position: sticky;
+          top: 24px;
+        }
+
+        @media (max-width: 1023px) {
+          .checkout-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          .checkout-aside {
+            position: static;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .checkout-page-container {
+            padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+          }
+          .checkout-input {
+            font-size: 16px !important;
+          }
+        }
+
+        @media (max-width: 639px) {
+          .checkout-name-grid {
+            grid-template-columns: 1fr;
+          }
+          .checkout-location-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+      `}</style>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <header style={{ borderBottom: '1px solid var(--border-default)', paddingBottom: '18px', marginBottom: '28px' }}>
@@ -602,7 +662,7 @@ export default function CheckoutPage({ go }) {
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(300px, 0.9fr)', gap: '32px', alignItems: 'start' }}>
+        <div className="checkout-grid">
           {/* Left Column: Form */}
           <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '28px' }}>
             {/* Contact Details */}
@@ -617,6 +677,7 @@ export default function CheckoutPage({ go }) {
                   <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Email Address *</label>
                   <input
                     type="email"
+                    className="checkout-input"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="e.g. customer@example.com"
@@ -629,6 +690,7 @@ export default function CheckoutPage({ go }) {
                   <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Phone Number * (Ethiopian or International)</label>
                   <input
                     type="tel"
+                    className="checkout-input"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="e.g. 0911 223 344 or +251 911 223 344"
@@ -672,6 +734,7 @@ export default function CheckoutPage({ go }) {
                     </label>
                     <select
                       value={selectedAddressId}
+                      className="checkout-input"
                       onChange={(e) => handleSelectSavedAddress(e.target.value)}
                       style={{
                         padding: '8px 12px',
@@ -696,11 +759,12 @@ export default function CheckoutPage({ go }) {
               </div>
 
               <div style={{ display: 'grid', gap: '14px' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                <div className="checkout-name-grid">
                   <div>
                     <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>First Name *</label>
                     <input
                       type="text"
+                      className="checkout-input"
                       value={firstName}
                       onChange={(e) => setFirstName(e.target.value)}
                       style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: '8px', border: `1px solid ${errors.firstName ? 'var(--color-danger)' : 'var(--border-input)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '14px' }}
@@ -711,6 +775,7 @@ export default function CheckoutPage({ go }) {
                     <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Last Name *</label>
                     <input
                       type="text"
+                      className="checkout-input"
                       value={lastName}
                       onChange={(e) => setLastName(e.target.value)}
                       style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: '8px', border: `1px solid ${errors.lastName ? 'var(--color-danger)' : 'var(--border-input)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '14px' }}
@@ -723,6 +788,7 @@ export default function CheckoutPage({ go }) {
                   <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Street Address *</label>
                   <input
                     type="text"
+                    className="checkout-input"
                     value={street}
                     onChange={(e) => setStreet(e.target.value)}
                     placeholder="e.g. Bole Road, House #402"
@@ -735,6 +801,7 @@ export default function CheckoutPage({ go }) {
                   <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Apartment, suite, unit (optional)</label>
                   <input
                     type="text"
+                    className="checkout-input"
                     value={apartment}
                     onChange={(e) => setApartment(e.target.value)}
                     placeholder="e.g. Apt 3B"
@@ -742,11 +809,12 @@ export default function CheckoutPage({ go }) {
                   />
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '14px' }}>
+                <div className="checkout-location-grid">
                   <div>
                     <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>City *</label>
                     <input
                       type="text"
+                      className="checkout-input"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: '8px', border: `1px solid ${errors.city ? 'var(--color-danger)' : 'var(--border-input)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '14px' }}
@@ -757,6 +825,7 @@ export default function CheckoutPage({ go }) {
                     <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>State / Region</label>
                     <input
                       type="text"
+                      className="checkout-input"
                       value={state}
                       onChange={(e) => setState(e.target.value)}
                       style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border-input)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '14px' }}
@@ -766,6 +835,7 @@ export default function CheckoutPage({ go }) {
                     <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Postal Code *</label>
                     <input
                       type="text"
+                      className="checkout-input"
                       value={zip}
                       onChange={(e) => setZip(e.target.value)}
                       style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: '8px', border: `1px solid ${errors.zip ? 'var(--color-danger)' : 'var(--border-input)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '14px' }}
@@ -778,6 +848,7 @@ export default function CheckoutPage({ go }) {
                   <label style={{ display: 'block', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-primary)', marginBottom: '6px' }}>Country *</label>
                   <input
                     type="text"
+                    className="checkout-input"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
                     style={{ width: '100%', boxSizing: 'border-box', padding: '12px 14px', borderRadius: '8px', border: `1px solid ${errors.country ? 'var(--color-danger)' : 'var(--border-input)'}`, background: 'var(--bg-input)', color: 'var(--text-primary)', fontFamily: 'var(--font-sans)', fontSize: '14px' }}
@@ -853,7 +924,7 @@ export default function CheckoutPage({ go }) {
           </form>
 
           {/* Right Column: Order Summary */}
-          <aside style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '18px', padding: '24px', position: 'sticky', top: '24px' }}>
+          <aside className="checkout-aside">
             <h2 style={{ margin: '0 0 18px', fontFamily: 'var(--font-sans)', fontSize: '11px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>
               Order Summary ({totalItemCount} {totalItemCount === 1 ? 'item' : 'items'})
             </h2>
@@ -925,6 +996,7 @@ export default function CheckoutPage({ go }) {
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
+                  className="checkout-input"
                   value={promoCodeInput}
                   onChange={(e) => {
                     setPromoCodeInput(e.target.value);
@@ -1049,7 +1121,9 @@ export default function CheckoutPage({ go }) {
               disabled={isSubmitting}
               style={{
                 width: '100%',
+                minHeight: '48px',
                 marginTop: '22px',
+                marginBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
                 background: 'var(--color-primary)',
                 color: 'var(--color-primary-contrast)',
                 border: 'none',

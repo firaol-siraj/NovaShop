@@ -853,58 +853,121 @@
 
 
 /* =========================================================
-   RESPONSIVE — 900px
+   RESPONSIVE OVERRIDES
+   Scoped under <= 1023px, <= 767px, and <= 480px
+   Desktop (>= 1024px) remains 100% unchanged
 ========================================================= */
 
-@media (max-width: 900px) {
+@media (max-width: 1023px) {
   .discounts-add-layout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px;
   }
 
   .discounts-add-summary-column {
-    position: static;
+    position: static !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
   }
 }
 
-
-/* =========================================================
-   RESPONSIVE — 760px
-========================================================= */
-
-@media (max-width: 760px) {
+@media (max-width: 767px) {
   .discounts-add-page {
-    gap: 15px;
+    gap: 16px;
+    padding-bottom: calc(40px + var(--safe-area-bottom, 0px));
   }
 
   .discounts-add-heading {
+    flex-direction: column;
     align-items: flex-start;
+    gap: 14px;
   }
 
-  .discounts-add-heading .admin-page-actions {
+  .discounts-add-actions {
     display: flex;
     width: 100%;
+    gap: 10px;
   }
 
-  .discounts-add-heading
-    .admin-page-actions
-    .admin-action-button {
+  .discounts-add-actions .admin-action-button {
     flex: 1;
+    min-height: 44px !important;
+    font-size: 13px !important;
+    font-weight: 600;
+    border-radius: 8px;
   }
 
-  .discounts-add-layout {
-    gap: 12px;
+  .discount-add-card,
+  .discount-add-summary-card {
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .discount-add-card-heading h2 {
+    font-size: 15px !important;
+  }
+
+  .discount-add-segmented {
+    grid-template-columns: 1fr 1fr;
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .discount-add-segmented button {
+    min-height: 44px !important;
+    font-size: 13px !important;
+    font-weight: 600;
+  }
+
+  .discount-add-field label {
+    font-size: 13px !important;
+    margin-bottom: 8px;
+  }
+
+  .discount-add-field input,
+  .discount-add-inline-input {
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents iOS auto-zoom */
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+  }
+
+  .discount-add-helper {
+    font-size: 12px !important;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  .discount-add-generate {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 12px !important;
   }
 
   .discount-add-type-options {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .discount-add-type-option {
-    min-height: 55px;
+    min-height: 56px;
+    padding: 12px 14px;
+    border-radius: 8px;
+  }
+
+  .discount-add-type-copy strong {
+    font-size: 13px !important;
+  }
+
+  .discount-add-type-copy small {
+    font-size: 12px !important;
   }
 
   .discount-add-date-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   .discount-add-heading-inline {
@@ -912,93 +975,82 @@
   }
 
   .discount-add-heading-inline > span {
-    max-width: 48%;
-    text-align: right;
+    font-size: 12px !important;
   }
 
-  .discount-add-input-row {
-    align-items: flex-start;
+  .discount-add-radio-row {
+    min-height: 44px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .discount-add-radio-main {
+    min-width: 0 !important;
+    font-size: 13px !important;
   }
 
   .discount-add-inline-input {
-    margin-left: 22px;
-    margin-bottom: 5px;
+    width: 140px;
+    margin-left: 0;
+  }
+
+  .discount-add-setting {
+    gap: 12px;
+    min-height: 44px;
+  }
+
+  .discount-add-setting strong {
+    font-size: 13px !important;
+  }
+
+  .discount-add-setting small {
+    font-size: 12px !important;
+  }
+
+  .discount-add-toggle {
+    min-width: 44px;
+    min-height: 26px;
+  }
+
+  .discount-add-summary-title h2 {
+    font-size: 16px !important;
+  }
+
+  .discount-add-summary-badge {
+    font-size: 11px !important;
+  }
+
+  .discount-add-summary-list li {
+    font-size: 13px !important;
   }
 }
 
-
-/* =========================================================
-   RESPONSIVE — 480px
-========================================================= */
-
 @media (max-width: 480px) {
-  .discounts-add-heading .admin-page-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .discounts-add-heading
-    .admin-page-actions
-    .admin-action-button {
-    min-height: 34px;
-    padding: 0 8px;
-    font-size: 8px;
-  }
-
   .discount-add-card,
   .discount-add-summary-card {
-    padding: 12px;
-    border-radius: 8px;
+    padding: 14px 12px;
   }
 
   .discount-add-segmented {
     grid-template-columns: 1fr;
-  }
-
-  .discount-add-type-options {
-    gap: 5px;
-  }
-
-  .discount-add-radio-row {
-    min-height: 52px;
-  }
-
-  .discount-add-radio-main {
-    min-width: 180px;
+    gap: 4px;
   }
 
   .discount-add-inline-input {
-    width: 115px;
+    width: 100%;
+    margin-left: 24px;
   }
 
-  .discount-add-setting {
-    gap: 10px;
+  .discount-add-heading-inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
   }
 
-  .discount-add-setting strong {
-    font-size: 8px;
-  }
-
-  .discount-add-setting small {
-    font-size: 6px;
-  }
-}
-
-
-/* =========================================================
-   RESPONSIVE — 360px
-========================================================= */
-
-@media (max-width: 360px) {
-  .discounts-add-heading .admin-page-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .discount-add-radio-main {
-    min-width: 150px;
-  }
-
-  .discount-add-inline-input {
-    width: 105px;
+  .discount-add-heading-inline > span {
+    text-align: left;
+    max-width: 100%;
   }
 }

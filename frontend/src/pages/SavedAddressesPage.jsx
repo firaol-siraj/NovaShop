@@ -120,9 +120,10 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
   if (!open) return null;
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0, 0, 0, 0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={onClose}>
       <div
         ref={modalRef}
+        className="addr-modal-container"
         onClick={(event) => event.stopPropagation()}
         style={{
           width: 'min(760px, 100%)',
@@ -141,7 +142,7 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>{mode === 'edit' ? 'Edit Address' : 'Add Address'}</div>
             <h3 style={{ margin: '8px 0 0', fontFamily: 'var(--font-serif)', fontSize: '30px', fontWeight: 500, color: 'var(--text-primary)' }}>{mode === 'edit' ? 'Update Address' : 'Add a New Address'}</h3>
           </div>
-          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '26px', lineHeight: 1, padding: 0 }}>×</button>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', fontSize: '26px', lineHeight: 1, padding: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
         </div>
 
         <form onSubmit={handleSubmit} noValidate style={{ display: 'grid', gap: '18px' }}>
@@ -159,6 +160,7 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
                       background: form.label === option ? 'var(--bg-surface-raised)' : 'var(--bg-surface)',
                       borderRadius: '999px',
                       padding: '9px 14px',
+                      minHeight: '38px',
                       fontFamily: 'var(--font-sans)',
                       fontSize: '10px',
                       letterSpacing: '0.14em',
@@ -174,6 +176,7 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
               {form.label === 'Other' && (
                 <input
                   value={form.customLabel || ''}
+                  className="addr-modal-input"
                   onChange={(event) => setField('customLabel', event.target.value)}
                   placeholder="Custom label (e.g. Vacation Home, Warehouse)"
                   style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }}
@@ -181,22 +184,22 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
               )}
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px' }}>
+            <div className="addr-modal-name-grid">
               <label style={{ display: 'grid', gap: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>First Name</span>
-                <input value={form.firstName} onChange={(event) => setField('firstName', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.firstName ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+                <input className="addr-modal-input" value={form.firstName} onChange={(event) => setField('firstName', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.firstName ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
                 {errors.firstName && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{errors.firstName}</span>}
               </label>
               <label style={{ display: 'grid', gap: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Last Name</span>
-                <input value={form.lastName} onChange={(event) => setField('lastName', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.lastName ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+                <input className="addr-modal-input" value={form.lastName} onChange={(event) => setField('lastName', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.lastName ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
                 {errors.lastName && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{errors.lastName}</span>}
               </label>
             </div>
 
             <label style={{ display: 'grid', gap: '8px' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Country / Region</span>
-              <select value={form.country} onChange={(event) => setField('country', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.country ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }}>
+              <select className="addr-modal-input" value={form.country} onChange={(event) => setField('country', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.country ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }}>
                 <option value="Ethiopia">Ethiopia</option>
                 <option value="United States">United States</option>
                 <option value="United Kingdom">United Kingdom</option>
@@ -208,34 +211,34 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
 
             <label style={{ display: 'grid', gap: '8px' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Street Address</span>
-              <input value={form.street} onChange={(event) => setField('street', event.target.value)} placeholder="e.g. Bole Sub-City, Namibia St., Villa 14" style={{ width: '100%', boxSizing: 'border-box', border: errors.street ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+              <input className="addr-modal-input" value={form.street} onChange={(event) => setField('street', event.target.value)} placeholder="e.g. Bole Sub-City, Namibia St., Villa 14" style={{ width: '100%', boxSizing: 'border-box', border: errors.street ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
               {errors.street && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{errors.street}</span>}
             </label>
 
             <label style={{ display: 'grid', gap: '8px' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Apartment, Suite, Unit (optional)</span>
-              <input value={form.street2} onChange={(event) => setField('street2', event.target.value)} placeholder="e.g. Apt 4B / Floor 2" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+              <input className="addr-modal-input" value={form.street2} onChange={(event) => setField('street2', event.target.value)} placeholder="e.g. Apt 4B / Floor 2" style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
             </label>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px' }}>
+            <div className="addr-modal-city-grid">
               <label style={{ display: 'grid', gap: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>City</span>
-                <input value={form.city} onChange={(event) => setField('city', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.city ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+                <input className="addr-modal-input" value={form.city} onChange={(event) => setField('city', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: errors.city ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
                 {errors.city && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{errors.city}</span>}
               </label>
               <label style={{ display: 'grid', gap: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Region / State</span>
-                <input value={form.state} onChange={(event) => setField('state', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+                <input className="addr-modal-input" value={form.state} onChange={(event) => setField('state', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
               </label>
               <label style={{ display: 'grid', gap: '8px' }}>
                 <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Postal / ZIP</span>
-                <input value={form.postalCode} onChange={(event) => setField('postalCode', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+                <input className="addr-modal-input" value={form.postalCode} onChange={(event) => setField('postalCode', event.target.value)} style={{ width: '100%', boxSizing: 'border-box', border: '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
               </label>
             </div>
 
             <label style={{ display: 'grid', gap: '8px' }}>
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Phone Number (Ethiopian format +251...)</span>
-              <input value={form.phone} onChange={(event) => setField('phone', event.target.value)} placeholder="0911 223 344 or +251 911 223 344" style={{ width: '100%', boxSizing: 'border-box', border: errors.phone ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
+              <input className="addr-modal-input" value={form.phone} onChange={(event) => setField('phone', event.target.value)} placeholder="0911 223 344 or +251 911 223 344" style={{ width: '100%', boxSizing: 'border-box', border: errors.phone ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', padding: '12px 14px', fontFamily: 'var(--font-sans)', color: 'var(--text-primary)', fontSize: '14px', outline: 'none' }} />
               {errors.phone && <span style={{ fontFamily: 'var(--font-sans)', fontSize: '11px', color: 'var(--color-danger)' }}>{errors.phone}</span>}
             </label>
 
@@ -246,8 +249,8 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '16px', borderTop: '1px solid var(--border-subtle)', paddingTop: '16px' }}>
-            <button type="button" onClick={onClose} disabled={isSaving} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
-            <button type="submit" disabled={isSaving} style={{ border: 'none', background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '12px 22px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}>
+            <button type="button" onClick={onClose} disabled={isSaving} style={{ background: 'none', border: 'none', padding: '10px 14px', minHeight: '44px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
+            <button type="submit" disabled={isSaving} style={{ border: 'none', background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', borderRadius: '999px', padding: '12px 22px', minHeight: '44px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', cursor: isSaving ? 'not-allowed' : 'pointer', opacity: isSaving ? 0.7 : 1 }}>
               {isSaving ? 'Saving...' : 'Save Address'}
             </button>
           </div>
@@ -255,6 +258,31 @@ function AddressModal({ open, mode, initialAddress, onClose, onSave, isSaving })
       </div>
       <style>{`
         @keyframes nsModalIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+        .addr-modal-name-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px;
+        }
+        .addr-modal-city-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 16px;
+        }
+        @media (max-width: 639px) {
+          .addr-modal-name-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .addr-modal-city-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .addr-modal-input {
+            font-size: 16px !important;
+          }
+          .addr-modal-container {
+            max-height: 88dvh !important;
+            padding: 20px 16px 16px !important;
+          }
+        }
       `}</style>
     </div>
   );
@@ -464,7 +492,7 @@ export default function SavedAddressesPage({ go, currentPath }) {
             </button>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '18px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '18px' }}>
             {/* Default Address Card First */}
             {defaultAddress && (
               <div

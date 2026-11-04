@@ -268,7 +268,7 @@ export default function Footer({ go }) {
           style={{
             maxWidth: '1400px',
             margin: '0 auto',
-            padding: '18px 40px 26px',
+            padding: '18px 40px calc(26px + env(safe-area-inset-bottom, 0px))',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
@@ -361,13 +361,32 @@ export default function Footer({ go }) {
           }
         }
         @media (max-width: 767px) {
+          footer > div:first-child {
+            padding: 36px 20px 20px !important;
+          }
           .footer-grid {
             grid-template-columns: 1fr !important;
             gap: 28px !important;
           }
+          .footer-grid button {
+            min-height: 38px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+          }
           .footer-bottom {
+            padding: 18px 20px calc(24px + env(safe-area-inset-bottom, 0px)) !important;
             flex-direction: column !important;
             align-items: flex-start !important;
+            gap: 16px !important;
+          }
+          .footer-bottom button,
+          .footer-bottom a {
+            min-height: 36px !important;
+            display: inline-flex !important;
+            align-items: center !important;
+          }
+          #footer-region-picker > div {
+            max-width: calc(100vw - 40px) !important;
           }
         }
       `}</style>

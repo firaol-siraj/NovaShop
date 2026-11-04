@@ -158,7 +158,7 @@ function AccountOverviewPage({ go, currentPath }) {
 
         <div style={{ height: '1px', width: '100%', background: 'var(--border-subtle)', marginBottom: '28px' }} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: '36px', alignItems: 'start' }}>
+        <div className="ns-account-grid" style={{ display: 'grid', gridTemplateColumns: '220px minmax(0, 1fr)', gap: '36px', alignItems: 'start' }}>
           <aside style={{ paddingTop: '4px' }}>
             <div style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.16em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '14px' }}>
               Account
@@ -493,14 +493,14 @@ function AccountOverviewPage({ go, currentPath }) {
           50% { opacity: 0.5; }
         }
         @media (max-width: 1023px) {
+          .ns-account-shell .ns-account-grid {
+            grid-template-columns: 1fr !important;
+          }
           .ns-account-shell .ns-quick-links {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
           }
           .ns-account-shell .ns-stats-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-          .ns-account-shell > div > div:nth-child(4) {
-            grid-template-columns: 1fr !important;
           }
           .ns-account-shell .ns-bottom-cards {
             grid-template-columns: 1fr !important;
@@ -508,8 +508,9 @@ function AccountOverviewPage({ go, currentPath }) {
         }
         @media (max-width: 767px) {
           .ns-account-shell > div {
-            padding-left: 18px !important;
-            padding-right: 18px !important;
+            padding-left: 16px !important;
+            padding-right: 16px !important;
+            padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px)) !important;
           }
           .ns-account-shell .ns-stats-grid {
             grid-template-columns: 1fr !important;
@@ -526,16 +527,21 @@ function AccountOverviewPage({ go, currentPath }) {
           .ns-account-shell nav {
             display: flex !important;
             overflow-x: auto !important;
+            -webkit-overflow-scrolling: touch !important;
             gap: 8px !important;
             padding-bottom: 8px !important;
           }
           .ns-account-shell nav button {
             white-space: nowrap !important;
             min-width: max-content !important;
+            min-height: 44px !important;
+            display: inline-flex !important;
+            align-items: center !important;
             border-left: none !important;
             border-bottom: 2px solid transparent !important;
             border-radius: 12px;
             background: transparent;
+            padding: 10px 16px !important;
           }
         }
       `}</style>

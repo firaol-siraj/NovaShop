@@ -141,7 +141,7 @@ export default function WishlistPage({ go, currentPath }) {
           </button>
         </section>
       ) : (
-        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '18px' }}>
+        <section style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '18px' }}>
           {wishlistItems.map((item) => {
             const isRemoving = removingIds.includes(item.id) || removingIds.includes(item.productId);
             const stockCount = Number(
@@ -186,13 +186,17 @@ export default function WishlistPage({ go, currentPath }) {
                         background: 'transparent',
                         border: '1px solid var(--border-default)',
                         borderRadius: '999px',
-                        padding: '8px 10px',
+                        padding: '8px 14px',
+                        minHeight: '38px',
                         cursor: 'pointer',
                         fontFamily: 'var(--font-sans)',
                         fontSize: '9px',
                         letterSpacing: '0.12em',
                         textTransform: 'uppercase',
                         color: 'var(--text-primary)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
                       }}
                     >
                       Remove
@@ -235,6 +239,7 @@ export default function WishlistPage({ go, currentPath }) {
                       color: 'var(--color-primary-contrast)',
                       border: 'none',
                       borderRadius: '999px',
+                      minHeight: '44px',
                       padding: '12px 14px',
                       cursor: isSoldOut ? 'not-allowed' : 'pointer',
                       fontFamily: 'var(--font-sans)',
@@ -242,6 +247,9 @@ export default function WishlistPage({ go, currentPath }) {
                       letterSpacing: '0.14em',
                       textTransform: 'uppercase',
                       opacity: isSoldOut ? 0.7 : 1,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     {isSoldOut ? 'Sold out' : 'Add to Bag'}

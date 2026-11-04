@@ -69,7 +69,7 @@ export default function AdminNotFoundPage({ go }) {
         The admin route you requested does not exist, was moved, or requires different administrative privileges.
       </p>
 
-      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap' }}>
         <button
           type="button"
           onClick={handleBackToDashboard}

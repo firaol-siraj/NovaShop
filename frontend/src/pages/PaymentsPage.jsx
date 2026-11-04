@@ -218,6 +218,7 @@ export default function PaymentsPage({ go, currentPath }) {
                 return (
                   <div
                     key={p.id}
+                    className="ns-payment-card"
                     style={{
                       background: 'var(--bg-surface)',
                       border: '1px solid var(--border-default)',
@@ -280,12 +281,16 @@ export default function PaymentsPage({ go, currentPath }) {
                           background: 'var(--bg-surface-raised)',
                           color: 'var(--text-primary)',
                           borderRadius: '999px',
-                          padding: '9px 16px',
+                          minHeight: '44px',
+                          padding: '11px 18px',
                           fontFamily: 'var(--font-sans)',
                           fontSize: '10px',
                           letterSpacing: '0.14em',
                           textTransform: 'uppercase',
                           cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
                         }}
                       >
                         View Receipt →
@@ -307,6 +312,16 @@ export default function PaymentsPage({ go, currentPath }) {
         @media (max-width: 767px) {
           .ns-payment-stats {
             grid-template-columns: 1fr !important;
+          }
+        }
+        @media (max-width: 639px) {
+          .ns-payment-card {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 14px !important;
+          }
+          .ns-payment-card > div:nth-child(2) {
+            text-align: left !important;
           }
         }
       `}</style>

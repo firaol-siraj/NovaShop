@@ -193,6 +193,12 @@ export default function SignUpPage({ go }) {
             flex-direction: column !important;
             align-items: flex-start !important;
           }
+          .signup-form-panel input {
+            font-size: 16px !important;
+          }
+          .signup-form-panel button[type="submit"] {
+            min-height: 48px !important;
+          }
         }
       `}</style>
       <div
@@ -200,6 +206,7 @@ export default function SignUpPage({ go }) {
         style={{
           display: 'flex',
           flex: 1,
+          minHeight: '100dvh',
           background: 'var(--bg-main)',
         }}
       >
@@ -528,7 +535,7 @@ export default function SignUpPage({ go }) {
                     onClick={() => setShowPassword((value) => !value)}
                     style={{
                       position: 'absolute',
-                      right: '14px',
+                      right: '6px',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       border: 'none',
@@ -538,6 +545,8 @@ export default function SignUpPage({ go }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      width: '44px',
+                      height: '44px',
                       padding: 0,
                     }}
                   >
@@ -592,7 +601,7 @@ export default function SignUpPage({ go }) {
                     onClick={() => setShowConfirmPassword((value) => !value)}
                     style={{
                       position: 'absolute',
-                      right: '14px',
+                      right: '6px',
                       top: '50%',
                       transform: 'translateY(-50%)',
                       border: 'none',
@@ -602,6 +611,8 @@ export default function SignUpPage({ go }) {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
+                      width: '44px',
+                      height: '44px',
                       padding: 0,
                     }}
                   >

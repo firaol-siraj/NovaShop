@@ -16,7 +16,7 @@ const panelStyle = {
   position: 'fixed',
   top: 0,
   right: 0,
-  height: '100vh',
+  height: '100dvh',
   width: 'min(470px, 100vw)',
   background: 'var(--bg-surface)',
   borderLeft: '1px solid var(--border-default)',
@@ -210,11 +210,15 @@ export default function ShoppingBagDrawer({ go }) {
                 border: 'none',
                 background: 'transparent',
                 color: 'var(--text-primary)',
-                fontSize: '30px',
+                fontSize: '28px',
                 lineHeight: 1,
                 cursor: 'pointer',
                 padding: 0,
-                marginTop: '2px',
+                minWidth: '44px',
+                minHeight: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ×
@@ -365,11 +369,11 @@ export default function ShoppingBagDrawer({ go }) {
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '10px',
+                              gap: '4px',
                               border: '1px solid var(--border-default)',
                               borderRadius: '999px',
                               background: 'var(--bg-surface)',
-                              padding: '4px 8px',
+                              padding: '2px 4px',
                             }}
                           >
                             <button
@@ -383,8 +387,11 @@ export default function ShoppingBagDrawer({ go }) {
                                 fontSize: '18px',
                                 color: 'var(--text-primary)',
                                 cursor: item.issue === 'unavailable' || item.qty <= 1 ? 'not-allowed' : 'pointer',
-                                width: '18px',
-                                height: '18px',
+                                minWidth: '36px',
+                                minHeight: '36px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 lineHeight: 1,
                                 opacity: item.issue === 'unavailable' || item.qty <= 1 ? 0.4 : 1,
                               }}
@@ -398,7 +405,7 @@ export default function ShoppingBagDrawer({ go }) {
                                 fontSize: '12px',
                                 fontWeight: 600,
                                 color: 'var(--text-primary)',
-                                minWidth: '14px',
+                                minWidth: '16px',
                                 textAlign: 'center',
                               }}
                             >
@@ -415,8 +422,11 @@ export default function ShoppingBagDrawer({ go }) {
                                 fontSize: '18px',
                                 color: 'var(--text-primary)',
                                 cursor: Boolean(item.issue) || item.qty >= (item.maxQuantity || 10) ? 'not-allowed' : 'pointer',
-                                width: '18px',
-                                height: '18px',
+                                minWidth: '36px',
+                                minHeight: '36px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
                                 lineHeight: 1,
                                 opacity: Boolean(item.issue) || item.qty >= (item.maxQuantity || 10) ? 0.4 : 1,
                               }}
@@ -425,7 +435,7 @@ export default function ShoppingBagDrawer({ go }) {
                             </button>
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                             <button
                               type="button"
                               onClick={() => handleSaveForLater(item)}
@@ -434,7 +444,10 @@ export default function ShoppingBagDrawer({ go }) {
                                 border: 'none',
                                 background: 'transparent',
                                 color: 'var(--text-secondary)',
-                                padding: 0,
+                                padding: '6px 8px',
+                                minHeight: '44px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 cursor: isSaving ? 'default' : 'pointer',
                                 fontFamily: 'var(--font-sans)',
                                 fontSize: '10px',
@@ -455,7 +468,10 @@ export default function ShoppingBagDrawer({ go }) {
                                 border: 'none',
                                 background: 'transparent',
                                 color: 'var(--text-secondary)',
-                                padding: 0,
+                                padding: '6px 8px',
+                                minHeight: '44px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
                                 cursor: isRemoving ? 'default' : 'pointer',
                                 fontFamily: 'var(--font-sans)',
                                 fontSize: '10px',
@@ -689,7 +705,7 @@ export default function ShoppingBagDrawer({ go }) {
             style={{
               background: 'var(--bg-surface-sunken)',
               borderTop: '1px solid var(--border-default)',
-              padding: '18px 22px 22px',
+              padding: '18px 22px calc(22px + env(safe-area-inset-bottom, 0px))',
               boxShadow: '0 -10px 18px rgba(0,0,0,0.04)',
             }}
           >

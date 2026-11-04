@@ -545,11 +545,11 @@ export default function SettingsPage({ go, currentPath }) {
 
       {/* Password Modal */}
       {isPasswordModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={() => setIsPasswordModalOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(480px, 100%)', background: 'var(--bg-surface)', borderRadius: '20px', border: '1px solid var(--border-default)', padding: '24px', boxShadow: '0 20px 48px rgba(0,0,0,0.25)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={() => setIsPasswordModalOpen(false)}>
+          <div className="settings-modal-panel" onClick={(e) => e.stopPropagation()} style={{ width: 'min(480px, 100%)', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-surface)', borderRadius: '20px', border: '1px solid var(--border-default)', padding: '24px', boxShadow: '0 20px 48px rgba(0,0,0,0.25)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <h3 style={{ margin: 0, fontFamily: 'var(--font-serif)', fontSize: '26px', color: 'var(--text-primary)', fontWeight: 500 }}>Change Password</h3>
-              <button type="button" onClick={() => setIsPasswordModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'var(--text-primary)', padding: 0 }}>×</button>
+              <button type="button" onClick={() => setIsPasswordModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: 'var(--text-primary)', padding: 0, width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
 
             <div style={{ display: 'grid', gap: '14px' }}>
@@ -558,11 +558,12 @@ export default function SettingsPage({ go, currentPath }) {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword.current ? 'text' : 'password'}
+                    className="settings-modal-input"
                     value={passwordForm.currentPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
                     style={{ width: '100%', boxSizing: 'border-box', border: passwordErrors.currentPassword ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 38px 12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
                   />
-                  <button type="button" onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })} style={{ position: 'absolute', right: '12px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
+                  <button type="button" onClick={() => setShowPassword({ ...showPassword, current: !showPassword.current })} style={{ position: 'absolute', right: '4px', top: '4px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
                     <EyeToggleIcon visible={showPassword.current} />
                   </button>
                 </div>
@@ -574,11 +575,12 @@ export default function SettingsPage({ go, currentPath }) {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword.new ? 'text' : 'password'}
+                    className="settings-modal-input"
                     value={passwordForm.newPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
                     style={{ width: '100%', boxSizing: 'border-box', border: passwordErrors.newPassword ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 38px 12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
                   />
-                  <button type="button" onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })} style={{ position: 'absolute', right: '12px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
+                  <button type="button" onClick={() => setShowPassword({ ...showPassword, new: !showPassword.new })} style={{ position: 'absolute', right: '4px', top: '4px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
                     <EyeToggleIcon visible={showPassword.new} />
                   </button>
                 </div>
@@ -598,11 +600,12 @@ export default function SettingsPage({ go, currentPath }) {
                 <div style={{ position: 'relative' }}>
                   <input
                     type={showPassword.confirm ? 'text' : 'password'}
+                    className="settings-modal-input"
                     value={passwordForm.confirmPassword}
                     onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
                     style={{ width: '100%', boxSizing: 'border-box', border: passwordErrors.confirmPassword ? '1px solid var(--color-danger)' : '1px solid var(--border-default)', borderRadius: '10px', background: 'var(--bg-input)', color: 'var(--text-primary)', padding: '12px 38px 12px 14px', fontFamily: 'var(--font-sans)', fontSize: '14px', outline: 'none' }}
                   />
-                  <button type="button" onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })} style={{ position: 'absolute', right: '12px', top: '12px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
+                  <button type="button" onClick={() => setShowPassword({ ...showPassword, confirm: !showPassword.confirm })} style={{ position: 'absolute', right: '4px', top: '4px', width: '38px', height: '38px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}>
                     <EyeToggleIcon visible={showPassword.confirm} />
                   </button>
                 </div>
@@ -611,8 +614,8 @@ export default function SettingsPage({ go, currentPath }) {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '14px', marginTop: '22px' }}>
-              <button type="button" onClick={() => setIsPasswordModalOpen(false)} disabled={isPasswordSaving} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
-              <button type="button" onClick={handlePasswordSubmit} disabled={isPasswordSaving} style={{ background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', border: 'none', borderRadius: '999px', padding: '12px 20px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: isPasswordSaving ? 'not-allowed' : 'pointer', opacity: isPasswordSaving ? 0.7 : 1 }}>
+              <button type="button" onClick={() => setIsPasswordModalOpen(false)} disabled={isPasswordSaving} style={{ background: 'none', border: 'none', padding: '10px 14px', minHeight: '44px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
+              <button type="button" onClick={handlePasswordSubmit} disabled={isPasswordSaving} style={{ background: 'var(--color-primary)', color: 'var(--color-primary-contrast)', border: 'none', borderRadius: '999px', padding: '12px 20px', minHeight: '44px', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', cursor: isPasswordSaving ? 'not-allowed' : 'pointer', opacity: isPasswordSaving ? 0.7 : 1 }}>
                 {isPasswordSaving ? 'Updating...' : 'Update Password'}
               </button>
             </div>
@@ -622,8 +625,8 @@ export default function SettingsPage({ go, currentPath }) {
 
       {/* Deactivate Account Modal */}
       {deleteDialogOpen && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }} onClick={() => setDeleteDialogOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 100%)', background: 'var(--bg-surface)', borderRadius: '20px', border: '1px solid var(--border-default)', padding: '24px', boxShadow: '0 20px 48px rgba(0,0,0,0.25)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }} onClick={() => setDeleteDialogOpen(false)}>
+          <div className="settings-modal-panel" onClick={(e) => e.stopPropagation()} style={{ width: 'min(460px, 100%)', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-surface)', borderRadius: '20px', border: '1px solid var(--border-default)', padding: '24px', boxShadow: '0 20px 48px rgba(0,0,0,0.25)' }}>
             <h3 style={{ margin: '0 0 10px', fontFamily: 'var(--font-serif)', fontSize: '24px', color: 'var(--color-danger)', fontWeight: 500 }}>Deactivate Account</h3>
             <p style={{ margin: '0 0 16px', fontFamily: 'var(--font-sans)', fontSize: '13px', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
               You will be signed out and unable to log in. Your order history is kept for our records. You can reactivate by logging in again.
@@ -633,6 +636,7 @@ export default function SettingsPage({ go, currentPath }) {
               <span style={{ fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>Confirm Password</span>
               <input
                 type="password"
+                className="settings-modal-input"
                 value={deletePassword}
                 onChange={(e) => setDeletePassword(e.target.value)}
                 placeholder="Enter your current password"
@@ -647,7 +651,7 @@ export default function SettingsPage({ go, currentPath }) {
             )}
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '14px' }}>
-              <button type="button" onClick={() => { setDeleteDialogOpen(false); setDeletePassword(''); setDeleteError(''); }} disabled={isDeletingAccount} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
+              <button type="button" onClick={() => { setDeleteDialogOpen(false); setDeletePassword(''); setDeleteError(''); }} disabled={isDeletingAccount} style={{ background: 'none', border: 'none', padding: '10px 14px', minHeight: '44px', cursor: 'pointer', fontFamily: 'var(--font-sans)', fontSize: '10px', letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--text-primary)' }}>Cancel</button>
               <button
                 type="button"
                 onClick={handleDeleteAccount}
@@ -658,6 +662,7 @@ export default function SettingsPage({ go, currentPath }) {
                   border: 'none',
                   borderRadius: '999px',
                   padding: '12px 18px',
+                  minHeight: '44px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: '10px',
                   letterSpacing: '0.14em',
@@ -672,6 +677,17 @@ export default function SettingsPage({ go, currentPath }) {
           </div>
         </div>
       )}
+      <style>{`
+        @media (max-width: 767px) {
+          .settings-modal-panel {
+            max-height: 88dvh !important;
+            padding: 20px 16px !important;
+          }
+          .settings-modal-input {
+            font-size: 16px !important;
+          }
+        }
+      `}</style>
     </AccountLayout>
   );
 }

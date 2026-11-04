@@ -1029,105 +1029,129 @@
 
 
 /* =========================================================
-   RESPONSIVE — 760px
+   RESPONSIVE OVERRIDES
+   Scoped under <= 1023px, <= 767px, and <= 480px
+   Desktop (>= 1024px) remains 100% unchanged
 ========================================================= */
 
-@media (max-width: 760px) {
-  .discounts-edit-page {
-    gap: 15px;
-  }
-
-  .discounts-edit-heading {
-    align-items: flex-start;
-  }
-
-  .discounts-edit-heading .admin-page-actions {
-    display: flex;
-    width: 100%;
-  }
-
-  .discounts-edit-heading .admin-page-actions .admin-action-button {
-    flex: 1;
-  }
-
-  .discounts-edit-heading .admin-page-actions .discounts-edit-more {
-    flex: 0 0 36px;
-  }
-
+@media (max-width: 1023px) {
   .discounts-edit-layout {
-    gap: 12px;
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 16px;
   }
 
   .discounts-edit-summary-column {
+    position: static !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+  }
+}
+
+@media (max-width: 767px) {
+  .discounts-edit-page {
+    gap: 16px;
+    padding-bottom: calc(40px + var(--safe-area-bottom, 0px));
+  }
+
+  .discounts-edit-heading {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .discounts-edit-actions {
     display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 10px;
   }
 
-  .discount-edit-card {
-    padding: 14px;
+  .discounts-edit-actions .admin-action-button {
+    flex: 1;
+    min-height: 44px !important;
+    font-size: 13px !important;
+    font-weight: 600;
+    border-radius: 8px;
   }
 
+  .discounts-edit-more {
+    flex: 0 0 44px !important;
+    min-width: 44px !important;
+    min-height: 44px !important;
+  }
+
+  .discount-edit-card,
   .discount-edit-summary-card {
-    padding: 14px;
+    padding: 16px;
+    border-radius: 10px;
+  }
+
+  .discount-edit-card-heading h2 {
+    font-size: 15px !important;
+  }
+
+  .discount-edit-segmented {
+    grid-template-columns: 1fr 1fr;
+    padding: 4px;
+    border-radius: 8px;
+  }
+
+  .discount-edit-segmented button {
+    min-height: 44px !important;
+    font-size: 13px !important;
+    font-weight: 600;
+  }
+
+  .discount-edit-field label {
+    font-size: 13px !important;
+    margin-bottom: 8px;
+  }
+
+  .discount-edit-field input,
+  .discount-edit-inline-input,
+  .discount-edit-select {
+    height: 44px !important;
+    min-height: 44px !important;
+    font-size: 16px !important; /* Prevents iOS auto-zoom */
+    padding: 0 12px !important;
+    border-radius: 8px !important;
+  }
+
+  .discount-edit-helper {
+    font-size: 12px !important;
+    margin-top: 6px;
+    line-height: 1.4;
+  }
+
+  .discount-edit-generate {
+    min-height: 36px;
+    padding: 0 10px;
+    font-size: 12px !important;
   }
 
   .discount-edit-type-options {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 
   .discount-edit-type-option {
     min-height: 56px;
+    padding: 12px 14px;
+    border-radius: 8px;
+  }
+
+  .discount-edit-type-copy strong {
+    font-size: 13px !important;
+  }
+
+  .discount-edit-type-copy small {
+    font-size: 12px !important;
   }
 
   .discount-edit-date-grid {
     grid-template-columns: 1fr;
-  }
-
-  .discount-edit-meta-label {
-    white-space: normal;
-    text-align: right;
-  }
-
-  .discount-edit-radio-input-row {
-    align-items: flex-start;
-  }
-
-  .discount-edit-inline-input {
-    width: 135px;
-    margin-left: 26px;
-    margin-bottom: 5px;
-  }
-}
-
-
-/* =========================================================
-   RESPONSIVE — 480px
-========================================================= */
-
-@media (max-width: 480px) {
-  .discounts-edit-heading .admin-page-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-  }
-
-  .discounts-edit-heading .admin-page-actions .discounts-edit-more {
-    grid-column: 1 / -1;
-    width: 100%;
-  }
-
-  .discounts-edit-heading .admin-page-actions .admin-action-button {
-    min-height: 34px;
-    padding: 0 8px;
-    font-size: 8px;
-  }
-
-  .discount-edit-card {
-    padding: 12px;
-    border-radius: 8px;
-  }
-
-  .discount-edit-summary-card {
-    padding: 12px;
-    border-radius: 8px;
+    gap: 12px;
   }
 
   .discount-edit-card-heading.is-inline {
@@ -1135,71 +1159,82 @@
   }
 
   .discount-edit-meta-label {
-    max-width: 48%;
-    font-size: 6px;
+    font-size: 12px !important;
   }
 
   .discount-edit-radio-row {
-    min-height: 54px;
+    min-height: 44px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
   }
 
   .discount-edit-radio-main {
-    min-width: 190px;
+    min-width: 0 !important;
+    font-size: 13px !important;
   }
 
   .discount-edit-inline-input {
-    width: 120px;
+    width: 140px;
+    margin-left: 0;
   }
 
   .discount-edit-setting {
-    gap: 10px;
+    gap: 12px;
+    min-height: 44px;
   }
 
   .discount-edit-setting strong {
-    font-size: 8px;
+    font-size: 13px !important;
   }
 
   .discount-edit-setting small {
-    font-size: 6px;
+    font-size: 12px !important;
+  }
+
+  .discount-edit-toggle {
+    min-width: 44px;
+    min-height: 26px;
   }
 
   .discount-edit-summary-title h2 {
-    font-size: 12px;
+    font-size: 16px !important;
   }
 
-  .discount-edit-summary-list strong {
-    font-size: 7px;
+  .discount-edit-summary-badge {
+    font-size: 11px !important;
+  }
+
+  .discount-edit-summary-list li {
+    font-size: 13px !important;
   }
 }
 
-
-/* =========================================================
-   RESPONSIVE — 360px
-========================================================= */
-
-@media (max-width: 360px) {
-  .discounts-edit-heading .admin-page-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .discounts-edit-heading .admin-page-actions .discounts-edit-more {
-    grid-column: auto;
+@media (max-width: 480px) {
+  .discount-edit-card,
+  .discount-edit-summary-card {
+    padding: 14px 12px;
   }
 
   .discount-edit-segmented {
     grid-template-columns: 1fr;
-  }
-
-  .discount-edit-segmented button {
-    min-height: 31px;
-  }
-
-  .discount-edit-radio-main {
-    min-width: 160px;
+    gap: 4px;
   }
 
   .discount-edit-inline-input {
-    width: 110px;
-    margin-left: 25px;
+    width: 100%;
+    margin-left: 24px;
+  }
+
+  .discount-edit-card-heading.is-inline {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .discount-edit-meta-label {
+    text-align: left;
+    max-width: 100%;
   }
 }

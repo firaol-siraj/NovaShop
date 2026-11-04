@@ -362,7 +362,60 @@ export default function OrderConfirmationPage({ go }) {
   const formattedPhone = formatPhoneNumber(order?.shippingAddress?.phone);
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-main)', padding: '28px 24px 50px' }}>
+    <div className="order-conf-container">
+      <style>{`
+        .order-conf-container {
+          min-height: 100vh;
+          background: var(--bg-main);
+          padding: 28px 24px 50px;
+        }
+        .order-conf-stepper {
+          display: grid;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 12px;
+          align-items: start;
+          position: relative;
+        }
+        .order-conf-stepper-line {
+          position: absolute;
+          top: 18px;
+          left: 8%;
+          right: 8%;
+          height: 1px;
+          background: var(--border-subtle);
+          z-index: 0;
+        }
+        .order-conf-grid {
+          max-width: 960px;
+          margin: 0 auto;
+          display: grid;
+          grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.8fr);
+          gap: 28px;
+        }
+
+        @media (max-width: 1023px) {
+          .order-conf-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .order-conf-container {
+            padding: 16px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+          }
+        }
+
+        @media (max-width: 639px) {
+          .order-conf-stepper {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+          }
+          .order-conf-stepper-line {
+            display: none;
+          }
+        }
+      `}</style>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         {/* Header */}
         <header style={{ borderBottom: '1px solid var(--border-subtle)', paddingBottom: '18px', marginBottom: '32px' }}>
@@ -569,8 +622,8 @@ export default function OrderConfirmationPage({ go }) {
 
         {/* Status Stepper */}
         <section style={{ maxWidth: '960px', margin: '0 auto 28px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: '12px', alignItems: 'start', position: 'relative' }}>
-            <div style={{ position: 'absolute', top: '18px', left: '8%', right: '8%', height: '1px', background: 'var(--border-subtle)', zIndex: 0 }} />
+          <div className="order-conf-stepper">
+            <div className="order-conf-stepper-line" />
             {STATUS_STEPS.map((step, idx) => {
               const currentStepIdx = isPaid || isCash ? 1 : 0;
               const isComplete = idx < currentStepIdx;
@@ -592,7 +645,7 @@ export default function OrderConfirmationPage({ go }) {
         </section>
 
         {/* Order Details Grid */}
-        <section style={{ maxWidth: '960px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'minmax(0, 1.4fr) minmax(280px, 0.8fr)', gap: '28px' }}>
+        <section className="order-conf-grid">
           {/* Left Column: Items and Summary */}
           <div style={{ display: 'grid', gap: '24px' }}>
             <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: '18px', padding: '22px 20px' }}>

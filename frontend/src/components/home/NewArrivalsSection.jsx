@@ -538,7 +538,7 @@ export default function NewArrivalsSection({ go, products = [], loading = false,
           .na-container { padding: 0 20px !important; }
           .na-header { flex-direction: column !important; align-items: flex-start !important; gap: 20px !important; }
           .na-view-all { align-self: flex-start; }
-          .na-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+          .na-grid { grid-template-columns: 1fr !important; gap: 24px !important; }
         }
       `}</style>
     </section>

@@ -107,8 +107,15 @@ export default function AdminNotificationDropdown({
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-xl border border-[#DDD6CC] bg-white shadow-2xl ring-1 ring-black/5">
-          {/* Header */}
+        <>
+          <div
+            className="admin-notification-backdrop-mobile"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="admin-notification-panel absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-xl border border-[#DDD6CC] bg-white shadow-2xl ring-1 ring-black/5">
+            <div className="admin-sheet-drag-handle" aria-hidden="true" />
+            {/* Header */}
           <div className="flex items-center justify-between border-b border-[#ECE7E0] bg-[#FAF8F5] px-4 py-3">
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-[#1B1816]">Notifications</span>
@@ -206,6 +213,7 @@ export default function AdminNotificationDropdown({
             </button>
           </div>
         </div>
+        </>
       )}
     </div>
   );

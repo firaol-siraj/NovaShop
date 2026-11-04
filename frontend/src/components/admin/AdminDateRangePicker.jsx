@@ -115,11 +115,18 @@ export default function AdminDateRangePicker({ value, onChange }) {
       </button>
 
       {isOpen && (
-        <div
-          className="absolute right-0 z-50 mt-2 w-72 origin-top-right rounded-lg border border-[#DDD6CC] bg-white p-3 shadow-xl ring-1 ring-black/5 focus:outline-none"
-          role="menu"
-        >
-          <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#8A847C]">
+        <>
+          <div
+            className="admin-daterange-backdrop-mobile"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+          <div
+            className="admin-daterange-panel absolute right-0 z-50 mt-2 w-72 origin-top-right rounded-lg border border-[#DDD6CC] bg-white p-3 shadow-xl ring-1 ring-black/5 focus:outline-none"
+            role="menu"
+          >
+            <div className="admin-sheet-drag-handle" aria-hidden="true" />
+            <div className="mb-2 text-[10px] font-bold uppercase tracking-wider text-[#8A847C]">
             Quick Presets
           </div>
           <div className="grid grid-cols-2 gap-1.5 border-b border-[#F0ECE6] pb-3 text-xs">
@@ -222,6 +229,7 @@ export default function AdminDateRangePicker({ value, onChange }) {
             </div>
           </form>
         </div>
+        </>
       )}
     </div>
   );

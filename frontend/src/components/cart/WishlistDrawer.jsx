@@ -16,7 +16,7 @@ const panelStyle = {
   position: 'fixed',
   top: 0,
   right: 0,
-  height: '100vh',
+  height: '100dvh',
   width: 'min(480px, 100vw)',
   background: 'var(--bg-surface)',
   borderLeft: '1px solid var(--border-default)',
@@ -262,11 +262,15 @@ export default function WishlistDrawer({ go }) {
                 border: 'none',
                 background: 'transparent',
                 color: 'var(--text-primary)',
-                fontSize: '30px',
+                fontSize: '28px',
                 lineHeight: 1,
                 cursor: 'pointer',
                 padding: 0,
-                marginTop: '2px',
+                minWidth: '44px',
+                minHeight: '44px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
               }}
             >
               ×
@@ -610,7 +614,7 @@ export default function WishlistDrawer({ go }) {
                 </div>
               </div>
 
-              <div style={{ padding: '18px 22px 24px' }}>
+              <div style={{ padding: '18px 22px calc(24px + env(safe-area-inset-bottom, 0px))' }}>
                 <div
                   style={{
                     border: '1px solid var(--border-default)',
