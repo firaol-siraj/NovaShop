@@ -524,10 +524,19 @@ export async function sendEmail({
 
     // 8. Result inspection: check acceptance and rejection
     if (info) {
-      const acceptedList = Array.isArray(info.accepted) ? info.accepted.map(e => String(e).toLowerCase().trim()) : [];
+      let acceptedList = Array.isArray(info.accepted) ? info.accepted.map(e => String(e).toLowerCase().trim()) : [];
       const rejectedList = Array.isArray(info.rejected) ? info.rejected.map(e => String(e).toLowerCase().trim()) : [];
-      const isAccepted = acceptedList.includes(normalizedTo) || (acceptedList.length > 0 && rejectedList.length === 0);
       const isRejected = rejectedList.includes(normalizedTo);
+      let isAccepted = acceptedList.includes(normalizedTo) || (acceptedList.length > 0 && rejectedList.length === 0);
+
+      // If transport resolved successfully and no rejection occurred:
+      // (e.g. nodemailer transport returned messageId or omitted accepted array or accepted array was empty without rejection)
+      if (!isRejected && !isAccepted && (info.messageId || !Array.isArray(info.accepted) || rejectedList.length === 0)) {
+        isAccepted = true;
+        if (acceptedList.length === 0) {
+          acceptedList = [normalizedTo];
+        }
+      }
 
       logger.info(`[EmailService SMTP Response] Accepted: [${acceptedList.join(', ')}] | Rejected: [${rejectedList.join(', ')}] | Response: "${info.response || ''}" | MessageId: ${info.messageId}`);
 

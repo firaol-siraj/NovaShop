@@ -279,43 +279,46 @@ export const subscribeNewsletter = asyncHandler(async (req, res) => {
     });
   }
 
-  const rawConfirmToken = crypto.randomBytes(32).toString('hex');
-  const hashedConfirmToken = crypto
-    .createHash('sha256')
-    .update(rawConfirmToken)
-    .digest('hex');
-  const confirmExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+  const doubleOptIn = process.env.NEWSLETTER_DOUBLE_OPT_IN === 'true' || req.body?.doubleOptIn === true;
 
-  if (subscriber) {
-    subscriber.status = 'pending';
-    subscriber.confirmToken = hashedConfirmToken;
-    subscriber.confirmExpires = confirmExpires;
-    if (!subscriber.unsubscribeToken) {
-      subscriber.unsubscribeToken = crypto.randomBytes(24).toString('hex');
+  if (doubleOptIn) {
+    const rawConfirmToken = crypto.randomBytes(32).toString('hex');
+    const hashedConfirmToken = crypto
+      .createHash('sha256')
+      .update(rawConfirmToken)
+      .digest('hex');
+    const confirmExpires = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours
+
+    if (subscriber) {
+      subscriber.status = 'pending';
+      subscriber.confirmToken = hashedConfirmToken;
+      subscriber.confirmExpires = confirmExpires;
+      if (!subscriber.unsubscribeToken) {
+        subscriber.unsubscribeToken = crypto.randomBytes(24).toString('hex');
+      }
+      await subscriber.save();
+    } else {
+      const unsubscribeToken = crypto.randomBytes(24).toString('hex');
+      subscriber = await Subscriber.create({
+        email: cleanEmail,
+        status: 'pending',
+        source: req.body?.source || 'homepage_newsletter',
+        confirmToken: hashedConfirmToken,
+        confirmExpires,
+        unsubscribeToken,
+      });
     }
-    await subscriber.save();
-  } else {
-    const unsubscribeToken = crypto.randomBytes(24).toString('hex');
-    subscriber = await Subscriber.create({
-      email: cleanEmail,
-      status: 'pending',
-      source: req.body?.source || 'homepage_newsletter',
-      confirmToken: hashedConfirmToken,
-      confirmExpires,
-      unsubscribeToken,
-    });
-  }
 
-  // Send double opt-in confirmation email
-  try {
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
-    const confirmUrl = `${frontendUrl}/newsletter/confirm?token=${rawConfirmToken}`;
+    // Send double opt-in confirmation email
+    try {
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+      const confirmUrl = `${frontendUrl}/newsletter/confirm?token=${rawConfirmToken}`;
 
-    await sendEmail({
-      to: cleanEmail,
-      subject: 'Please confirm your subscription to The NovaShop Journal',
-      text: `Thank you for your interest in The NovaShop Journal. Please confirm your subscription by opening the following link:\n\n${confirmUrl}\n\nThis confirmation link expires in 48 hours. If you did not request this, you may safely ignore this email.`,
-      html: `
+      await sendEmail({
+        to: cleanEmail,
+        subject: 'Please confirm your subscription to The NovaShop Journal',
+        text: `Thank you for your interest in The NovaShop Journal. Please confirm your subscription by opening the following link:\n\n${confirmUrl}\n\nThis confirmation link expires in 48 hours. If you did not request this, you may safely ignore this email.`,
+        html: `
         <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; color: #1A1A1A; background-color: #FDFBF7; border: 1px solid #E6E2DC;">
           <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #78716C; display: block; margin-bottom: 12px;">THE NOVASHOP JOURNAL</span>
           <h2 style="font-size: 24px; font-weight: 400; font-family: Georgia, serif; font-style: italic; letter-spacing: -0.02em; margin: 0 0 16px; color: #1C1917;">Confirm your subscription</h2>
@@ -337,15 +340,77 @@ export const subscribeNewsletter = asyncHandler(async (req, res) => {
           </p>
         </div>
       `,
+      });
+    } catch (emailErr) {
+      console.error('Failed to dispatch newsletter confirmation email:', emailErr.message);
+    }
+
+    return res.status(200).json({
+      success: true,
+      pendingConfirmation: true,
+      message: 'Please check your inbox to confirm your subscription to The NovaShop Journal.',
+    });
+  }
+
+  // Single opt-in (default): immediate subscription
+  if (subscriber) {
+    subscriber.status = 'subscribed';
+    subscriber.confirmedAt = new Date();
+    subscriber.unsubscribedAt = null;
+    subscriber.confirmToken = null;
+    subscriber.confirmExpires = null;
+    if (!subscriber.unsubscribeToken) {
+      subscriber.unsubscribeToken = crypto.randomBytes(24).toString('hex');
+    }
+    await subscriber.save();
+  } else {
+    const unsubscribeToken = crypto.randomBytes(24).toString('hex');
+    subscriber = await Subscriber.create({
+      email: cleanEmail,
+      status: 'subscribed',
+      confirmedAt: new Date(),
+      source: req.body?.source || 'homepage_newsletter',
+      unsubscribeToken,
+    });
+  }
+
+  // Send welcome email with working unsubscribe link and welcome code
+  try {
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:5173';
+    const unsubscribeUrl = `${frontendUrl}/newsletter/unsubscribe?token=${subscriber.unsubscribeToken}`;
+
+    await sendEmail({
+      to: subscriber.email,
+      subject: 'Welcome to The NovaShop Journal',
+      text: `Your subscription to The NovaShop Journal is confirmed. Use welcome code JOURNAL10 for 10% off your next order.\n\nTo unsubscribe at any time: ${unsubscribeUrl}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 32px 24px; color: #1A1A1A; background-color: #FDFBF7; border: 1px solid #E6E2DC;">
+          <span style="font-size: 10px; font-weight: 600; letter-spacing: 0.2em; text-transform: uppercase; color: #78716C; display: block; margin-bottom: 12px;">THE NOVASHOP JOURNAL</span>
+          <h2 style="font-size: 24px; font-weight: 400; font-family: Georgia, serif; font-style: italic; letter-spacing: -0.02em; margin: 0 0 16px; color: #1C1917;">Welcome to NovaShop</h2>
+          <p style="font-size: 14px; line-height: 1.7; color: #44403C; margin: 0 0 20px;">
+            Your subscription has been confirmed. You will receive private access to seasonal edits, luxury new arrivals, and archival notes.
+          </p>
+          <div style="background-color: #F5F2EB; border: 1px dashed #D6D0C4; padding: 16px 20px; margin: 24px 0; text-align: center;">
+            <span style="font-size: 11px; font-weight: 600; letter-spacing: 0.15em; text-transform: uppercase; color: #78716C; display: block; margin-bottom: 6px;">YOUR WELCOME PRIVILEGE</span>
+            <span style="font-size: 18px; font-weight: 700; letter-spacing: 0.12em; color: #1C1917;">JOURNAL10</span>
+            <p style="font-size: 12px; color: #78716C; margin: 6px 0 0;">Enjoy 10% off your next curated order.</p>
+          </div>
+          <hr style="border: none; border-top: 1px solid #E6E2DC; margin: 28px 0 16px;" />
+          <p style="font-size: 11px; color: #A8A29E; line-height: 1.5; margin: 0;">
+            You received this email because you confirmed your subscription to The NovaShop Journal.
+            <br />
+            <a href="${unsubscribeUrl}" style="color: #1C1917; text-decoration: underline;">Unsubscribe from these emails</a>
+          </p>
+        </div>
+      `,
     });
   } catch (emailErr) {
-    console.error('Failed to dispatch newsletter confirmation email:', emailErr.message);
+    console.error('Failed to dispatch welcome email:', emailErr.message);
   }
 
   res.status(200).json({
     success: true,
-    pendingConfirmation: true,
-    message: 'Please check your inbox to confirm your subscription to The NovaShop Journal.',
+    message: 'Thank you for subscribing to The NovaShop Journal.',
   });
 });
 

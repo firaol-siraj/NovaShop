@@ -121,13 +121,20 @@ export const getAnalyticsOverview = asyncHandler(async (req, res) => {
         refundedOrders: [
           {
             $match: {
-              $or: [
-                { status: ORDER_STATUS.REFUNDED },
-                { refundedAmountUSD: { $gt: 0 } },
-              ],
-              $or: [
-                { refundedAt: { $gte: currentStart, $lte: currentEnd } },
-                { updatedAt: { $gte: currentStart, $lte: currentEnd } },
+              $and: [
+                {
+                  $or: [
+                    { status: ORDER_STATUS.REFUNDED },
+                    { paymentStatus: PAYMENT_STATUS.REFUNDED },
+                    { refundedAmountUSD: { $gt: 0 } },
+                  ],
+                },
+                {
+                  $or: [
+                    { refundedAt: { $gte: currentStart, $lte: currentEnd } },
+                    { updatedAt: { $gte: currentStart, $lte: currentEnd } },
+                  ],
+                },
               ],
             },
           },
@@ -173,13 +180,20 @@ export const getAnalyticsOverview = asyncHandler(async (req, res) => {
         refundedOrders: [
           {
             $match: {
-              $or: [
-                { status: ORDER_STATUS.REFUNDED },
-                { refundedAmountUSD: { $gt: 0 } },
-              ],
-              $or: [
-                { refundedAt: { $gte: prevStart, $lte: prevEnd } },
-                { updatedAt: { $gte: prevStart, $lte: prevEnd } },
+              $and: [
+                {
+                  $or: [
+                    { status: ORDER_STATUS.REFUNDED },
+                    { paymentStatus: PAYMENT_STATUS.REFUNDED },
+                    { refundedAmountUSD: { $gt: 0 } },
+                  ],
+                },
+                {
+                  $or: [
+                    { refundedAt: { $gte: prevStart, $lte: prevEnd } },
+                    { updatedAt: { $gte: prevStart, $lte: prevEnd } },
+                  ],
+                },
               ],
             },
           },
@@ -620,13 +634,20 @@ export const getSalesAnalytics = asyncHandler(async (req, res) => {
         refunds: [
           {
             $match: {
-              $or: [
-                { status: ORDER_STATUS.REFUNDED },
-                { refundedAmountUSD: { $gt: 0 } },
-              ],
-              $or: [
-                { refundedAt: { $gte: currentStart, $lte: currentEnd } },
-                { updatedAt: { $gte: currentStart, $lte: currentEnd } },
+              $and: [
+                {
+                  $or: [
+                    { status: ORDER_STATUS.REFUNDED },
+                    { paymentStatus: PAYMENT_STATUS.REFUNDED },
+                    { refundedAmountUSD: { $gt: 0 } },
+                  ],
+                },
+                {
+                  $or: [
+                    { refundedAt: { $gte: currentStart, $lte: currentEnd } },
+                    { updatedAt: { $gte: currentStart, $lte: currentEnd } },
+                  ],
+                },
               ],
             },
           },
@@ -674,13 +695,20 @@ export const getSalesAnalytics = asyncHandler(async (req, res) => {
         refunds: [
           {
             $match: {
-              $or: [
-                { status: ORDER_STATUS.REFUNDED },
-                { refundedAmountUSD: { $gt: 0 } },
-              ],
-              $or: [
-                { refundedAt: { $gte: prevStart, $lte: prevEnd } },
-                { updatedAt: { $gte: prevStart, $lte: prevEnd } },
+              $and: [
+                {
+                  $or: [
+                    { status: ORDER_STATUS.REFUNDED },
+                    { paymentStatus: PAYMENT_STATUS.REFUNDED },
+                    { refundedAmountUSD: { $gt: 0 } },
+                  ],
+                },
+                {
+                  $or: [
+                    { refundedAt: { $gte: prevStart, $lte: prevEnd } },
+                    { updatedAt: { $gte: prevStart, $lte: prevEnd } },
+                  ],
+                },
               ],
             },
           },
@@ -1097,13 +1125,20 @@ export const getProductAnalytics = asyncHandler(async (req, res) => {
   const [refundsAgg] = await Order.aggregate([
     {
       $match: {
-        $or: [
-          { status: ORDER_STATUS.REFUNDED },
-          { refundedAmountUSD: { $gt: 0 } },
-        ],
-        $or: [
-          { refundedAt: { $gte: currentStart, $lte: currentEnd } },
-          { updatedAt: { $gte: currentStart, $lte: currentEnd } },
+        $and: [
+          {
+            $or: [
+              { status: ORDER_STATUS.REFUNDED },
+              { paymentStatus: PAYMENT_STATUS.REFUNDED },
+              { refundedAmountUSD: { $gt: 0 } },
+            ],
+          },
+          {
+            $or: [
+              { refundedAt: { $gte: currentStart, $lte: currentEnd } },
+              { updatedAt: { $gte: currentStart, $lte: currentEnd } },
+            ],
+          },
         ],
       },
     },
