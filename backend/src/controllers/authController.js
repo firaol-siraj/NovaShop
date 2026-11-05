@@ -46,29 +46,28 @@ export const registerUser = asyncHandler(async (req, res, next) => {
 
   // 1. Dispatch Verification Email
   try {
-    const verifEmail = getVerificationEmail({ user, verificationUrl });
-    await sendEmail({
-      to: user.email,
-      subject: verifEmail.subject,
-      html: verifEmail.html,
-      text: verifEmail.text,
-      userId: user._id,
-      type: 'verification',
-      statusCategory: 'security',
-    });
-    // BullMQ queue fallback/telemetry
-    const qPromise = emailQueue.add('sendVerificationEmail', {
+  await emailQueue.add(
+    'sendPasswordResetEmail',
+    {
       email: user.email,
-      subject: verifEmail.subject,
-      message: verifEmail.text,
-      html: verifEmail.html,
-    });
-    if (qPromise && typeof qPromise.catch === 'function') {
-      await qPromise.catch(() => {});
+      subject: resetEmail.subject,
+      message: resetEmail.text,
+      html: resetEmail.html,
+      userId: user._id.toString(),
+    },
+    {
+      attempts: 3,
+      backoff: {
+        type: 'exponential',
+        delay: 5000,
+      },
     }
-  } catch (mailErr) {
-    logger.error(`Error sending verification email: ${mailErr.message}`);
-  }
+  );
+} catch (mailErr) {
+  logger.error(
+    `Error queueing customer password reset email: ${mailErr.message}`
+  );
+}
 
   // 2. Dispatch Welcome Email
   try {

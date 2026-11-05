@@ -1,7 +1,7 @@
 // src/workers/emailWorker.js
 import { Worker } from "bullmq";
 import bullConnection from "../config/bullRedis.js";
-import sendEmail from "../utils/sendEmail.js";
+import { sendEmail } from "../services/emailService.js";
 import Message from "../models/messageModel.js";
 import AdminNotification from "../models/adminNotificationModel.js";
 import { broadcastSupportEvent } from "../services/supportEventService.js";
@@ -13,9 +13,28 @@ const emailWorker = new Worker(
 
     switch (job.name) {
       case "sendVerificationEmail":
-      case "sendPasswordResetEmail":
-        await sendEmail({ email: data.email, subject: data.subject, message: data.message });
-        break;
+case "sendPasswordResetEmail": {
+  const isPasswordReset =
+    job.name === "sendPasswordResetEmail";
+
+  const result = await sendEmail({
+    to: data.email,
+    subject: data.subject,
+    text: data.message,
+    html: data.html,
+    userId: data.userId,
+    type: isPasswordReset ? "password_reset" : "verification",
+    statusCategory: "security",
+  });
+
+  if (!result.success) {
+    throw new Error(
+      result.error || "Email delivery failed"
+    );
+  }
+
+  break;
+}
 
       case "sendOrderConfirmationEmail":
       case "sendOrderStatusEmail":
