@@ -243,6 +243,7 @@ export const updateMemberRole = asyncHandler(async (req, res, next) => {
   const oldRole = targetUser.adminRole;
   targetUser.adminRole = normalizedRole;
   targetUser.tokenVersion = (targetUser.tokenVersion || 0) + 1; // Invalidate affected user sessions immediately
+  targetUser.adminTokenVersion = (targetUser.adminTokenVersion || targetUser.tokenVersion || 0) + 1;
   await targetUser.save();
 
   await AuditLog.create({
@@ -288,6 +289,7 @@ export const updateMemberStatus = asyncHandler(async (req, res, next) => {
   targetUser.status = status;
   targetUser.isActive = status === 'active';
   targetUser.tokenVersion = (targetUser.tokenVersion || 0) + 1; // Invalidate sessions immediately
+  targetUser.adminTokenVersion = (targetUser.adminTokenVersion || targetUser.tokenVersion || 0) + 1;
   await targetUser.save();
 
   await AuditLog.create({
@@ -329,6 +331,7 @@ export const deleteMember = asyncHandler(async (req, res, next) => {
   }
 
   targetUser.tokenVersion = (targetUser.tokenVersion || 0) + 1;
+  targetUser.adminTokenVersion = (targetUser.adminTokenVersion || targetUser.tokenVersion || 0) + 1;
   await targetUser.save();
   await User.findByIdAndDelete(id);
 

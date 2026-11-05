@@ -24,13 +24,19 @@ export const protect = asyncHandler(async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     // Fetch user and attach to request object (excluding password)
-    req.user = await User.findById(decoded.id).select('-password -refreshToken +tokenVersion');
+    req.user = await User.findById(decoded.id).select('-password -refreshToken +tokenVersion +adminTokenVersion');
 
     if (!req.user) {
       return next(new ApiError(401, 'The user associated with this token no longer exists'));
     }
 
-    if ((decoded.tokenVersion ?? 0) !== (req.user.tokenVersion ?? 0)) {
+    const currentVersion = decoded.role === 'admin'
+      ? (req.user.adminTokenVersion !== undefined && req.user.adminTokenVersion !== null
+          ? req.user.adminTokenVersion
+          : (req.user.tokenVersion ?? 0))
+      : (req.user.tokenVersion ?? 0);
+
+    if ((decoded.tokenVersion ?? 0) !== currentVersion) {
       return next(new ApiError(401, 'Not authorized, invalid or expired token'));
     }
 
@@ -86,7 +92,7 @@ export const protectOptional = asyncHandler(async (req, res, next) => {
   if (!token) return next();
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select('-password -refreshToken +tokenVersion');
+    req.user = await User.findById(decoded.id).select('-password -refreshToken +tokenVersion +adminTokenVersion');
     req.tokenRole = decoded.role || req.user?.role;
   } catch {
     // Continue as guest

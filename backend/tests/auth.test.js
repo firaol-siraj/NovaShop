@@ -753,6 +753,109 @@ describe("Auth Controller Integration Tests", () => {
         expect(customerRefreshRes.status).toBe(200);
         expect(customerRefreshRes.body.accessToken).toBeDefined();
       });
+
+      it("should ensure admin login never sets or overwrites customer refreshToken in database", async () => {
+        const admin = await User.create({
+          name: "Fresh Admin User",
+          email: "fresh-admin@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+
+        const res = await request(app).post("/api/v1/auth/admin/login").send({
+          email: "fresh-admin@example.com",
+          password: "Password123!",
+        });
+        expect(res.status).toBe(200);
+
+        const freshDbAdmin = await User.findById(admin._id);
+        expect(freshDbAdmin.adminRefreshToken).toBeTruthy();
+        expect(freshDbAdmin.refreshToken).toBeNull();
+      });
+
+      it("should not invalidate active admin access token or refresh session when customer logs out", async () => {
+        await User.create({
+          name: "Dual Session User 1",
+          email: "dual-session1@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+
+        // Log in as admin
+        const adminLogin = await request(app).post("/api/v1/auth/admin/login").send({
+          email: "dual-session1@example.com",
+          password: "Password123!",
+        });
+        const adminAccessToken = adminLogin.body.accessToken;
+        const adminCookie = adminLogin.headers["set-cookie"].find((c) => c.startsWith("nova_admin_session="));
+
+        // Log in as customer
+        const customerLogin = await request(app).post("/api/v1/auth/login").send({
+          email: "dual-session1@example.com",
+          password: "Password123!",
+        });
+        const customerCookie = customerLogin.headers["set-cookie"].find((c) => c.startsWith("nova_customer_session="));
+
+        // Customer logs out
+        const logoutRes = await request(app)
+          .post("/api/v1/auth/logout")
+          .set("Cookie", [customerCookie.split(";")[0]]);
+        expect(logoutRes.status).toBe(200);
+
+        // Admin access token MUST STILL BE VALID on admin routes
+        const adminAccessRes = await request(app)
+          .get("/api/v1/users")
+          .set("Authorization", `Bearer ${adminAccessToken}`);
+        expect(adminAccessRes.status).toBe(200);
+
+        // Admin refresh session MUST STILL BE VALID
+        const adminRefreshRes = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [adminCookie.split(";")[0]]);
+        expect(adminRefreshRes.status).toBe(200);
+      });
+
+      it("should not invalidate active customer access token or refresh session when admin logs out", async () => {
+        await User.create({
+          name: "Dual Session User 2",
+          email: "dual-session2@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+
+        // Log in as customer
+        const customerLogin = await request(app).post("/api/v1/auth/login").send({
+          email: "dual-session2@example.com",
+          password: "Password123!",
+        });
+        const customerAccessToken = customerLogin.body.accessToken;
+        const customerCookie = customerLogin.headers["set-cookie"].find((c) => c.startsWith("nova_customer_session="));
+
+        // Log in as admin
+        const adminLogin = await request(app).post("/api/v1/auth/admin/login").send({
+          email: "dual-session2@example.com",
+          password: "Password123!",
+        });
+        const adminCookie = adminLogin.headers["set-cookie"].find((c) => c.startsWith("nova_admin_session="));
+
+        // Admin logs out
+        const adminLogoutRes = await request(app)
+          .post("/api/v1/auth/admin/logout")
+          .set("Cookie", [adminCookie.split(";")[0]]);
+        expect(adminLogoutRes.status).toBe(200);
+
+        // Customer access token MUST STILL BE VALID on customer routes
+        const customerAccessRes = await request(app)
+          .get("/api/v1/auth/me")
+          .set("Authorization", `Bearer ${customerAccessToken}`);
+        expect(customerAccessRes.status).toBe(200);
+
+        // Customer refresh session MUST STILL BE VALID
+        const customerRefreshRes = await request(app)
+          .post("/api/v1/auth/refresh-token")
+          .set("Cookie", [customerCookie.split(";")[0]]);
+        expect(customerRefreshRes.status).toBe(200);
+      });
     });
 
     describe("Cookie Security Attributes & CORS Protection", () => {

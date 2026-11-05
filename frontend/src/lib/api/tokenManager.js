@@ -7,11 +7,27 @@ let adminAccessToken = null;
 const CUSTOMER_PROFILE_KEY = 'nova_customer_profile';
 const ADMIN_PROFILE_KEY = 'nova_admin_profile';
 
+const LEGACY_STORAGE_KEYS = [
+  'nova_customer_session',
+  'nova_admin_session',
+  'token',
+  'adminToken',
+  'accessToken',
+  'adminAccessToken',
+  'refreshToken',
+  'user',
+  'userInfo',
+];
+
 // Purge any legacy session items that may contain persisted access tokens
 try {
-  if (typeof window !== 'undefined' && window.localStorage) {
-    localStorage.removeItem('nova_customer_session');
-    localStorage.removeItem('nova_admin_session');
+  if (typeof window !== 'undefined') {
+    if (window.localStorage) {
+      LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+    }
+    if (window.sessionStorage) {
+      LEGACY_STORAGE_KEYS.forEach((key) => sessionStorage.removeItem(key));
+    }
   }
 } catch {
   // Ignore storage access errors
@@ -56,7 +72,10 @@ export const clearCustomerToken = () => {
   customerAccessToken = null;
   try {
     localStorage.removeItem(CUSTOMER_PROFILE_KEY);
-    localStorage.removeItem('nova_customer_session');
+    LEGACY_STORAGE_KEYS.forEach((k) => {
+      localStorage.removeItem(k);
+      sessionStorage.removeItem(k);
+    });
   } catch {
     // Ignore
   }
@@ -82,7 +101,10 @@ export const clearAdminToken = () => {
   adminAccessToken = null;
   try {
     localStorage.removeItem(ADMIN_PROFILE_KEY);
-    localStorage.removeItem('nova_admin_session');
+    LEGACY_STORAGE_KEYS.forEach((k) => {
+      localStorage.removeItem(k);
+      sessionStorage.removeItem(k);
+    });
   } catch {
     // Ignore
   }

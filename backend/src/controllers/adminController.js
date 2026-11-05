@@ -1027,6 +1027,7 @@ export const getAdminCustomersList = asyncHandler(async (req, res) => {
       emailVerificationToken: 0,
       passwordResetToken: 0,
       tokenVersion: 0,
+      adminTokenVersion: 0,
       paidOrders: 0,
     },
   });
@@ -1109,7 +1110,7 @@ export const getAdminCustomerById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const customer = await User.findOne({ _id: id, role: 'customer' })
-    .select('-password -refreshToken -emailVerificationToken -passwordResetToken -tokenVersion')
+    .select('-password -refreshToken -emailVerificationToken -passwordResetToken -tokenVersion -adminTokenVersion')
     .lean();
 
   if (!customer) {

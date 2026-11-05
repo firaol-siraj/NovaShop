@@ -56,11 +56,15 @@ export const isRequestAdminScoped = (config) => {
 
   // 2. Normalize url path to eliminate differences between relative, root, and absolute URLs
   const rawUrl = config?.url || '';
-  const path = rawUrl
+  let path = rawUrl
     .replace(/^https?:\/\/[^/]+/, '')
-    .replace(/^\/api\/v1/, '')
-    .replace(/^\/api/, '')
+    .replace(/^\/?api\/v1/, '')
+    .replace(/^\/?api/, '')
     .split('?')[0];
+
+  if (!path.startsWith('/')) {
+    path = `/${path}`;
+  }
 
   // Explicit admin-only paths
   if (
@@ -117,12 +121,15 @@ const NON_REFRESH_ENDPOINTS = [
 ];
 
 const isAuthEndpoint = (url = '') => {
-  const clean = url
+  let clean = url
     .replace(/^https?:\/\/[^/]+/, '')
-    .replace(/^\/api\/v1/, '')
-    .replace(/^\/api/, '')
+    .replace(/^\/?api\/v1/, '')
+    .replace(/^\/?api/, '')
     .split('?')[0];
-  return NON_REFRESH_ENDPOINTS.some((ep) => clean.startsWith(ep) || clean.includes(ep));
+  if (!clean.startsWith('/')) {
+    clean = `/${clean}`;
+  }
+  return NON_REFRESH_ENDPOINTS.some((ep) => clean.startsWith(ep) || clean === ep);
 };
 
 apiClient.interceptors.request.use((config) => {
@@ -179,6 +186,7 @@ apiClient.interceptors.response.use(
       try {
         const newAdminToken = await adminRefreshPromise;
         originalRequest._retry = true;
+        originalRequest.role = 'admin';
         if (originalRequest.headers && typeof originalRequest.headers.set === 'function') {
           originalRequest.headers.set('Authorization', `Bearer ${newAdminToken}`);
         } else {
@@ -189,7 +197,9 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         clearAdminToken();
         dispatchAdminAuthExpired();
-        return Promise.reject(normalizeError(refreshError));
+        const preservedError = normalizeError(error);
+        preservedError.refreshError = normalizeError(refreshError);
+        return Promise.reject(preservedError);
       }
     }
 
@@ -212,6 +222,7 @@ apiClient.interceptors.response.use(
     try {
       const newCustomerToken = await customerRefreshPromise;
       originalRequest._retry = true;
+      originalRequest.role = 'customer';
       if (originalRequest.headers && typeof originalRequest.headers.set === 'function') {
         originalRequest.headers.set('Authorization', `Bearer ${newCustomerToken}`);
       } else {
@@ -222,7 +233,9 @@ apiClient.interceptors.response.use(
     } catch (refreshError) {
       clearCustomerToken();
       dispatchCustomerAuthExpired();
-      return Promise.reject(normalizeError(refreshError));
+      const preservedError = normalizeError(error);
+      preservedError.refreshError = normalizeError(refreshError);
+      return Promise.reject(preservedError);
     }
   }
 );

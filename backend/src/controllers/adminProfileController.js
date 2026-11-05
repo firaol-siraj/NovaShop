@@ -274,7 +274,7 @@ export const updateAdminPassword = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, 'New password must be at least 6 characters in length.'));
   }
 
-  const user = await User.findById(req.user._id).select('+password +tokenVersion');
+  const user = await User.findById(req.user._id).select('+password +tokenVersion +adminTokenVersion');
   if (!user) {
     return next(new ApiError(404, 'Admin user not found.'));
   }
@@ -288,13 +288,16 @@ export const updateAdminPassword = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, 'New password must be different from your current password.'));
   }
 
-  // Update password and increment tokenVersion to invalidate all existing sessions
+  // Update password and increment token versions to invalidate all existing sessions
   user.password = newPassword;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
+  user.adminRefreshToken = null;
+  user.refreshToken = null;
   await user.save();
 
   // Issue new access token for the active session
-  const newAccessToken = generateAccessToken(user._id, user.tokenVersion, 'admin');
+  const newAccessToken = generateAccessToken(user._id, user.adminTokenVersion, 'admin');
 
   // Record audit log
   await AuditLog.create({
@@ -449,18 +452,18 @@ export const getAdminSessions = asyncHandler(async (req, res) => {
  */
 export const revokeAdminSession = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const user = await User.findById(req.user._id).select('+tokenVersion');
+  const user = await User.findById(req.user._id).select('+tokenVersion +adminTokenVersion');
   if (!user) return next(new ApiError(404, 'Admin user not found.'));
 
   if (id === 'other') {
     if (Array.isArray(user.sessions) && user.sessions.length > 0) {
       user.sessions = user.sessions.slice(0, 1);
     }
-    user.tokenVersion = (user.tokenVersion || 0) + 1;
+    user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
     await user.save({ validateBeforeSave: false });
 
     // Issue refreshed token for current session
-    const newAccessToken = generateAccessToken(user._id, user.tokenVersion, 'admin');
+    const newAccessToken = generateAccessToken(user._id, user.adminTokenVersion, 'admin');
 
     await AuditLog.create({
       action: 'admin_sessions_revoked_others',

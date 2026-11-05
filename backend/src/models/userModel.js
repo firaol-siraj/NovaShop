@@ -165,6 +165,11 @@ const userSchema = new mongoose.Schema(
       default: 0,
       select: false,
     },
+    adminTokenVersion: {
+      type: Number,
+      default: 0,
+      select: false,
+    },
   },
   {
     timestamps: true, // Automatically manages createdAt and updatedAt}

@@ -117,7 +117,7 @@ const authenticateUser = async (req, res, next, adminOnly = false) => {
     return next(new ApiError(400, "Please provide email and password"));
   }
 
-  const user = await User.findOne({ email }).select("+password +tokenVersion");
+  const user = await User.findOne({ email }).select("+password +tokenVersion +adminTokenVersion");
 
   if (!user || !(await user.matchPassword(password))) {
     return next(new ApiError(401, "Invalid email or password"));
@@ -192,14 +192,16 @@ const authenticateUser = async (req, res, next, adminOnly = false) => {
   }
 
   const targetRole = adminOnly ? 'admin' : 'customer';
-  const accessToken = generateAccessToken(user._id, user.tokenVersion, targetRole);
+  const tokenVer = targetRole === 'admin'
+    ? (user.adminTokenVersion !== undefined && user.adminTokenVersion !== null
+        ? user.adminTokenVersion
+        : (user.tokenVersion ?? 0))
+    : (user.tokenVersion ?? 0);
+  const accessToken = generateAccessToken(user._id, tokenVer, targetRole);
   const refreshToken = generateRefreshToken(user._id, rememberMe === true ? '30d' : '7d', targetRole);
 
   if (targetRole === 'admin') {
     user.adminRefreshToken = refreshToken;
-    if (!user.refreshToken) {
-      user.refreshToken = refreshToken;
-    }
   } else {
     user.refreshToken = refreshToken;
   }
@@ -239,6 +241,7 @@ export const loginAdmin = asyncHandler((req, res, next) => authenticateUser(req,
 export const getMe = asyncHandler(async (req, res, next) => {
   const user = req.user.toObject();
   delete user.tokenVersion;
+  delete user.adminTokenVersion;
 
   if (user.role === 'admin') {
     user.adminRole = user.adminRole || 'owner';
@@ -282,6 +285,9 @@ export const acceptAdminInvite = asyncHandler(async (req, res, next) => {
     user.status = 'active';
     user.isActive = true;
     user.tokenVersion = (user.tokenVersion || 0) + 1;
+    user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
+    user.refreshToken = null;
+    user.adminRefreshToken = null;
     await user.save();
   } else {
     user = await User.create({
@@ -361,10 +367,11 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res, next) => {
       return next(new ApiError(401, "Invalid refresh token for admin session."));
     }
 
-    const user = await User.findById(decoded.id).select('+tokenVersion');
+    const user = await User.findById(decoded.id).select('+tokenVersion +adminTokenVersion');
     const isTokenValid = user && (
-      (user.adminRefreshToken && user.adminRefreshToken === refreshToken) ||
-      (user.refreshToken && user.refreshToken === refreshToken)
+      user.adminRefreshToken
+        ? user.adminRefreshToken === refreshToken
+        : user.refreshToken === refreshToken
     );
 
     if (!user || user.role !== 'admin' || !isTokenValid) {
@@ -375,7 +382,10 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res, next) => {
       return next(new ApiError(401, "Admin account is deactivated."));
     }
 
-    const newAccessToken = generateAccessToken(user._id, user.tokenVersion, 'admin');
+    const tokenVer = (user.adminTokenVersion !== undefined && user.adminTokenVersion !== null)
+      ? user.adminTokenVersion
+      : (user.tokenVersion ?? 0);
+    const newAccessToken = generateAccessToken(user._id, tokenVer, 'admin');
 
     res.status(200).json({
       success: true,
@@ -413,13 +423,15 @@ export const adminLogout = asyncHandler(async (req, res, next) => {
   if (refreshToken) {
     const user = await User.findOne({
       $or: [{ adminRefreshToken: refreshToken }, { refreshToken }],
-    }).select('+tokenVersion');
+    }).select('+adminTokenVersion +tokenVersion');
     if (user) {
       user.adminRefreshToken = null;
-      if (user.refreshToken === refreshToken) {
+      if (user.refreshToken === refreshToken && !user.adminRefreshToken) {
         user.refreshToken = null;
       }
-      user.tokenVersion = (user.tokenVersion || 0) + 1;
+      user.adminTokenVersion = (user.adminTokenVersion !== undefined && user.adminTokenVersion !== null
+        ? user.adminTokenVersion
+        : (user.tokenVersion || 0)) + 1;
       await user.save({ validateBeforeSave: false });
     }
   }
@@ -571,10 +583,11 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
   user.refreshToken = null;
   user.adminRefreshToken = null;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
   user.sessions = [];
   await user.save();
 
-  clearRefreshTokenCookie(res, 'customer');
+  clearRefreshTokenCookie(res, 'all');
 
   // Send security notification email
   try {
@@ -780,7 +793,7 @@ export const adminResetPassword = asyncHandler(async (req, res, next) => {
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: Date.now() },
     role: { $in: adminRoles },
-  }).select('+adminResetOtp +adminResetOtpExpires +tokenVersion');
+  }).select('+adminResetOtp +adminResetOtpExpires +tokenVersion +adminTokenVersion');
 
   if (!user) {
     return next(new ApiError(400, 'Admin reset link is invalid or has expired (15-minute limit).'));
@@ -807,14 +820,15 @@ export const adminResetPassword = asyncHandler(async (req, res, next) => {
   user.adminResetOtp = undefined;
   user.adminResetOtpExpires = undefined;
 
-  // Revoke admin sessions
+  // Revoke sessions
   user.refreshToken = null;
   user.adminRefreshToken = null;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
   await user.save();
 
-  // Clear admin session cookie
-  clearRefreshTokenCookie(res, 'admin');
+  // Clear session cookies
+  clearRefreshTokenCookie(res, 'all');
 
   // Log in AuditLog
   try {

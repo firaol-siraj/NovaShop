@@ -53,8 +53,14 @@ export const sendRefreshTokenCookie = (
 };
 
 export const clearRefreshTokenCookie = (res, role = 'customer') => {
-  const cookieName = role === 'admin' ? 'nova_admin_session' : 'nova_customer_session';
   const cookieOptions = getCookieOptions();
+  delete cookieOptions.maxAge;
   res.clearCookie('refreshToken', cookieOptions);
-  res.clearCookie(cookieName, cookieOptions);
+  if (role === 'all') {
+    res.clearCookie('nova_customer_session', cookieOptions);
+    res.clearCookie('nova_admin_session', cookieOptions);
+  } else {
+    const cookieName = role === 'admin' ? 'nova_admin_session' : 'nova_customer_session';
+    res.clearCookie(cookieName, cookieOptions);
+  }
 };

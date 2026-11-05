@@ -87,7 +87,7 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, 'New password must be different from your current password'));
   }
 
-  const user = await User.findById(req.user._id).select('+password +tokenVersion');
+  const user = await User.findById(req.user._id).select('+password +tokenVersion +adminTokenVersion');
   if (!user) {
     return next(new ApiError(404, 'User not found'));
   }
@@ -99,6 +99,9 @@ export const updatePassword = asyncHandler(async (req, res, next) => {
 
   user.password = newPassword;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
+  user.refreshToken = null;
+  user.adminRefreshToken = null;
   await user.save();
 
   // Send security email notice
@@ -293,10 +296,12 @@ export const deleteMyAccount = asyncHandler(async (req, res, next) => {
   user.isActive = false;
   user.deactivatedAt = new Date();
   user.refreshToken = null;
+  user.adminRefreshToken = null;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
+  user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
   await user.save({ validateBeforeSave: false });
 
-  clearRefreshTokenCookie(res, 'customer');
+  clearRefreshTokenCookie(res, 'all');
 
   // Send deactivation notification email
   await sendEmail({
