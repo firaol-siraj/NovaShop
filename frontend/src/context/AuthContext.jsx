@@ -80,7 +80,6 @@ export const AuthProvider = ({ children }) => {
     setCustomerToken(res.accessToken, res.data);
     setUser(res.data);
     setIsAuthenticated(true);
-    window.dispatchEvent(new Event('novashop:user-updated'));
     return res;
   };
 
@@ -98,7 +97,6 @@ export const AuthProvider = ({ children }) => {
     setCustomerToken(res.accessToken, res.data);
     setUser(res.data);
     setIsAuthenticated(true);
-    window.dispatchEvent(new Event('novashop:user-updated'));
     return res;
   };
 
