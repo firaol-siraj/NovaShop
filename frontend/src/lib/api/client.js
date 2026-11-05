@@ -22,37 +22,119 @@ const apiClient = axios.create({
 let customerRefreshPromise = null;
 let adminRefreshPromise = null;
 
+let adminExpiredEventTimeout = null;
+let customerExpiredEventTimeout = null;
+
+const dispatchAdminAuthExpired = () => {
+  if (typeof window === 'undefined') return;
+  if (!adminExpiredEventTimeout) {
+    window.dispatchEvent(new Event('novashop:admin-auth-expired'));
+    adminExpiredEventTimeout = setTimeout(() => {
+      adminExpiredEventTimeout = null;
+    }, 1500);
+  }
+};
+
+const dispatchCustomerAuthExpired = () => {
+  if (typeof window === 'undefined') return;
+  if (!customerExpiredEventTimeout) {
+    window.dispatchEvent(new Event('novashop:auth-expired'));
+    customerExpiredEventTimeout = setTimeout(() => {
+      customerExpiredEventTimeout = null;
+    }, 1500);
+  }
+};
+
 export const isRequestAdminScoped = (config) => {
+  // 1. Explicit request role takes absolute precedence
   if (config?.role === 'admin' || config?.headers?.['X-Auth-Role'] === 'admin') {
     return true;
   }
-  const url = config?.url || '';
+  if (config?.role === 'customer' || config?.headers?.['X-Auth-Role'] === 'customer') {
+    return false;
+  }
+
+  // 2. Normalize url path to eliminate differences between relative, root, and absolute URLs
+  const rawUrl = config?.url || '';
+  const path = rawUrl
+    .replace(/^https?:\/\/[^/]+/, '')
+    .replace(/^\/api\/v1/, '')
+    .replace(/^\/api/, '')
+    .split('?')[0];
+
+  // Explicit admin-only paths
   if (
-    url.includes('/admin') ||
-    url.endsWith('/status') ||
-    url.endsWith('/resend-confirmation') ||
-    url.endsWith('/deliver') ||
-    url === '/users'
+    path.startsWith('/admin') ||
+    path === '/users' ||
+    (path.startsWith('/users/') && !path.startsWith('/users/me')) ||
+    path.startsWith('/upload') ||
+    path.endsWith('/status') ||
+    path.endsWith('/resend-confirmation') ||
+    path.endsWith('/deliver')
   ) {
     return true;
   }
+
+  // Explicit customer-scoped paths that should never use admin credentials
+  if (
+    path.startsWith('/cart') ||
+    path.startsWith('/wishlist') ||
+    path.startsWith('/users/me') ||
+    path.startsWith('/orders/checkout') ||
+    path === '/orders/my-orders' ||
+    path === '/auth/login' ||
+    path === '/auth/register' ||
+    path === '/auth/refresh-token' ||
+    path === '/auth/logout'
+  ) {
+    return false;
+  }
+
+  // 3. Fallback to browser URL if initiated from an admin view
   if (
     typeof window !== 'undefined' &&
-    window.location.pathname.startsWith('/admin') &&
-    !url.includes('/cart') &&
-    !url.includes('/wishlist') &&
-    !url.includes('/users/me')
+    window.location.pathname.startsWith('/admin')
   ) {
     return true;
   }
+
   return false;
+};
+
+const NON_REFRESH_ENDPOINTS = [
+  '/auth/refresh-token',
+  '/auth/admin/refresh-token',
+  '/auth/login',
+  '/auth/admin/login',
+  '/auth/logout',
+  '/auth/admin/logout',
+  '/auth/register',
+  '/auth/forgot-password',
+  '/auth/admin/forgot-password',
+  '/auth/reset-password',
+  '/auth/admin/reset-password',
+  '/auth/admin/accept-invite',
+];
+
+const isAuthEndpoint = (url = '') => {
+  const clean = url
+    .replace(/^https?:\/\/[^/]+/, '')
+    .replace(/^\/api\/v1/, '')
+    .replace(/^\/api/, '')
+    .split('?')[0];
+  return NON_REFRESH_ENDPOINTS.some((ep) => clean.startsWith(ep) || clean.includes(ep));
 };
 
 apiClient.interceptors.request.use((config) => {
   const isAdmin = isRequestAdminScoped(config);
   const token = isAdmin ? getAdminToken() : getCustomerToken();
   if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+    if (config.headers && typeof config.headers.set === 'function') {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
+    }
   }
   return config;
 });
@@ -61,7 +143,7 @@ apiClient.interceptors.response.use(
   (response) => response.data,
   async (error) => {
     // If request was canceled/aborted, reject immediately without auth-refresh logic
-    if (axios.isCancel(error) || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+    if (axios.isCancel(error) || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
       return Promise.reject(normalizeError(error));
     }
 
@@ -71,12 +153,7 @@ apiClient.interceptors.response.use(
       !originalRequest ||
       error.response?.status !== 401 ||
       originalRequest._retry ||
-      originalRequest.url === '/auth/refresh-token' ||
-      originalRequest.url === '/auth/admin/refresh-token' ||
-      originalRequest.url === '/auth/logout' ||
-      originalRequest.url === '/auth/admin/logout' ||
-      originalRequest.url === '/auth/login' ||
-      originalRequest.url === '/auth/admin/login'
+      isAuthEndpoint(originalRequest.url)
     ) {
       return Promise.reject(normalizeError(error));
     }
@@ -102,11 +179,16 @@ apiClient.interceptors.response.use(
       try {
         const newAdminToken = await adminRefreshPromise;
         originalRequest._retry = true;
-        originalRequest.headers.Authorization = `Bearer ${newAdminToken}`;
+        if (originalRequest.headers && typeof originalRequest.headers.set === 'function') {
+          originalRequest.headers.set('Authorization', `Bearer ${newAdminToken}`);
+        } else {
+          originalRequest.headers = originalRequest.headers || {};
+          originalRequest.headers.Authorization = `Bearer ${newAdminToken}`;
+        }
         return apiClient(originalRequest);
       } catch (refreshError) {
         clearAdminToken();
-        window.dispatchEvent(new Event('novashop:admin-auth-expired'));
+        dispatchAdminAuthExpired();
         return Promise.reject(normalizeError(refreshError));
       }
     }
@@ -130,17 +212,26 @@ apiClient.interceptors.response.use(
     try {
       const newCustomerToken = await customerRefreshPromise;
       originalRequest._retry = true;
-      originalRequest.headers.Authorization = `Bearer ${newCustomerToken}`;
+      if (originalRequest.headers && typeof originalRequest.headers.set === 'function') {
+        originalRequest.headers.set('Authorization', `Bearer ${newCustomerToken}`);
+      } else {
+        originalRequest.headers = originalRequest.headers || {};
+        originalRequest.headers.Authorization = `Bearer ${newCustomerToken}`;
+      }
       return apiClient(originalRequest);
     } catch (refreshError) {
       clearCustomerToken();
-      window.dispatchEvent(new Event('novashop:auth-expired'));
+      dispatchCustomerAuthExpired();
       return Promise.reject(normalizeError(refreshError));
     }
   }
 );
 
 function normalizeError(error) {
+  if (error && error.code && error.status !== undefined && !error.isAxiosError && !error.response && !error.request) {
+    return error;
+  }
+
   // Gracefully preserve canceled/aborted request status
   if (axios.isCancel(error) || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
     return {
@@ -154,7 +245,7 @@ function normalizeError(error) {
 
   if (error.response) {
     return {
-      message: error.response.data?.message || 'An error occurred with the response',
+      message: error.response.data?.message || error.response.data?.error || 'An error occurred with the response',
       status: error.response.status,
       code: error.response.data?.code || 'UNKNOWN_ERROR',
       data: error.response.data,

@@ -13,36 +13,32 @@ export const useAdminAuth = () => {
   return context;
 };
 
-const ADMIN_SESSION_KEY = 'nova_admin_session';
-
-const readSavedAdminUser = () => {
-  try {
-    const raw = localStorage.getItem(ADMIN_SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.user || null;
-  } catch {
-    return null;
-  }
-};
-
 export const AdminAuthProvider = ({ children }) => {
-  const [adminUser, setAdminUser] = useState(() => readSavedAdminUser());
-  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(() => Boolean(readSavedAdminUser()));
+  // Always begin with unauthenticated state; never treat local cached info as proof of authentication
+  const [adminUser, setAdminUser] = useState(null);
+  const [isAdminAuthenticated, setIsAdminAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAdmin = useCallback(async () => {
     setIsLoading(true);
     try {
+      // 1. Attempt admin session restoration strictly using admin refresh cookie
       const refreshResult = await authApi.adminRefreshToken();
-      if (refreshResult?.accessToken) {
-        setAdminToken(refreshResult.accessToken);
+      if (!refreshResult?.accessToken) {
+        throw new Error('Admin refresh response did not contain an access token');
       }
+
+      // 2. Temporarily set in-memory token to allow getMe verification call
+      setAdminToken(refreshResult.accessToken);
+
+      // 3. Fetch authenticated admin profile from server
       const res = await authApi.getMe('admin');
+
+      // 4. Verify returned user and enforce admin role strictly
       if (res.success && res.data && res.data.role === 'admin') {
         setAdminUser(res.data);
         setIsAdminAuthenticated(true);
-        setAdminToken(refreshResult?.accessToken, res.data);
+        setAdminToken(refreshResult.accessToken, res.data);
       } else {
         clearAdminToken();
         setAdminUser(null);
@@ -60,7 +56,10 @@ export const AdminAuthProvider = ({ children }) => {
   useEffect(() => {
     void loadAdmin();
 
-    const handleUpdate = () => loadAdmin();
+    const handleUpdate = () => {
+      void loadAdmin();
+    };
+
     const handleExpired = () => {
       clearAdminToken();
       setAdminUser(null);
@@ -92,7 +91,6 @@ export const AdminAuthProvider = ({ children }) => {
     setAdminToken(res.accessToken, res.data);
     setAdminUser(res.data);
     setIsAdminAuthenticated(true);
-    window.dispatchEvent(new Event('novashop:admin-updated'));
     return res;
   };
 
@@ -106,12 +104,6 @@ export const AdminAuthProvider = ({ children }) => {
       setAdminUser(null);
       setIsAdminAuthenticated(false);
       setIsLoading(false);
-      try {
-        localStorage.removeItem(ADMIN_SESSION_KEY);
-      } catch {
-        // ignore
-      }
-      window.dispatchEvent(new Event('novashop:admin-auth-expired'));
     }
   };
 

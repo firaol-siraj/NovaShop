@@ -9,6 +9,7 @@ import {
   generateAccessToken,
   generateRefreshToken,
   sendRefreshTokenCookie,
+  clearRefreshTokenCookie,
 } from "../utils/generateToken.js";
 import { emailQueue } from "../queues/emailQueue.js"; // 1. Import emailQueue
 import crypto from "crypto";
@@ -44,30 +45,22 @@ export const registerUser = asyncHandler(async (req, res, next) => {
   const clientBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
   const verificationUrl = `${clientBase}/verify-email?token=${verificationToken}`;
 
+  const verificationEmail = getVerificationEmail({ user, verificationUrl });
+
   // 1. Dispatch Verification Email
   try {
-  await emailQueue.add(
-    'sendPasswordResetEmail',
-    {
+    await emailQueue.add('sendVerificationEmail', {
       email: user.email,
-      subject: resetEmail.subject,
-      message: resetEmail.text,
-      html: resetEmail.html,
+      subject: verificationEmail.subject,
+      message: verificationEmail.text,
+      html: verificationEmail.html,
       userId: user._id.toString(),
-    },
-    {
-      attempts: 3,
-      backoff: {
-        type: 'exponential',
-        delay: 5000,
-      },
-    }
-  );
-} catch (mailErr) {
-  logger.error(
-    `Error queueing customer password reset email: ${mailErr.message}`
-  );
-}
+    });
+  } catch (mailErr) {
+    logger.error(
+      `Error queueing customer verification email: ${mailErr.message}`
+    );
+  }
 
   // 2. Dispatch Welcome Email
   try {
@@ -202,7 +195,14 @@ const authenticateUser = async (req, res, next, adminOnly = false) => {
   const accessToken = generateAccessToken(user._id, user.tokenVersion, targetRole);
   const refreshToken = generateRefreshToken(user._id, rememberMe === true ? '30d' : '7d', targetRole);
 
-  user.refreshToken = refreshToken;
+  if (targetRole === 'admin') {
+    user.adminRefreshToken = refreshToken;
+    if (!user.refreshToken) {
+      user.refreshToken = refreshToken;
+    }
+  } else {
+    user.refreshToken = refreshToken;
+  }
   await user.save({ validateBeforeSave: false });
 
   const refreshCookieMaxAge = rememberMe === true
@@ -319,6 +319,10 @@ export const refreshAccessToken = asyncHandler(async (req, res, next) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
+    if (decoded.role && decoded.role !== 'customer') {
+      return next(new ApiError(401, "Invalid refresh token for customer session."));
+    }
+
     const user = await User.findById(decoded.id).select('+tokenVersion');
     if (!user || user.refreshToken !== refreshToken) {
       return next(new ApiError(401, "Invalid or revoked refresh token."));
@@ -353,9 +357,22 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res, next) => {
   try {
     const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
 
+    if (decoded.role && decoded.role !== 'admin') {
+      return next(new ApiError(401, "Invalid refresh token for admin session."));
+    }
+
     const user = await User.findById(decoded.id).select('+tokenVersion');
-    if (!user || user.role !== 'admin' || user.refreshToken !== refreshToken) {
+    const isTokenValid = user && (
+      (user.adminRefreshToken && user.adminRefreshToken === refreshToken) ||
+      (user.refreshToken && user.refreshToken === refreshToken)
+    );
+
+    if (!user || user.role !== 'admin' || !isTokenValid) {
       return next(new ApiError(401, "Invalid or revoked admin refresh token."));
+    }
+
+    if (user.status === 'deactivated' || user.isActive === false) {
+      return next(new ApiError(401, "Admin account is deactivated."));
     }
 
     const newAccessToken = generateAccessToken(user._id, user.tokenVersion, 'admin');
@@ -383,18 +400,7 @@ export const logout = asyncHandler(async (req, res, next) => {
     }
   }
 
-  res.clearCookie("refreshToken", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-  });
-  res.clearCookie("nova_customer_session", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-  });
+  clearRefreshTokenCookie(res, 'customer');
 
   res.status(200).json({ success: true, message: "Logged out successfully" });
 });
@@ -405,20 +411,20 @@ export const adminLogout = asyncHandler(async (req, res, next) => {
   const refreshToken = req.cookies.nova_admin_session;
 
   if (refreshToken) {
-    const user = await User.findOne({ refreshToken }).select('+tokenVersion');
+    const user = await User.findOne({
+      $or: [{ adminRefreshToken: refreshToken }, { refreshToken }],
+    }).select('+tokenVersion');
     if (user) {
-      user.refreshToken = null;
+      user.adminRefreshToken = null;
+      if (user.refreshToken === refreshToken) {
+        user.refreshToken = null;
+      }
       user.tokenVersion = (user.tokenVersion || 0) + 1;
       await user.save({ validateBeforeSave: false });
     }
   }
 
-  res.clearCookie("nova_admin_session", {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-    path: "/",
-  });
+  clearRefreshTokenCookie(res, 'admin');
 
   res.status(200).json({ success: true, message: "Admin logged out successfully" });
 });
@@ -563,9 +569,12 @@ export const resetPassword = asyncHandler(async (req, res, next) => {
 
   // Revoke all existing sessions and refresh tokens on password change
   user.refreshToken = null;
+  user.adminRefreshToken = null;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
   user.sessions = [];
   await user.save();
+
+  clearRefreshTokenCookie(res, 'customer');
 
   // Send security notification email
   try {
@@ -800,16 +809,12 @@ export const adminResetPassword = asyncHandler(async (req, res, next) => {
 
   // Revoke admin sessions
   user.refreshToken = null;
+  user.adminRefreshToken = null;
   user.tokenVersion = (user.tokenVersion || 0) + 1;
   await user.save();
 
   // Clear admin session cookie
-  res.clearCookie('nova_admin_session', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/',
-  });
+  clearRefreshTokenCookie(res, 'admin');
 
   // Log in AuditLog
   try {

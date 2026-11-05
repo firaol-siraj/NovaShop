@@ -54,13 +54,23 @@ app.use(morganMiddleware);
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
 // Configure CORS
-const allowedOrigins = [
-  "http://localhost:5173", // Vite local development server
-  "http://localhost:5174", // Vite local development server (alternative port)
-  "http://localhost:5175", // Vite local development server (alternative port)
-  "http://localhost:5000", // Swagger UI
-  process.env.CLIENT_URL, // Production frontend URL
-].filter(Boolean);
+const configuredOrigins = [
+  process.env.CLIENT_URL,
+  process.env.FRONTEND_URL,
+]
+  .filter(Boolean)
+  .flatMap((url) => url.split(',').map((u) => u.trim()))
+  .filter(Boolean);
+
+const allowedOrigins = Array.from(
+  new Set([
+    "http://localhost:5173", // Vite local development server
+    "http://localhost:5174", // Vite local development server (alternative port)
+    "http://localhost:5175", // Vite local development server (alternative port)
+    "http://localhost:5000", // Swagger UI
+    ...configuredOrigins,
+  ])
+);
 
 app.use(
   cors({

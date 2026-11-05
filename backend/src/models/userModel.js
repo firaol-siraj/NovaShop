@@ -156,6 +156,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null, // Initialize refreshToken as null for new users
     },
+    adminRefreshToken: {
+      type: String,
+      default: null, // Distinct administrator refresh token
+    },
     tokenVersion: {
       type: Number,
       default: 0,

@@ -2,7 +2,14 @@ import { authApi } from './api/authApi';
 import { productApi } from './api/productApi';
 import { orderApi } from './api/orderApi';
 import apiClient from './api/client';
-import { clearAccessToken, setAccessToken } from './api/tokenManager';
+import {
+  clearAccessToken,
+  setAccessToken,
+  setCustomerToken,
+  clearCustomerToken,
+  setAdminToken,
+  clearAdminToken,
+} from './api/tokenManager';
 import { normalizeCatalog } from './catalog';
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1';
@@ -22,7 +29,13 @@ export async function signIn(credentials, { admin = false, rememberMe = false } 
     const result = admin
       ? await authApi.adminLogin(dataToSubmit)
       : await authApi.login(dataToSubmit);
-    if (result.accessToken) setAccessToken(result.accessToken);
+    if (result.accessToken) {
+      if (admin) {
+        setAdminToken(result.accessToken, result.data);
+      } else {
+        setCustomerToken(result.accessToken, result.data);
+      }
+    }
     return result;
   } catch (error) {
     // Preserve expected backward compatibility error throw
@@ -33,7 +46,7 @@ export async function signIn(credentials, { admin = false, rememberMe = false } 
 export async function signUp(credentials) {
   try {
     const result = await authApi.register(credentials);
-    if (result.accessToken) setAccessToken(result.accessToken);
+    if (result.accessToken) setCustomerToken(result.accessToken, result.data);
     return result;
   } catch (error) {
     throw new Error('Request failed', { cause: error });
@@ -64,13 +77,21 @@ export async function resetPassword(token, password) {
   }
 }
 
-export async function signOut() {
+export async function signOut(role = 'customer') {
   try {
-    await authApi.logout();
+    if (role === 'admin') {
+      await authApi.adminLogout();
+    } else {
+      await authApi.logout();
+    }
   } catch {
     // The client token is cleared regardless of the server response.
   } finally {
-    clearAccessToken();
+    if (role === 'admin') {
+      clearAdminToken();
+    } else {
+      clearCustomerToken();
+    }
   }
 }
 
@@ -79,4 +100,4 @@ export function submitOrder(order) {
 }
 
 // Ensure backward compatibility export
-export { apiClient };
+export { apiClient, setAccessToken, clearAccessToken };

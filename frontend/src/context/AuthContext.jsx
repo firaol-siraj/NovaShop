@@ -7,36 +7,32 @@ const AuthContext = createContext();
 
 export const useAuth = () => useContext(AuthContext);
 
-const CUSTOMER_SESSION_KEY = 'nova_customer_session';
-
-const readSavedCustomerUser = () => {
-  try {
-    const raw = localStorage.getItem(CUSTOMER_SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.user || null;
-  } catch {
-    return null;
-  }
-};
-
 export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(() => readSavedCustomerUser());
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(readSavedCustomerUser()));
+  // Always begin with unauthenticated state; never treat local cached info as proof of authentication
+  const [user, setUser] = useState(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   const loadUser = useCallback(async () => {
     setIsLoading(true);
     try {
+      // 1. Attempt customer session restoration using customer refresh cookie
       const refreshResult = await authApi.refreshToken();
-      if (refreshResult?.accessToken) {
-        setCustomerToken(refreshResult.accessToken);
+      if (!refreshResult?.accessToken) {
+        throw new Error('Customer refresh response did not contain an access token');
       }
+
+      // 2. Temporarily set in-memory token to allow getMe verification call
+      setCustomerToken(refreshResult.accessToken);
+
+      // 3. Fetch authenticated user profile from server
       const res = await authApi.getMe('customer');
+
+      // 4. Verify returned user and enforce role separation (customer only)
       if (res.success && res.data && res.data.role !== 'admin') {
         setUser(res.data);
         setIsAuthenticated(true);
-        setCustomerToken(refreshResult?.accessToken, res.data);
+        setCustomerToken(refreshResult.accessToken, res.data);
       } else {
         clearCustomerToken();
         setUser(null);
@@ -54,7 +50,10 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     void loadUser();
 
-    const handleUpdate = () => loadUser();
+    const handleUpdate = () => {
+      void loadUser();
+    };
+
     const handleExpired = () => {
       clearCustomerToken();
       setUser(null);
@@ -74,7 +73,14 @@ export const AuthProvider = ({ children }) => {
     const res = await authApi.login(credentials);
 
     if (!res.success || !res.accessToken) {
-      throw new Error('Invalid response');
+      throw new Error('Invalid response from server');
+    }
+
+    // Role check: customer login portal cannot authenticate administrator sessions
+    if (res.data?.role === 'admin') {
+      clearCustomerToken();
+      await authApi.logout().catch(() => {});
+      throw new Error('Administrators must sign in through the administrative portal.');
     }
 
     setCustomerToken(res.accessToken, res.data);
@@ -85,13 +91,13 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (data) => {
     const res = await authApi.register({
-      name: `${data.firstName} ${data.lastName}`.trim(),
+      name: `${data.firstName || ''} ${data.lastName || ''}`.trim() || data.name,
       email: data.email,
       password: data.password,
     });
 
     if (!res.success || !res.accessToken) {
-      throw new Error('Invalid response');
+      throw new Error('Invalid response from server');
     }
 
     setCustomerToken(res.accessToken, res.data);
@@ -110,12 +116,6 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setIsAuthenticated(false);
       setIsLoading(false);
-      try {
-        localStorage.removeItem(CUSTOMER_SESSION_KEY);
-      } catch {
-        // ignore
-      }
-      window.dispatchEvent(new Event('novashop:auth-expired'));
     }
   };
 

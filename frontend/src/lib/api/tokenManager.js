@@ -1,32 +1,52 @@
-// Per-role in-memory token cache backed by separate storage keys
-const CUSTOMER_STORAGE_KEY = 'nova_customer_session';
-const ADMIN_STORAGE_KEY = 'nova_admin_session';
+// Strictly in-memory token cache for separate customer and administrator sessions.
+// Access tokens are NEVER stored in localStorage or sessionStorage.
 
-const readSavedToken = (key) => {
+let customerAccessToken = null;
+let adminAccessToken = null;
+
+const CUSTOMER_PROFILE_KEY = 'nova_customer_profile';
+const ADMIN_PROFILE_KEY = 'nova_admin_profile';
+
+// Purge any legacy session items that may contain persisted access tokens
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    localStorage.removeItem('nova_customer_session');
+    localStorage.removeItem('nova_admin_session');
+  }
+} catch {
+  // Ignore storage access errors
+}
+
+// Non-authoritative cached profiles (for UI hydration only, never proof of auth)
+export const getCachedCustomerProfile = () => {
   try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    return parsed?.accessToken || parsed?.token || null;
+    const raw = localStorage.getItem(CUSTOMER_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 };
 
-let customerAccessToken = readSavedToken(CUSTOMER_STORAGE_KEY);
-let adminAccessToken = readSavedToken(ADMIN_STORAGE_KEY);
+export const getCachedAdminProfile = () => {
+  try {
+    const raw = localStorage.getItem(ADMIN_PROFILE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
 
-// Customer token methods
+// Customer token methods (In-memory only)
 export const setCustomerToken = (token, user = null) => {
   customerAccessToken = token || null;
   try {
-    if (token) {
-      localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify({ token, user }));
-    } else {
-      localStorage.removeItem(CUSTOMER_STORAGE_KEY);
+    if (user) {
+      localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(user));
+    } else if (!token) {
+      localStorage.removeItem(CUSTOMER_PROFILE_KEY);
     }
   } catch {
-    // ignore storage errors
+    // Ignore storage quota / access errors
   }
 };
 
@@ -35,23 +55,24 @@ export const getCustomerToken = () => customerAccessToken;
 export const clearCustomerToken = () => {
   customerAccessToken = null;
   try {
-    localStorage.removeItem(CUSTOMER_STORAGE_KEY);
+    localStorage.removeItem(CUSTOMER_PROFILE_KEY);
+    localStorage.removeItem('nova_customer_session');
   } catch {
-    // ignore
+    // Ignore
   }
 };
 
-// Admin token methods
+// Admin token methods (In-memory only)
 export const setAdminToken = (token, user = null) => {
   adminAccessToken = token || null;
   try {
-    if (token) {
-      localStorage.setItem(ADMIN_STORAGE_KEY, JSON.stringify({ token, user }));
-    } else {
-      localStorage.removeItem(ADMIN_STORAGE_KEY);
+    if (user) {
+      localStorage.setItem(ADMIN_PROFILE_KEY, JSON.stringify(user));
+    } else if (!token) {
+      localStorage.removeItem(ADMIN_PROFILE_KEY);
     }
   } catch {
-    // ignore
+    // Ignore storage quota / access errors
   }
 };
 
@@ -60,15 +81,20 @@ export const getAdminToken = () => adminAccessToken;
 export const clearAdminToken = () => {
   adminAccessToken = null;
   try {
-    localStorage.removeItem(ADMIN_STORAGE_KEY);
+    localStorage.removeItem(ADMIN_PROFILE_KEY);
+    localStorage.removeItem('nova_admin_session');
   } catch {
-    // ignore
+    // Ignore
   }
 };
 
-// Legacy / Context-aware fallback accessors
-export const setAccessToken = (token) => {
-  setCustomerToken(token);
+// Role-aware fallback accessors
+export const setAccessToken = (token, role = 'customer') => {
+  if (role === 'admin') {
+    setAdminToken(token);
+  } else {
+    setCustomerToken(token);
+  }
 };
 
 export const getAccessToken = (role = 'customer') => {
@@ -76,6 +102,10 @@ export const getAccessToken = (role = 'customer') => {
   return customerAccessToken;
 };
 
-export const clearAccessToken = () => {
-  clearCustomerToken();
+export const clearAccessToken = (role = 'customer') => {
+  if (role === 'admin') {
+    clearAdminToken();
+  } else {
+    clearCustomerToken();
+  }
 };

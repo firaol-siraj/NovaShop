@@ -15,6 +15,31 @@ export const generateRefreshToken = (userId, expiresIn = '7d', role = 'customer'
   });
 };
 
+// Helper to compute unified, production-ready cookie security attributes
+export const getCookieOptions = (maxAge = null) => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const rawSameSite = (process.env.COOKIE_SAME_SITE || 'strict').toLowerCase();
+  const sameSite = ['strict', 'lax', 'none'].includes(rawSameSite) ? rawSameSite : 'strict';
+  const secure = isProd || sameSite === 'none';
+
+  const options = {
+    httpOnly: true,
+    secure,
+    sameSite,
+    path: '/',
+  };
+
+  if (process.env.COOKIE_DOMAIN) {
+    options.domain = process.env.COOKIE_DOMAIN;
+  }
+
+  if (maxAge !== null && maxAge !== undefined) {
+    options.maxAge = maxAge;
+  }
+
+  return options;
+};
+
 // Helper function to send the refresh token securely via an HTTP-Only cookie with role-specific cookie name
 export const sendRefreshTokenCookie = (
   res,
@@ -23,26 +48,13 @@ export const sendRefreshTokenCookie = (
   role = 'customer'
 ) => {
   const cookieName = role === 'admin' ? 'nova_admin_session' : 'nova_customer_session';
-  const options = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/',
-  };
-  if (maxAge) {
-    options.maxAge = maxAge;
-  }
+  const options = getCookieOptions(maxAge);
   res.cookie(cookieName, refreshToken, options);
 };
 
 export const clearRefreshTokenCookie = (res, role = 'customer') => {
   const cookieName = role === 'admin' ? 'nova_admin_session' : 'nova_customer_session';
-  const cookieOptions = {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
-    path: '/',
-  };
+  const cookieOptions = getCookieOptions();
   res.clearCookie('refreshToken', cookieOptions);
   res.clearCookie(cookieName, cookieOptions);
 };

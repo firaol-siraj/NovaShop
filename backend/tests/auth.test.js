@@ -490,4 +490,375 @@ describe("Auth Controller Integration Tests", () => {
       );
     });
   });
+
+  /* ==========================================================================
+     9. Advanced Role Isolation, Refresh, Logout & Production Cookie Tests
+     ========================================================================== */
+  describe("Role-Separated Session, Refresh, and Production Cookie Integration Tests", () => {
+    describe("POST /api/v1/auth/admin/refresh-token", () => {
+      it("should generate a new admin access token when given a valid admin refresh cookie", async () => {
+        const admin = await User.create({
+          name: "Admin Refresh User",
+          email: "admin-refresh@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        const refreshToken = jwt.sign(
+          { id: admin._id, role: "admin" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        admin.adminRefreshToken = refreshToken;
+        await admin.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [`nova_admin_session=${refreshToken}`]);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.accessToken).toBeDefined();
+
+        const decoded = jwt.verify(res.body.accessToken, process.env.JWT_SECRET || "testsecret");
+        expect(decoded.role).toBe("admin");
+      });
+
+      it("should return 401 if admin refresh cookie is missing", async () => {
+        const res = await request(app).post("/api/v1/auth/admin/refresh-token");
+
+        expect(res.status).toBe(401);
+        expect(res.body.message).toContain("Admin refresh token missing");
+      });
+
+      it("should reject a customer attempting to use admin refresh endpoint", async () => {
+        const customer = await User.create({
+          name: "Customer Impersonator",
+          email: "cust-impersonator@example.com",
+          password: "Password123!",
+          role: "customer",
+        });
+        const refreshToken = jwt.sign(
+          { id: customer._id, role: "customer" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        customer.refreshToken = refreshToken;
+        await customer.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [`nova_admin_session=${refreshToken}`]);
+
+        expect(res.status).toBe(401);
+      });
+
+      it("should return 401 if admin refresh token is corrupted or invalid", async () => {
+        const res = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", ["nova_admin_session=invalidtoken123"]);
+
+        expect(res.status).toBe(401);
+      });
+
+      it("should reject admin refresh if admin account is deactivated", async () => {
+        const admin = await User.create({
+          name: "Deactivated Admin",
+          email: "deactivated-admin@example.com",
+          password: "Password123!",
+          role: "admin",
+          status: "deactivated",
+          isActive: false,
+        });
+        const refreshToken = jwt.sign(
+          { id: admin._id, role: "admin" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        admin.adminRefreshToken = refreshToken;
+        await admin.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [`nova_admin_session=${refreshToken}`]);
+
+        expect(res.status).toBe(401);
+      });
+    });
+
+    describe("POST /api/v1/auth/refresh-token (Customer)", () => {
+      it("should return 401 for an expired customer refresh token", async () => {
+        const customer = await User.create({
+          name: "Expired Customer",
+          email: "expired-cust@example.com",
+          password: "Password123!",
+        });
+        const expiredToken = jwt.sign(
+          { id: customer._id, role: "customer" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: -10 }
+        );
+
+        const res = await request(app)
+          .post("/api/v1/auth/refresh-token")
+          .set("Cookie", [`nova_customer_session=${expiredToken}`]);
+
+        expect(res.status).toBe(401);
+        expect(res.body.message).toBe("Expired or corrupted refresh token.");
+      });
+
+      it("should return 401 for a revoked refresh token not matching DB", async () => {
+        const customer = await User.create({
+          name: "Revoked Customer",
+          email: "revoked-cust@example.com",
+          password: "Password123!",
+        });
+        const validToken = jwt.sign(
+          { id: customer._id, role: "customer" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        customer.refreshToken = "different_token_in_db";
+        await customer.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/refresh-token")
+          .set("Cookie", [`nova_customer_session=${validToken}`]);
+
+        expect(res.status).toBe(401);
+        expect(res.body.message).toBe("Invalid or revoked refresh token.");
+      });
+
+      it("should reject customer refresh if account is deactivated", async () => {
+        const customer = await User.create({
+          name: "Deactivated Customer",
+          email: "deactivated-cust@example.com",
+          password: "Password123!",
+          status: "deactivated",
+          isActive: false,
+        });
+        const refreshToken = jwt.sign(
+          { id: customer._id, role: "customer" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        customer.refreshToken = refreshToken;
+        await customer.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/refresh-token")
+          .set("Cookie", [`nova_customer_session=${refreshToken}`]);
+
+        expect(res.status).toBe(401);
+        expect(res.body.message).toBe("Account is deactivated.");
+      });
+
+      it("should reject customer refresh if token role is admin", async () => {
+        const admin = await User.create({
+          name: "Admin User X",
+          email: "admin-x@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        const adminRefreshToken = jwt.sign(
+          { id: admin._id, role: "admin" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        admin.adminRefreshToken = adminRefreshToken;
+        await admin.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/refresh-token")
+          .set("Cookie", [`nova_customer_session=${adminRefreshToken}`]);
+
+        expect(res.status).toBe(401);
+      });
+    });
+
+    describe("POST /api/v1/auth/admin/logout", () => {
+      it("should clear stored adminRefreshToken in DB and clear admin session cookie", async () => {
+        const admin = await User.create({
+          name: "Admin Logout User",
+          email: "admin-logout@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        const adminToken = jwt.sign(
+          { id: admin._id, role: "admin" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        admin.adminRefreshToken = adminToken;
+        await admin.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/admin/logout")
+          .set("Cookie", [`nova_admin_session=${adminToken}`]);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.message).toBe("Admin logged out successfully");
+
+        const updatedAdmin = await User.findById(admin._id);
+        expect(updatedAdmin.adminRefreshToken).toBeNull();
+
+        // Ensure refresh after admin logout is rejected
+        const refreshRes = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [`nova_admin_session=${adminToken}`]);
+        expect(refreshRes.status).toBe(401);
+      });
+    });
+
+    describe("Simultaneous Customer & Admin Sessions on Single Account", () => {
+      it("should preserve admin refresh session when the admin logs in as customer", async () => {
+        const user = await User.create({
+          name: "Dual Role User",
+          email: "dual@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+
+        // 1. Log in as admin
+        const adminLoginRes = await request(app).post("/api/v1/auth/admin/login").send({
+          email: "dual@example.com",
+          password: "Password123!",
+        });
+        expect(adminLoginRes.status).toBe(200);
+        const adminCookies = adminLoginRes.headers["set-cookie"];
+        const adminCookie = adminCookies.find((c) => c.startsWith("nova_admin_session="));
+        expect(adminCookie).toBeDefined();
+
+        // 2. Log in as customer
+        const customerLoginRes = await request(app).post("/api/v1/auth/login").send({
+          email: "dual@example.com",
+          password: "Password123!",
+        });
+        expect(customerLoginRes.status).toBe(200);
+        const customerCookies = customerLoginRes.headers["set-cookie"];
+        const customerCookie = customerCookies.find((c) => c.startsWith("nova_customer_session="));
+        expect(customerCookie).toBeDefined();
+
+        // 3. Verify admin refresh still succeeds using the admin cookie
+        const adminRefreshRes = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [adminCookie.split(";")[0]]);
+        expect(adminRefreshRes.status).toBe(200);
+        expect(adminRefreshRes.body.accessToken).toBeDefined();
+
+        // 4. Verify customer refresh still succeeds using customer cookie
+        const customerRefreshRes = await request(app)
+          .post("/api/v1/auth/refresh-token")
+          .set("Cookie", [customerCookie.split(";")[0]]);
+        expect(customerRefreshRes.status).toBe(200);
+        expect(customerRefreshRes.body.accessToken).toBeDefined();
+      });
+    });
+
+    describe("Cookie Security Attributes & CORS Protection", () => {
+      it("should set HttpOnly, SameSite=Strict, and Path=/ on authentication cookies", async () => {
+        await User.create({
+          name: "Cookie Check User",
+          email: "cookie-check@example.com",
+          password: "Password123!",
+        });
+
+        const res = await request(app).post("/api/v1/auth/login").send({
+          email: "cookie-check@example.com",
+          password: "Password123!",
+        });
+
+        expect(res.status).toBe(200);
+        const setCookieHeaders = res.headers["set-cookie"];
+        expect(setCookieHeaders).toBeDefined();
+
+        const cookieString = setCookieHeaders.join("; ");
+        expect(cookieString.toLowerCase()).toContain("httponly");
+        expect(cookieString.toLowerCase()).toContain("samesite=strict");
+        expect(cookieString.toLowerCase()).toContain("path=/");
+      });
+
+      it("should enable credentials and reflect allowed origin for CORS", async () => {
+        const res = await request(app)
+          .get("/api/v1/products")
+          .set("Origin", "http://localhost:5173");
+
+        expect(res.headers["access-control-allow-origin"]).toBe("http://localhost:5173");
+        expect(res.headers["access-control-allow-credentials"]).toBe("true");
+      });
+
+      it("should block requests with untrusted origins via CORS", async () => {
+        const res = await request(app)
+          .get("/api/v1/products")
+          .set("Origin", "http://malicious-site.com");
+
+        expect(res.headers["access-control-allow-origin"]).toBeUndefined();
+      });
+    });
+
+    describe("Role-Based Access Control (RBAC) Enforcement", () => {
+      it("should deny customer access token to admin routes (403)", async () => {
+        const customer = await User.create({
+          name: "Store Customer",
+          email: "store-customer@example.com",
+          password: "Password123!",
+          role: "customer",
+        });
+        const customerToken = jwt.sign(
+          { id: customer._id, tokenVersion: customer.tokenVersion, role: "customer" },
+          process.env.JWT_SECRET || "testsecret",
+          { expiresIn: "15m" }
+        );
+
+        const res = await request(app)
+          .get("/api/v1/users")
+          .set("Authorization", `Bearer ${customerToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.message).toContain("Administrator access is required");
+      });
+
+      it("should deny admin access token to customer-only storefront routes (403)", async () => {
+        const admin = await User.create({
+          name: "Store Admin",
+          email: "store-admin@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        const adminToken = jwt.sign(
+          { id: admin._id, tokenVersion: admin.tokenVersion, role: "admin" },
+          process.env.JWT_SECRET || "testsecret",
+          { expiresIn: "15m" }
+        );
+
+        const res = await request(app)
+          .get("/api/v1/users/me")
+          .set("Authorization", `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(403);
+        expect(res.body.message).toContain("Admin tokens cannot be used on customer storefront endpoints");
+      });
+
+      it("should allow valid admin access token to admin routes", async () => {
+        const admin = await User.create({
+          name: "Verified Admin",
+          email: "verified-admin@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        const adminToken = jwt.sign(
+          { id: admin._id, tokenVersion: admin.tokenVersion, role: "admin" },
+          process.env.JWT_SECRET || "testsecret",
+          { expiresIn: "15m" }
+        );
+
+        const res = await request(app)
+          .get("/api/v1/users")
+          .set("Authorization", `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+      });
+    });
+  });
 });
