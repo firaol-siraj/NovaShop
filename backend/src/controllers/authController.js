@@ -458,27 +458,18 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
     const resetUrl = `${clientBase}/reset-password?token=${encodeURIComponent(resetToken)}`;
     const resetEmail = getPasswordResetEmail({ user, resetUrl });
 
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: resetEmail.subject,
-        html: resetEmail.html,
-        text: resetEmail.text,
-        userId: user._id,
-        type: 'password_reset',
-        statusCategory: 'security',
-      });
-      const qPromise = emailQueue.add('sendPasswordResetEmail', {
+        try {
+      await emailQueue.add('sendPasswordResetEmail', {
         email: user.email,
         subject: resetEmail.subject,
         message: resetEmail.text,
         html: resetEmail.html,
+        userId: user._id.toString(),
       });
-      if (qPromise && typeof qPromise.catch === 'function') {
-        await qPromise.catch(() => {});
-      }
-    } catch (mailErr) {
-      logger.error(`Error sending customer password reset email: ${mailErr.message}`);
+    } catch (queueErr) {
+      logger.error(
+        `Error queueing customer password reset email: ${queueErr.message}`
+      );
     }
   }
 
