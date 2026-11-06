@@ -47,10 +47,14 @@ const dispatchCustomerAuthExpired = () => {
 
 export const isRequestAdminScoped = (config) => {
   // 1. Explicit request role takes absolute precedence
-  if (config?.role === 'admin' || config?.headers?.['X-Auth-Role'] === 'admin') {
+  const headerRole = typeof config?.headers?.get === 'function'
+    ? config.headers.get('X-Auth-Role')
+    : (config?.headers?.['X-Auth-Role'] || config?.headers?.['x-auth-role']);
+
+  if (config?.role === 'admin' || headerRole === 'admin') {
     return true;
   }
-  if (config?.role === 'customer' || config?.headers?.['X-Auth-Role'] === 'customer') {
+  if (config?.role === 'customer' || headerRole === 'customer') {
     return false;
   }
 

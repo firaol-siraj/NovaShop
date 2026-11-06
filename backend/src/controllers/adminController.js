@@ -1024,6 +1024,7 @@ export const getAdminCustomersList = asyncHandler(async (req, res) => {
     $project: {
       password: 0,
       refreshToken: 0,
+      adminRefreshToken: 0,
       emailVerificationToken: 0,
       passwordResetToken: 0,
       tokenVersion: 0,
@@ -1110,7 +1111,7 @@ export const getAdminCustomerById = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
   const customer = await User.findOne({ _id: id, role: 'customer' })
-    .select('-password -refreshToken -emailVerificationToken -passwordResetToken -tokenVersion -adminTokenVersion')
+    .select('-password -refreshToken -adminRefreshToken -emailVerificationToken -passwordResetToken -tokenVersion -adminTokenVersion')
     .lean();
 
   if (!customer) {
@@ -1169,7 +1170,7 @@ export const updateCustomerStatus = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { status, reason = '' } = req.body;
 
-  const customer = await User.findOne({ _id: id, role: 'customer' });
+  const customer = await User.findOne({ _id: id, role: 'customer' }).select('+tokenVersion +adminTokenVersion');
   if (!customer) {
     return next(new ApiError(404, 'Customer not found'));
   }
@@ -1181,9 +1182,11 @@ export const updateCustomerStatus = asyncHandler(async (req, res, next) => {
   customer.deactivatedAt = isSuspending ? new Date() : null;
 
   if (isSuspending) {
-    // Revoke all active customer JWT tokens immediately
+    // Revoke all active customer and admin JWT tokens and sessions immediately
     customer.tokenVersion = (customer.tokenVersion || 0) + 1;
+    customer.adminTokenVersion = (customer.adminTokenVersion || customer.tokenVersion || 0) + 1;
     customer.refreshToken = null;
+    customer.adminRefreshToken = null;
   }
 
   await customer.save();
@@ -1254,7 +1257,7 @@ export const updateCustomerStatus = asyncHandler(async (req, res, next) => {
 export const resendCustomerVerificationEmail = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
 
-  const customer = await User.findOne({ _id: id, role: 'customer' });
+  const customer = await User.findOne({ _id: id, role: 'customer' }).select('+tokenVersion +adminTokenVersion');
   if (!customer) {
     return next(new ApiError(404, 'Customer not found'));
   }
@@ -1426,6 +1429,7 @@ export const createAdminCustomer = asyncHandler(async (req, res, next) => {
   delete userSafe.passwordResetToken;
   delete userSafe.passwordResetExpires;
   delete userSafe.refreshToken;
+  delete userSafe.adminRefreshToken;
 
   res.status(201).json({
     success: true,
@@ -1456,7 +1460,7 @@ export const updateAdminCustomer = asyncHandler(async (req, res, next) => {
     status,
   } = req.body;
 
-  const customer = await User.findOne({ _id: id, role: 'customer' });
+  const customer = await User.findOne({ _id: id, role: 'customer' }).select('+tokenVersion +adminTokenVersion');
   if (!customer) {
     return next(new ApiError(404, 'Customer not found'));
   }
@@ -1490,7 +1494,9 @@ export const updateAdminCustomer = asyncHandler(async (req, res, next) => {
     if (status === 'deactivated' || status === 'blocked') {
       customer.isActive = false;
       customer.tokenVersion = (customer.tokenVersion || 0) + 1;
+      customer.adminTokenVersion = (customer.adminTokenVersion || customer.tokenVersion || 0) + 1;
       customer.refreshToken = null;
+      customer.adminRefreshToken = null;
     } else if (status === 'active') {
       customer.isActive = true;
     }
@@ -1553,6 +1559,7 @@ export const updateAdminCustomer = asyncHandler(async (req, res, next) => {
   delete customerSafe.inviteToken;
   delete customerSafe.inviteExpires;
   delete customerSafe.refreshToken;
+  delete customerSafe.adminRefreshToken;
 
   res.status(200).json({
     success: true,
@@ -1570,7 +1577,7 @@ export const updateAdminCustomer = asyncHandler(async (req, res, next) => {
  */
 export const resendCustomerInvite = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const customer = await User.findOne({ _id: id, role: 'customer' });
+  const customer = await User.findOne({ _id: id, role: 'customer' }).select('+tokenVersion +adminTokenVersion');
   if (!customer) {
     return next(new ApiError(404, 'Customer account not found'));
   }
@@ -1666,7 +1673,7 @@ export const sendCustomerAdminEmail = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
   const { subject, message, template, orderId, idempotencyKey: bodyKey } = req.body;
 
-  const customer = await User.findOne({ _id: id, role: 'customer' });
+  const customer = await User.findOne({ _id: id, role: 'customer' }).select('+tokenVersion +adminTokenVersion');
   if (!customer) {
     return next(new ApiError(404, 'Customer not found'));
   }
@@ -1889,7 +1896,7 @@ export const retryCustomerAdminEmail = asyncHandler(async (req, res, next) => {
  */
 export const deleteAdminCustomer = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const user = await User.findById(id);
+  const user = await User.findById(id).select('+tokenVersion +adminTokenVersion');
 
   if (!user) {
     return next(new ApiError(404, 'Customer not found'));
@@ -1935,7 +1942,9 @@ export const deleteAdminCustomer = asyncHandler(async (req, res, next) => {
     user.isActive = false;
     user.marketingConsent = false;
     user.tokenVersion = (user.tokenVersion || 0) + 1;
+    user.adminTokenVersion = (user.adminTokenVersion || user.tokenVersion || 0) + 1;
     user.refreshToken = null;
+    user.adminRefreshToken = null;
     user.internalNotes = `Customer personal data scrubbed and account deactivated on ${new Date().toISOString()} by ${req.user.email}`;
     await user.save({ validateBeforeSave: false });
 

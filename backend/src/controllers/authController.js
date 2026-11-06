@@ -242,6 +242,8 @@ export const getMe = asyncHandler(async (req, res, next) => {
   const user = req.user.toObject();
   delete user.tokenVersion;
   delete user.adminTokenVersion;
+  delete user.refreshToken;
+  delete user.adminRefreshToken;
 
   if (user.role === 'admin') {
     user.adminRole = user.adminRole || 'owner';
@@ -368,11 +370,7 @@ export const refreshAdminAccessToken = asyncHandler(async (req, res, next) => {
     }
 
     const user = await User.findById(decoded.id).select('+tokenVersion +adminTokenVersion');
-    const isTokenValid = user && (
-      user.adminRefreshToken
-        ? user.adminRefreshToken === refreshToken
-        : user.refreshToken === refreshToken
-    );
+    const isTokenValid = Boolean(user && user.adminRefreshToken && user.adminRefreshToken === refreshToken);
 
     if (!user || user.role !== 'admin' || !isTokenValid) {
       return next(new ApiError(401, "Invalid or revoked admin refresh token."));
@@ -421,17 +419,12 @@ export const adminLogout = asyncHandler(async (req, res, next) => {
   const refreshToken = req.cookies.nova_admin_session;
 
   if (refreshToken) {
-    const user = await User.findOne({
-      $or: [{ adminRefreshToken: refreshToken }, { refreshToken }],
-    }).select('+adminTokenVersion +tokenVersion');
+    const user = await User.findOne({ adminRefreshToken: refreshToken }).select('+adminTokenVersion');
     if (user) {
       user.adminRefreshToken = null;
-      if (user.refreshToken === refreshToken && !user.adminRefreshToken) {
-        user.refreshToken = null;
-      }
       user.adminTokenVersion = (user.adminTokenVersion !== undefined && user.adminTokenVersion !== null
         ? user.adminTokenVersion
-        : (user.tokenVersion || 0)) + 1;
+        : 0) + 1;
       await user.save({ validateBeforeSave: false });
     }
   }

@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import app from "../src/app.js";
 import User from "../src/models/userModel.js";
 import { emailQueue } from "../src/queues/emailQueue.js";
+import { protectOptional } from "../src/middlewares/authMiddleware.js";
 
 const generateAccessToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || "testsecret", {
@@ -961,6 +962,154 @@ describe("Auth Controller Integration Tests", () => {
 
         expect(res.status).toBe(200);
         expect(res.body.success).toBe(true);
+      });
+    });
+
+    describe("Security Reconciliation Regression Tests", () => {
+      it("should never expose refreshToken or adminRefreshToken in GET /api/v1/auth/me response for admin", async () => {
+        const admin = await User.create({
+          name: "Security Audit Admin",
+          email: "audit-admin@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+
+        const loginRes = await request(app).post("/api/v1/auth/admin/login").send({
+          email: "audit-admin@example.com",
+          password: "Password123!",
+        });
+        expect(loginRes.status).toBe(200);
+        const adminToken = loginRes.body.accessToken;
+
+        const meRes = await request(app)
+          .get("/api/v1/auth/me")
+          .set("Authorization", `Bearer ${adminToken}`);
+
+        expect(meRes.status).toBe(200);
+        expect(meRes.body.data.refreshToken).toBeUndefined();
+        expect(meRes.body.data.adminRefreshToken).toBeUndefined();
+        expect(meRes.body.data.tokenVersion).toBeUndefined();
+        expect(meRes.body.data.adminTokenVersion).toBeUndefined();
+      });
+
+      it("should strictly reject admin refresh if user only has a customer refresh token in DB", async () => {
+        const admin = await User.create({
+          name: "Admin No AdminRT",
+          email: "admin-no-rt@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        // Set only customer refreshToken, leave adminRefreshToken null
+        const customerRt = jwt.sign(
+          { id: admin._id, role: "admin" },
+          process.env.JWT_REFRESH_SECRET || "testrefreshsecret",
+          { expiresIn: "7d" }
+        );
+        admin.refreshToken = customerRt;
+        admin.adminRefreshToken = null;
+        await admin.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .post("/api/v1/auth/admin/refresh-token")
+          .set("Cookie", [`nova_admin_session=${customerRt}`]);
+
+        // Must reject because adminRefreshToken is null and no fallback to refreshToken is permitted
+        expect(res.status).toBe(401);
+        expect(res.body.message).toContain("Invalid or revoked admin refresh token");
+      });
+
+      it("should invalidate both customer and admin sessions when admin suspends account", async () => {
+        const target = await User.create({
+          name: "Suspended Member",
+          email: "suspended-member@example.com",
+          password: "Password123!",
+          role: "customer",
+        });
+        const callerAdmin = await User.create({
+          name: "Acting Admin",
+          email: "acting-admin@example.com",
+          password: "Password123!",
+          role: "admin",
+        });
+        const adminToken = jwt.sign(
+          { id: callerAdmin._id, tokenVersion: 0, role: "admin" },
+          process.env.JWT_SECRET || "testsecret",
+          { expiresIn: "15m" }
+        );
+
+        target.refreshToken = "active_cust_rt";
+        target.adminRefreshToken = "active_adm_rt";
+        target.tokenVersion = 1;
+        target.adminTokenVersion = 1;
+        await target.save({ validateBeforeSave: false });
+
+        const res = await request(app)
+          .patch(`/api/v1/admin/customers/${target._id}/status`)
+          .set("Authorization", `Bearer ${adminToken}`)
+          .send({ status: "deactivated", reason: "Security reconciliation audit" });
+
+        expect(res.status).toBe(200);
+
+        const updated = await User.findById(target._id).select('+tokenVersion +adminTokenVersion');
+        expect(updated.status).toBe("deactivated");
+        expect(updated.isActive).toBe(false);
+        expect(updated.refreshToken).toBeNull();
+        expect(updated.adminRefreshToken).toBeNull();
+        expect(updated.tokenVersion).toBe(2);
+        expect(updated.adminTokenVersion).toBe(2);
+      });
+
+      it("should treat revoked tokenVersion as guest in protectOptional", async () => {
+        const user = await User.create({
+          name: "Revoked User",
+          email: "revoked-opt@example.com",
+          password: "Password123!",
+          tokenVersion: 2,
+        });
+        const staleToken = jwt.sign(
+          { id: user._id, tokenVersion: 1, role: "customer" },
+          process.env.JWT_SECRET || "testsecret"
+        );
+
+        const req = { headers: { authorization: `Bearer ${staleToken}` } };
+        const res = {};
+        let nextCalled = false;
+        await new Promise((resolve) => {
+          protectOptional(req, res, () => {
+            nextCalled = true;
+            resolve();
+          });
+        });
+
+        expect(nextCalled).toBe(true);
+        expect(req.user).toBeUndefined();
+      });
+
+      it("should treat deactivated user as guest in protectOptional", async () => {
+        const user = await User.create({
+          name: "Deactivated Opt User",
+          email: "deactivated-opt@example.com",
+          password: "Password123!",
+          status: "deactivated",
+          isActive: false,
+        });
+        const validToken = jwt.sign(
+          { id: user._id, tokenVersion: 0, role: "customer" },
+          process.env.JWT_SECRET || "testsecret"
+        );
+
+        const req = { headers: { authorization: `Bearer ${validToken}` } };
+        const res = {};
+        let nextCalled = false;
+        await new Promise((resolve) => {
+          protectOptional(req, res, () => {
+            nextCalled = true;
+            resolve();
+          });
+        });
+
+        expect(nextCalled).toBe(true);
+        expect(req.user).toBeUndefined();
       });
     });
   });

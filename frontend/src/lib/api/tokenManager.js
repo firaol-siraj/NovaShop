@@ -17,27 +17,60 @@ const LEGACY_STORAGE_KEYS = [
   'refreshToken',
   'user',
   'userInfo',
+  'auth',
+  'authToken',
+  'admin_auth',
+  'customer_auth',
 ];
 
+// Helper to remove any sensitive token properties from profile caches
+const sanitizeProfile = (profile) => {
+  if (!profile || typeof profile !== 'object') return null;
+  const safe = { ...profile };
+  delete safe.accessToken;
+  delete safe.token;
+  delete safe.refreshToken;
+  delete safe.adminRefreshToken;
+  delete safe.adminToken;
+  return safe;
+};
+
 // Purge any legacy session items that may contain persisted access tokens
-try {
-  if (typeof window !== 'undefined') {
-    if (window.localStorage) {
-      LEGACY_STORAGE_KEYS.forEach((key) => localStorage.removeItem(key));
+export const purgeLegacyTokens = () => {
+  try {
+    if (typeof window !== 'undefined') {
+      if (window.localStorage) {
+        LEGACY_STORAGE_KEYS.forEach((key) => {
+          try {
+            localStorage.removeItem(key);
+          } catch {
+            // Ignore
+          }
+        });
+      }
+      if (window.sessionStorage) {
+        LEGACY_STORAGE_KEYS.forEach((key) => {
+          try {
+            sessionStorage.removeItem(key);
+          } catch {
+            // Ignore
+          }
+        });
+      }
     }
-    if (window.sessionStorage) {
-      LEGACY_STORAGE_KEYS.forEach((key) => sessionStorage.removeItem(key));
-    }
+  } catch {
+    // Ignore storage access errors
   }
-} catch {
-  // Ignore storage access errors
-}
+};
+
+// Immediate purge on module initialization
+purgeLegacyTokens();
 
 // Non-authoritative cached profiles (for UI hydration only, never proof of auth)
 export const getCachedCustomerProfile = () => {
   try {
     const raw = localStorage.getItem(CUSTOMER_PROFILE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? sanitizeProfile(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -46,7 +79,7 @@ export const getCachedCustomerProfile = () => {
 export const getCachedAdminProfile = () => {
   try {
     const raw = localStorage.getItem(ADMIN_PROFILE_KEY);
-    return raw ? JSON.parse(raw) : null;
+    return raw ? sanitizeProfile(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
@@ -57,7 +90,7 @@ export const setCustomerToken = (token, user = null) => {
   customerAccessToken = token || null;
   try {
     if (user) {
-      localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(user));
+      localStorage.setItem(CUSTOMER_PROFILE_KEY, JSON.stringify(sanitizeProfile(user)));
     } else if (!token) {
       localStorage.removeItem(CUSTOMER_PROFILE_KEY);
     }
@@ -72,10 +105,7 @@ export const clearCustomerToken = () => {
   customerAccessToken = null;
   try {
     localStorage.removeItem(CUSTOMER_PROFILE_KEY);
-    LEGACY_STORAGE_KEYS.forEach((k) => {
-      localStorage.removeItem(k);
-      sessionStorage.removeItem(k);
-    });
+    purgeLegacyTokens();
   } catch {
     // Ignore
   }
@@ -86,7 +116,7 @@ export const setAdminToken = (token, user = null) => {
   adminAccessToken = token || null;
   try {
     if (user) {
-      localStorage.setItem(ADMIN_PROFILE_KEY, JSON.stringify(user));
+      localStorage.setItem(ADMIN_PROFILE_KEY, JSON.stringify(sanitizeProfile(user)));
     } else if (!token) {
       localStorage.removeItem(ADMIN_PROFILE_KEY);
     }
@@ -101,10 +131,7 @@ export const clearAdminToken = () => {
   adminAccessToken = null;
   try {
     localStorage.removeItem(ADMIN_PROFILE_KEY);
-    LEGACY_STORAGE_KEYS.forEach((k) => {
-      localStorage.removeItem(k);
-      sessionStorage.removeItem(k);
-    });
+    purgeLegacyTokens();
   } catch {
     // Ignore
   }
@@ -125,7 +152,10 @@ export const getAccessToken = (role = 'customer') => {
 };
 
 export const clearAccessToken = (role = 'customer') => {
-  if (role === 'admin') {
+  if (role === 'all') {
+    clearCustomerToken();
+    clearAdminToken();
+  } else if (role === 'admin') {
     clearAdminToken();
   } else {
     clearCustomerToken();

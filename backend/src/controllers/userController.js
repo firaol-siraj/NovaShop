@@ -254,7 +254,7 @@ export const deleteMyAccount = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, 'Password is required to confirm account deactivation'));
   }
 
-  const user = await User.findById(req.user._id).select('+password +tokenVersion');
+  const user = await User.findById(req.user._id).select('+password +tokenVersion +adminTokenVersion');
   if (!user) {
     return next(new ApiError(404, 'User not found'));
   }

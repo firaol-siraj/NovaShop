@@ -222,7 +222,7 @@ export const updateMemberRole = asyncHandler(async (req, res, next) => {
     ? 'owner'
     : 'admin';
 
-  const targetUser = await User.findById(id);
+  const targetUser = await User.findById(id).select('+tokenVersion +adminTokenVersion');
   if (!targetUser || targetUser.role !== 'admin') {
     return next(new ApiError(404, 'Administrator account not found'));
   }
@@ -268,7 +268,7 @@ export const updateMemberStatus = asyncHandler(async (req, res, next) => {
     return next(new ApiError(403, 'Only owners can modify account status'));
   }
 
-  const targetUser = await User.findById(id);
+  const targetUser = await User.findById(id).select('+tokenVersion +adminTokenVersion');
   if (!targetUser || targetUser.role !== 'admin') {
     return next(new ApiError(404, 'Administrator account not found'));
   }
@@ -290,6 +290,10 @@ export const updateMemberStatus = asyncHandler(async (req, res, next) => {
   targetUser.isActive = status === 'active';
   targetUser.tokenVersion = (targetUser.tokenVersion || 0) + 1; // Invalidate sessions immediately
   targetUser.adminTokenVersion = (targetUser.adminTokenVersion || targetUser.tokenVersion || 0) + 1;
+  if (status !== 'active') {
+    targetUser.refreshToken = null;
+    targetUser.adminRefreshToken = null;
+  }
   await targetUser.save();
 
   await AuditLog.create({
@@ -313,7 +317,7 @@ export const deleteMember = asyncHandler(async (req, res, next) => {
     return next(new ApiError(403, 'Only owners can remove team members'));
   }
 
-  const targetUser = await User.findById(id);
+  const targetUser = await User.findById(id).select('+tokenVersion +adminTokenVersion');
   if (!targetUser || targetUser.role !== 'admin') {
     return next(new ApiError(404, 'Administrator account not found'));
   }

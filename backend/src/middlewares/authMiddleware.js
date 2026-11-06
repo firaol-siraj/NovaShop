@@ -23,14 +23,15 @@ export const protect = asyncHandler(async (req, res, next) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // Fetch user and attach to request object (excluding password)
-    req.user = await User.findById(decoded.id).select('-password -refreshToken +tokenVersion +adminTokenVersion');
+    // Fetch user and attach to request object (excluding password and refresh tokens)
+    req.user = await User.findById(decoded.id).select('-password -refreshToken -adminRefreshToken +tokenVersion +adminTokenVersion');
 
     if (!req.user) {
       return next(new ApiError(401, 'The user associated with this token no longer exists'));
     }
 
-    const currentVersion = decoded.role === 'admin'
+    const role = decoded.role || req.user.role;
+    const currentVersion = role === 'admin'
       ? (req.user.adminTokenVersion !== undefined && req.user.adminTokenVersion !== null
           ? req.user.adminTokenVersion
           : (req.user.tokenVersion ?? 0))
@@ -92,8 +93,20 @@ export const protectOptional = asyncHandler(async (req, res, next) => {
   if (!token) return next();
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = await User.findById(decoded.id).select('-password -refreshToken +tokenVersion +adminTokenVersion');
-    req.tokenRole = decoded.role || req.user?.role;
+    const user = await User.findById(decoded.id).select('-password -refreshToken -adminRefreshToken +tokenVersion +adminTokenVersion');
+    if (user && user.status !== 'deactivated' && user.isActive !== false) {
+      const role = decoded.role || user.role;
+      const currentVersion = role === 'admin'
+        ? (user.adminTokenVersion !== undefined && user.adminTokenVersion !== null
+            ? user.adminTokenVersion
+            : (user.tokenVersion ?? 0))
+        : (user.tokenVersion ?? 0);
+
+      if ((decoded.tokenVersion ?? 0) === currentVersion) {
+        req.user = user;
+        req.tokenRole = decoded.role || user.role;
+      }
+    }
   } catch {
     // Continue as guest
   }
