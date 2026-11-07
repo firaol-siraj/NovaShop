@@ -8,6 +8,7 @@ import Category from '../src/models/categoryModel.js';
 import Product from '../src/models/productModel.js';
 import Variant from '../src/models/productVariantModel.js';
 import Payment from '../src/models/paymentModel.js';
+import EmailLog from '../src/models/emailLogModel.js';
 import chapaService from '../src/services/chapaService.js';
 import emailService from '../src/services/emailService.js';
 import { emailQueue, queueOrSendEmail } from '../src/queues/emailQueue.js';
@@ -1502,6 +1503,316 @@ describe('Production Readiness: Payment & Email Lifecycle Audit Tests', () => {
       });
       expect(payload2.return_url).toContain('trx_ref=NS-tx-99999');
       expect(payload2.return_url).toContain('tx_ref=NS-tx-99999');
+    });
+  });
+
+  describe('7. Resend Free-Tier & Provider Error Handling Regression Suite', () => {
+    it('normalizes error response objects without TypeError in diagnoseSmtpError', async () => {
+      const { diagnoseSmtpError } = await import('../src/services/emailService.js');
+
+      // 1. Resend HTTP 403 response object
+      const resend403Error = new Error('Resend API delivery failed (403): You can only send testing emails to your own email address (sirajfira517@gmail.com).');
+      resend403Error.status = 403;
+      resend403Error.response = {
+        statusCode: 403,
+        name: 'validation_error',
+        message: 'You can only send testing emails to your own email address (sirajfira517@gmail.com). To send to other domains, you must verify your domain in the Resend dashboard.',
+      };
+
+      const diag403 = diagnoseSmtpError(resend403Error);
+      expect(diag403.code).toBe(403);
+      expect(diag403.message).toMatch(/testing emails to your own email address/i);
+      expect(diag403.guidance).toMatch(/free tier/i);
+
+      // 2. Resend HTTP 401 response object
+      const resend401Error = new Error('Resend API delivery failed (401): API key is invalid');
+      resend401Error.status = 401;
+      resend401Error.response = { statusCode: 401, message: 'API key is invalid' };
+
+      const diag401 = diagnoseSmtpError(resend401Error);
+      expect(diag401.code).toBe(401);
+      expect(diag401.message).toMatch(/API key is invalid/i);
+
+      // 3. Various edge-case error shapes (numbers, null, circular objects, plain strings)
+      expect(diagnoseSmtpError(null).code).toBe('UNKNOWN');
+      expect(diagnoseSmtpError('Simple string error').message).toBe('Simple string error');
+      expect(diagnoseSmtpError({ response: 12345 }).code).toBe('PROVIDER_ERROR');
+      expect(diagnoseSmtpError({ response: null }).code).toBe('PROVIDER_ERROR');
+    });
+
+    it('successfully delivers via Resend API and records sent status when fetch returns 200', async () => {
+      const origFetch = global.fetch;
+      const origApiKey = process.env.RESEND_API_KEY;
+      const origProvider = process.env.EMAIL_PROVIDER;
+
+      try {
+        process.env.RESEND_API_KEY = 're_test_valid_key';
+        process.env.EMAIL_PROVIDER = 'resend';
+
+        global.fetch = jest.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          text: async () => JSON.stringify({ id: 'resend_delivery_test_success_id' }),
+        });
+
+        const result = await emailService.sendEmail({
+          to: 'sirajfira517@gmail.com',
+          subject: 'Order Confirmation Test',
+          text: 'Thank you for your order',
+          type: 'order_confirmation',
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe('resend_delivery_test_success_id');
+      } finally {
+        global.fetch = origFetch;
+        if (origApiKey !== undefined) process.env.RESEND_API_KEY = origApiKey; else delete process.env.RESEND_API_KEY;
+        if (origProvider !== undefined) process.env.EMAIL_PROVIDER = origProvider; else delete process.env.EMAIL_PROVIDER;
+      }
+    });
+
+    it('handles Resend HTTP 403 recipient restriction safely without TypeError and records failed status', async () => {
+      const origFetch = global.fetch;
+      const origApiKey = process.env.RESEND_API_KEY;
+      const origProvider = process.env.EMAIL_PROVIDER;
+
+      try {
+        process.env.RESEND_API_KEY = 're_test_sandbox_key';
+        process.env.EMAIL_PROVIDER = 'resend';
+
+        global.fetch = jest.fn().mockResolvedValue({
+          ok: false,
+          status: 403,
+          statusText: 'Forbidden',
+          text: async () => JSON.stringify({
+            statusCode: 403,
+            name: 'validation_error',
+            message: 'You can only send testing emails to your own email address (sirajfira517@gmail.com).',
+          }),
+        });
+
+        const result = await emailService.sendEmail({
+          to: 'firaolsiraj99@gmail.com',
+          subject: 'Password Reset',
+          text: 'Reset link',
+          type: 'password_reset',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.statusCode).toBe(403);
+        expect(result.isPermanent).toBe(true);
+        expect(result.error).toMatch(/testing emails to your own email address/i);
+
+        // Verify failure was recorded in EmailLog accurately
+        const log = await EmailLog.findById(result.logId);
+        expect(log).toBeDefined();
+        expect(log.status).toBe('failed');
+        expect(log.error).toMatch(/testing emails/i);
+      } finally {
+        global.fetch = origFetch;
+        if (origApiKey !== undefined) process.env.RESEND_API_KEY = origApiKey; else delete process.env.RESEND_API_KEY;
+        if (origProvider !== undefined) process.env.EMAIL_PROVIDER = origProvider; else delete process.env.EMAIL_PROVIDER;
+      }
+    });
+
+    it('handles Resend HTTP 401 invalid API key safely and marks isPermanent', async () => {
+      const origFetch = global.fetch;
+      const origApiKey = process.env.RESEND_API_KEY;
+      const origProvider = process.env.EMAIL_PROVIDER;
+
+      try {
+        process.env.RESEND_API_KEY = 're_invalid_key';
+        process.env.EMAIL_PROVIDER = 'resend';
+
+        global.fetch = jest.fn().mockResolvedValue({
+          ok: false,
+          status: 401,
+          statusText: 'Unauthorized',
+          text: async () => JSON.stringify({
+            statusCode: 401,
+            message: 'API key is invalid',
+          }),
+        });
+
+        const result = await emailService.sendEmail({
+          to: 'sirajfira517@gmail.com',
+          subject: 'Security Alert',
+          text: 'Alert text',
+          type: 'security_alert',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.statusCode).toBe(401);
+        expect(result.isPermanent).toBe(true);
+      } finally {
+        global.fetch = origFetch;
+        if (origApiKey !== undefined) process.env.RESEND_API_KEY = origApiKey; else delete process.env.RESEND_API_KEY;
+        if (origProvider !== undefined) process.env.EMAIL_PROVIDER = origProvider; else delete process.env.EMAIL_PROVIDER;
+      }
+    });
+
+    it('resolves BullMQ recipient from every payload shape and throws UnrecoverableError on 403 permanent restriction', async () => {
+      const { processEmailJob } = await import('../src/workers/emailWorker.js');
+      const { UnrecoverableError } = await import('bullmq');
+
+      // Test recipient resolution for data.email
+      let capturedTo1 = null;
+      emailService.setEmailSender(async (p) => {
+        capturedTo1 = p.to;
+        return { success: true, messageId: 'm1' };
+      });
+
+      await processEmailJob({
+        name: 'sendPasswordResetEmail',
+        id: 'job-1',
+        data: { email: 'sirajfira517@gmail.com', subject: 'Reset Password', text: 'Reset text' },
+      });
+      expect(capturedTo1).toBe('sirajfira517@gmail.com');
+
+      // Test recipient resolution for data.to as array
+      let capturedTo2 = null;
+      emailService.setEmailSender(async (p) => {
+        capturedTo2 = p.to;
+        return { success: true, messageId: 'm2' };
+      });
+
+      await processEmailJob({
+        name: 'sendOrderConfirmationEmail',
+        id: 'job-2',
+        data: { to: ['sirajfira517@gmail.com'], subject: 'Order Confirmed', text: 'Order text' },
+      });
+      expect(capturedTo2).toBe('sirajfira517@gmail.com');
+
+      // Test recipient resolution for data.customerEmail
+      let capturedTo3 = null;
+      emailService.setEmailSender(async (p) => {
+        capturedTo3 = p.to;
+        return { success: true, messageId: 'm3' };
+      });
+
+      await processEmailJob({
+        name: 'sendOrderConfirmationEmail',
+        id: 'job-3',
+        data: { customerEmail: 'sirajfira517@gmail.com', subject: 'Order Confirmed', text: 'Order text' },
+      });
+      expect(capturedTo3).toBe('sirajfira517@gmail.com');
+
+      // Test that permanent HTTP 403 throws UnrecoverableError preventing BullMQ retries
+      emailService.setEmailSender(async () => ({
+        success: false,
+        statusCode: 403,
+        isPermanent: true,
+        error: 'Resend API delivery failed (403): You can only send testing emails to your own email address',
+      }));
+
+      await expect(
+        processEmailJob({
+          name: 'sendPasswordResetEmail',
+          id: 'job-403',
+          data: { email: 'unauthorized_recipient@example.com', subject: 'Reset', text: 'text' },
+        })
+      ).rejects.toThrow(UnrecoverableError);
+
+      emailService.resetEmailSender();
+    });
+
+    it('rejects missing recipient with UnrecoverableError across all 5 job types preventing false completion', async () => {
+      const { processEmailJob } = await import('../src/workers/emailWorker.js');
+      const { UnrecoverableError } = await import('bullmq');
+
+      const jobNames = [
+        'sendVerificationEmail',
+        'sendPasswordResetEmail',
+        'sendOrderConfirmationEmail',
+        'sendOrderStatusEmail',
+        'sendPaymentReceiptEmail',
+      ];
+
+      for (const name of jobNames) {
+        // Missing recipient: empty data
+        await expect(
+          processEmailJob({
+            name,
+            id: `test-missing-${name}`,
+            data: { subject: 'Test' },
+          })
+        ).rejects.toThrow(UnrecoverableError);
+
+        // Missing recipient: whitespace-only string
+        await expect(
+          processEmailJob({
+            name,
+            id: `test-spaces-${name}`,
+            data: { to: '   ', email: '', customerEmail: '  ' },
+          })
+        ).rejects.toThrow(UnrecoverableError);
+      }
+    });
+
+    it('sendSupportEmail throws UnrecoverableError for permanent errors and ordinary Error for transient errors', async () => {
+      const { processEmailJob } = await import('../src/workers/emailWorker.js');
+      const { UnrecoverableError } = await import('bullmq');
+
+      // 1. Permanent error (403 Sandbox / 401 API key) -> UnrecoverableError
+      emailService.setEmailSender(async () => ({
+        success: false,
+        statusCode: 403,
+        isPermanent: true,
+        error: 'Resend API delivery failed (403): Testing email restricted to account owner',
+      }));
+
+      await expect(
+        processEmailJob({
+          name: 'sendSupportEmail',
+          id: 'support-perm-403',
+          data: {
+            to: 'customer@example.com',
+            subject: 'Support Ticket #101',
+            text: 'Your ticket is updated',
+          },
+        })
+      ).rejects.toThrow(UnrecoverableError);
+
+      // 2. Transient error (e.g., SMTP socket timeout / 500) -> Standard Error (NOT UnrecoverableError)
+      emailService.setEmailSender(async () => ({
+        success: false,
+        statusCode: 500,
+        isPermanent: false,
+        error: 'Connection timed out',
+      }));
+
+      const transientPromise = processEmailJob({
+        name: 'sendSupportEmail',
+        id: 'support-transient',
+        data: {
+          to: 'customer@example.com',
+          subject: 'Support Ticket #102',
+          text: 'Your ticket is updated',
+        },
+      });
+
+      await expect(transientPromise).rejects.toThrow(Error);
+      await expect(transientPromise).rejects.not.toThrow(UnrecoverableError);
+
+      // 3. Successful delivery -> completes without error
+      emailService.setEmailSender(async () => ({
+        success: true,
+        messageId: 'support-msg-success-99',
+      }));
+
+      await expect(
+        processEmailJob({
+          name: 'sendSupportEmail',
+          id: 'support-success',
+          data: {
+            to: 'customer@example.com',
+            subject: 'Support Ticket #103',
+            text: 'Success',
+          },
+        })
+      ).resolves.toBeUndefined();
+
+      emailService.resetEmailSender();
     });
   });
 });
