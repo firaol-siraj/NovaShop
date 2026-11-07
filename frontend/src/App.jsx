@@ -288,7 +288,9 @@ export default function App() {
 
   } else if (
     path === '/checkout/confirmation' ||
-    path === '/order-confirmed'
+    path === '/order-confirmed' ||
+    path === '/orders/confirmation' ||
+    path === '/order/confirmation'
   ) {
     page = <OrderConfirmationPage go={go} />;
 

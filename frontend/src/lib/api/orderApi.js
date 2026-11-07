@@ -9,15 +9,15 @@ export const orderApi = {
     if (!cleanId) return Promise.reject(new Error('Order ID is required'));
     return apiClient.get(`/orders/my/${cleanId}`);
   },
-  getOrder: (id) => {
+  getOrder: (id, options = {}) => {
     const cleanId = String(id || '').trim();
     if (!cleanId) return Promise.reject(new Error('Order ID is required'));
-    return apiClient.get(`/orders/${cleanId}`);
+    return apiClient.get(`/orders/${cleanId}`, options);
   },
   resendConfirmationEmail: (id) => apiClient.post(`/orders/${id}/resend-confirmation`),
   resendAdminConfirmation: (id) => apiClient.post(`/orders/${id}/resend-confirmation`, {}, { role: 'admin' }),
   initializePayment: (id, data = {}) => apiClient.post(`/orders/${id}/initialize-payment`, data),
-  getPaymentStatus: (id) => apiClient.get(`/orders/${id}/payment-status`),
+  getPaymentStatus: (id, options = {}) => apiClient.get(`/orders/${id}/payment-status`, options),
   verifyTransaction: (txRef) => apiClient.get(`/orders/transaction/verify/${encodeURIComponent(txRef)}`),
   updateOrderStatus: (id, status) => apiClient.put(`/orders/${id}/status`, { status }),
   markOrderPaid: (id, data) => apiClient.put(`/orders/${id}/pay`, data),

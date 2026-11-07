@@ -94,7 +94,7 @@ export default function OrderConfirmationPage({ go }) {
     // 1. Fetch full authoritative order data from server if authenticated
     if (resolvedOrderId) {
       try {
-        const orderRes = await orderApi.getOrder(resolvedOrderId);
+        const orderRes = await orderApi.getOrder(resolvedOrderId, { skipAuthRefresh: true });
         if (orderRes?.success && orderRes?.data) {
           orderData = orderRes.data;
           setOrder(orderData);
@@ -201,7 +201,7 @@ export default function OrderConfirmationPage({ go }) {
         // Fallback to order payment-status endpoint if resolvedOrderId is available
         if (resolvedOrderId) {
           try {
-            const statusRes = await orderApi.getPaymentStatus(resolvedOrderId);
+            const statusRes = await orderApi.getPaymentStatus(resolvedOrderId, { skipAuthRefresh: true });
             if (statusRes?.success && statusRes?.data) {
               const sData = statusRes.data;
               setOrder((prev) => ({

@@ -180,8 +180,23 @@ class ChapaService {
       callbackUrl = `${base}${path}`;
     }
 
-    const resolvedReturnUrl =
-      returnUrl || `${frontendBase}/checkout/confirmation?orderId=${order._id}&trx_ref=${txRef}`;
+    let resolvedReturnUrl = returnUrl || `${frontendBase}/checkout/confirmation?orderId=${order._id}`;
+    try {
+      const parsedUrl = new URL(resolvedReturnUrl, frontendBase);
+      if (!parsedUrl.searchParams.has('orderId')) {
+        parsedUrl.searchParams.set('orderId', String(order._id));
+      }
+      if (!parsedUrl.searchParams.has('trx_ref')) {
+        parsedUrl.searchParams.set('trx_ref', txRef);
+      }
+      if (!parsedUrl.searchParams.has('tx_ref')) {
+        parsedUrl.searchParams.set('tx_ref', txRef);
+      }
+      resolvedReturnUrl = parsedUrl.toString();
+    } catch {
+      const sep = resolvedReturnUrl.includes('?') ? '&' : '?';
+      resolvedReturnUrl = `${resolvedReturnUrl}${sep}orderId=${order._id}&trx_ref=${txRef}&tx_ref=${txRef}`;
+    }
 
     // Strictly sanitize customization fields: title, description, and order number
     const rawOrderNum = order.orderNumber || String(order._id || '');

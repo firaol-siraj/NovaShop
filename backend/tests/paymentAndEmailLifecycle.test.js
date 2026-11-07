@@ -1449,5 +1449,59 @@ describe('Production Readiness: Payment & Email Lifecycle Audit Tests', () => {
         if (origFrontendUrl) process.env.FRONTEND_URL = origFrontendUrl;
       }
     });
+
+    it('prioritizes Resend provider type when RESEND_API_KEY is present and SMTP credentials are missing', async () => {
+      const { getEmailProviderType } = await import('../src/services/emailService.js');
+      const origProvider = process.env.EMAIL_PROVIDER;
+      const origResend = process.env.RESEND_API_KEY;
+      const origPass = process.env.EMAIL_PASS;
+
+      try {
+        delete process.env.EMAIL_PASS;
+        process.env.RESEND_API_KEY = 're_test_key_12345';
+        process.env.EMAIL_PROVIDER = '';
+        expect(getEmailProviderType()).toBe('resend');
+
+        // Even if EMAIL_PROVIDER is accidentally 'smtp' but credentials are missing
+        process.env.EMAIL_PROVIDER = 'smtp';
+        expect(getEmailProviderType()).toBe('resend');
+      } finally {
+        if (origProvider !== undefined) process.env.EMAIL_PROVIDER = origProvider; else delete process.env.EMAIL_PROVIDER;
+        if (origResend !== undefined) process.env.RESEND_API_KEY = origResend; else delete process.env.RESEND_API_KEY;
+        if (origPass !== undefined) process.env.EMAIL_PASS = origPass; else delete process.env.EMAIL_PASS;
+      }
+    });
+
+    it('injects trx_ref and tx_ref into Chapa return_url during buildInitializePayload', () => {
+      const orderMock = {
+        _id: '672d11112222333344445555',
+        orderNumber: 'NS-1001',
+        totalPrice: 100,
+        currency: 'USD',
+        shippingAddress: { phone: '0911223344' },
+      };
+      const customerMock = { name: 'Test Customer', email: 'test@example.com' };
+
+      // Case 1: returnUrl supplied without trx_ref
+      const customReturnUrl = 'https://novashop.onrender.com/checkout/confirmation?orderId=672d11112222333344445555';
+      const payload1 = chapaService.buildInitializePayload({
+        order: orderMock,
+        customer: customerMock,
+        returnUrl: customReturnUrl,
+        txRef: 'NS-tx-12345',
+      });
+      expect(payload1.return_url).toContain('trx_ref=NS-tx-12345');
+      expect(payload1.return_url).toContain('tx_ref=NS-tx-12345');
+      expect(payload1.return_url).toContain('orderId=672d11112222333344445555');
+
+      // Case 2: No returnUrl supplied
+      const payload2 = chapaService.buildInitializePayload({
+        order: orderMock,
+        customer: customerMock,
+        txRef: 'NS-tx-99999',
+      });
+      expect(payload2.return_url).toContain('trx_ref=NS-tx-99999');
+      expect(payload2.return_url).toContain('tx_ref=NS-tx-99999');
+    });
   });
 });

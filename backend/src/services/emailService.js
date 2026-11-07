@@ -218,16 +218,35 @@ export function resetEmailSender() {
  * @returns {'resend' | 'brevo' | 'smtp'}
  */
 export function getEmailProviderType() {
-  const provider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
-  if (provider === 'brevo' || (!provider && process.env.BREVO_API_KEY)) {
+  const provider = (process.env.EMAIL_PROVIDER || '').trim().toLowerCase();
+  if (provider === 'brevo') {
     return 'brevo';
   }
-  if (
-    provider === 'resend' ||
-    (!provider && (process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY))
-  ) {
+  if (provider === 'resend') {
     return 'resend';
   }
+
+  const hasResend = Boolean(process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY);
+  const hasBrevo = Boolean(process.env.BREVO_API_KEY);
+  const hasSmtp = Boolean(process.env.EMAIL_HOST && process.env.EMAIL_USER && process.env.EMAIL_PASS);
+
+  // If Resend or Brevo API key is available and full SMTP credentials are not configured,
+  // or provider is explicitly 'api'/'https' or empty, prioritize HTTPS delivery
+  if (hasResend && (!hasSmtp || provider === 'api' || provider === 'https' || !provider)) {
+    return 'resend';
+  }
+  if (hasBrevo && (!hasSmtp || provider === 'api' || provider === 'https' || !provider)) {
+    return 'brevo';
+  }
+
+  // Fallback: If Resend key exists at all, prioritize it (Render blocks outbound SMTP ports)
+  if (hasResend) {
+    return 'resend';
+  }
+  if (hasBrevo) {
+    return 'brevo';
+  }
+
   return 'smtp';
 }
 
@@ -378,6 +397,12 @@ export async function verifyTransporter() {
       });
       if (res.ok || res.status === 200) {
         const okMsg = '[EmailService] ✓ HTTPS Email Provider (Resend API) verified successfully [OK]. Ready to deliver transactional emails over port 443.';
+        logger.info(okMsg);
+        console.log(okMsg);
+        return true;
+      }
+      if (res.status === 403 && apiKey.startsWith('re_')) {
+        const okMsg = '[EmailService] ✓ HTTPS Email Provider (Resend API) key authenticated (Sending-only permission) [OK]. Ready to deliver transactional emails over port 443.';
         logger.info(okMsg);
         console.log(okMsg);
         return true;
@@ -695,13 +720,23 @@ export async function sendEmail({
       // Continue with env defaults
     }
 
-    let fromEmail = process.env.EMAIL_FROM || process.env.FROM_EMAIL || process.env.EMAIL_USER;
+    let fromEmail = process.env.RESEND_FROM || process.env.EMAIL_FROM || process.env.FROM_EMAIL || process.env.EMAIL_USER;
     if (fromEmail) {
       const match = fromEmail.match(/<([^>]+)>/);
       if (match) fromEmail = match[1];
     }
+
+    // For Resend: If fromEmail is missing or uses a public webmail domain (e.g. gmail.com, yahoo.com)
+    // without custom domain DNS verification on Resend, default to onboarding@resend.dev and set reply-to
+    const isPublicDomain = Boolean(fromEmail && /@(gmail|yahoo|hotmail|outlook|live|icloud|aol)\.com$/i.test(fromEmail));
+    if (providerType === 'resend' && (!fromEmail || isPublicDomain)) {
+      if (!replyToEmail && fromEmail) {
+        replyToEmail = fromEmail;
+      }
+      fromEmail = 'onboarding@resend.dev';
+    }
     if (!fromEmail) {
-      fromEmail = providerType === 'resend' ? 'onboarding@resend.dev' : 'noreply@novashop.com';
+      fromEmail = 'noreply@novashop.com';
     }
     const sender = `"${fromName}" <${fromEmail}>`;
 

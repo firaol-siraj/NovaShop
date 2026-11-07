@@ -162,6 +162,7 @@ apiClient.interceptors.response.use(
 
     if (
       !originalRequest ||
+      originalRequest.skipAuthRefresh ||
       error.response?.status !== 401 ||
       originalRequest._retry ||
       isAuthEndpoint(originalRequest.url)
