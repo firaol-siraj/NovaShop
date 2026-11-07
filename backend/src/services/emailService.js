@@ -7,6 +7,7 @@ import Setting from '../models/settingModel.js';
 
 let transporter = null;
 let customTransporter = null;
+let customEmailSender = null;
 
 // Standard RFC 5322 compliant email regex validator
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -185,11 +186,12 @@ export function getTransporter() {
 }
 
 /**
- * Resets cached transporter (useful for testing or after environment updates)
+ * Resets cached transporter and custom email sender
  */
 export function resetTransporter() {
   transporter = null;
   customTransporter = null;
+  customEmailSender = null;
 }
 
 /**
@@ -201,10 +203,227 @@ export function setTransporter(mockTransporter) {
 }
 
 /**
- * Verifies SMTP transporter connection on server start.
+ * Injects a custom email sender function for testing or alternative providers
+ */
+export function setEmailSender(senderFn) {
+  customEmailSender = senderFn;
+}
+
+export function resetEmailSender() {
+  customEmailSender = null;
+}
+
+/**
+ * Resolves the configured transactional email provider type
+ * @returns {'resend' | 'brevo' | 'smtp'}
+ */
+export function getEmailProviderType() {
+  const provider = (process.env.EMAIL_PROVIDER || '').toLowerCase();
+  if (provider === 'brevo' || (!provider && process.env.BREVO_API_KEY)) {
+    return 'brevo';
+  }
+  if (
+    provider === 'resend' ||
+    (!provider && (process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY))
+  ) {
+    return 'resend';
+  }
+  return 'smtp';
+}
+
+/**
+ * Checks whether an HTTPS REST-based provider is configured
+ * @returns {boolean}
+ */
+export function isHttpsEmailConfigured() {
+  return getEmailProviderType() !== 'smtp';
+}
+
+/**
+ * Delivers email via Resend REST API (HTTPS port 443)
+ * Endpoint: POST https://api.resend.com/emails
+ */
+export async function sendViaResendApi({
+  apiKey,
+  from,
+  to,
+  subject,
+  html,
+  text,
+  replyTo,
+  headers,
+}) {
+  const payload = {
+    from,
+    to: Array.isArray(to) ? to : [to],
+    subject,
+    ...(html ? { html } : {}),
+    ...(text ? { text } : {}),
+    ...(replyTo ? { reply_to: replyTo } : {}),
+    ...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
+  };
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const bodyText = await res.text();
+  let bodyJson = null;
+  try {
+    bodyJson = JSON.parse(bodyText);
+  } catch {
+    bodyJson = { message: bodyText };
+  }
+
+  if (!res.ok) {
+    const errorMsg = bodyJson?.message || bodyJson?.error || `HTTP ${res.status}: ${res.statusText}`;
+    const err = new Error(`Resend API delivery failed (${res.status}): ${errorMsg}`);
+    err.status = res.status;
+    err.response = bodyJson;
+    throw err;
+  }
+
+  return {
+    messageId: bodyJson?.id || `resend-${Date.now()}`,
+    accepted: Array.isArray(to) ? to : [to],
+    rejected: [],
+    response: `250 OK (Resend ID: ${bodyJson?.id})`,
+    provider: 'resend',
+  };
+}
+
+/**
+ * Delivers email via Brevo REST API (HTTPS port 443)
+ * Endpoint: POST https://api.brevo.com/v3/smtp/email
+ */
+export async function sendViaBrevoApi({
+  apiKey,
+  fromName,
+  fromEmail,
+  to,
+  subject,
+  html,
+  text,
+  replyTo,
+  headers,
+}) {
+  const payload = {
+    sender: { name: fromName, email: fromEmail },
+    to: (Array.isArray(to) ? to : [to]).map((email) => ({ email })),
+    subject,
+    ...(html ? { htmlContent: html } : {}),
+    ...(text ? { textContent: text } : {}),
+    ...(replyTo ? { replyTo: { email: replyTo } } : {}),
+    ...(headers && Object.keys(headers).length > 0 ? { headers } : {}),
+  };
+
+  const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+    method: 'POST',
+    headers: {
+      'api-key': apiKey,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const bodyText = await res.text();
+  let bodyJson = null;
+  try {
+    bodyJson = JSON.parse(bodyText);
+  } catch {
+    bodyJson = { message: bodyText };
+  }
+
+  if (!res.ok) {
+    const errorMsg = bodyJson?.message || `HTTP ${res.status}: ${res.statusText}`;
+    const err = new Error(`Brevo API delivery failed (${res.status}): ${errorMsg}`);
+    err.status = res.status;
+    err.response = bodyJson;
+    throw err;
+  }
+
+  return {
+    messageId: bodyJson?.messageId || `brevo-${Date.now()}`,
+    accepted: Array.isArray(to) ? to : [to],
+    rejected: [],
+    response: `250 OK (Brevo ID: ${bodyJson?.messageId})`,
+    provider: 'brevo',
+  };
+}
+
+/**
+ * Verifies email transporter or HTTPS email provider connection on server start.
  * Logs clear OK/FAILED status with real provider error (no secrets).
  */
 export async function verifyTransporter() {
+  const providerType = getEmailProviderType();
+
+  if (providerType === 'resend') {
+    const apiKey = process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY;
+    if (!apiKey) {
+      const warnMsg = '[EmailService] ⚠️ Resend HTTPS provider configured but RESEND_API_KEY is missing.';
+      logger.warn(warnMsg);
+      console.warn(warnMsg);
+      return false;
+    }
+    try {
+      const res = await fetch('https://api.resend.com/api-keys', {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      if (res.ok || res.status === 200) {
+        const okMsg = '[EmailService] ✓ HTTPS Email Provider (Resend API) verified successfully [OK]. Ready to deliver transactional emails over port 443.';
+        logger.info(okMsg);
+        console.log(okMsg);
+        return true;
+      }
+      const failMsg = `[EmailService] ✕ HTTPS Email Provider (Resend API) verification [FAILED] (HTTP ${res.status}). Check RESEND_API_KEY in environment variables.`;
+      logger.error(failMsg);
+      console.error(failMsg);
+      return false;
+    } catch (err) {
+      const failMsg = `[EmailService] ✕ HTTPS Email Provider (Resend API) network check warning: ${err.message}`;
+      logger.warn(failMsg);
+      console.warn(failMsg);
+      return false;
+    }
+  }
+
+  if (providerType === 'brevo') {
+    const apiKey = process.env.BREVO_API_KEY;
+    if (!apiKey) {
+      const warnMsg = '[EmailService] ⚠️ Brevo HTTPS provider configured but BREVO_API_KEY is missing.';
+      logger.warn(warnMsg);
+      console.warn(warnMsg);
+      return false;
+    }
+    try {
+      const res = await fetch('https://api.brevo.com/v3/account', {
+        headers: { 'api-key': apiKey },
+      });
+      if (res.ok || res.status === 200) {
+        const okMsg = '[EmailService] ✓ HTTPS Email Provider (Brevo API) verified successfully [OK]. Ready to deliver transactional emails over port 443.';
+        logger.info(okMsg);
+        console.log(okMsg);
+        return true;
+      }
+      const failMsg = `[EmailService] ✕ HTTPS Email Provider (Brevo API) verification [FAILED] (HTTP ${res.status}). Check BREVO_API_KEY in environment variables.`;
+      logger.error(failMsg);
+      console.error(failMsg);
+      return false;
+    } catch (err) {
+      const failMsg = `[EmailService] ✕ HTTPS Email Provider (Brevo API) network check warning: ${err.message}`;
+      logger.warn(failMsg);
+      console.warn(failMsg);
+      return false;
+    }
+  }
+
   const isSandbox = process.env.EMAIL_MODE === 'sandbox';
   const host = isSandbox
     ? process.env.MAILTRAP_HOST || 'sandbox.smtp.mailtrap.io'
@@ -424,24 +643,46 @@ export async function sendEmail({
       }
     }
 
-    // 4. Transporter check
-    const activeTransporter = getTransporter();
-    if (!activeTransporter) {
-      const errMsg = 'Email transporter not configured: Check EMAIL_HOST, EMAIL_USER, EMAIL_PASS';
-      logger.warn(`[EmailService] Skipping email to ${normalizedTo} ("${formattedSubject}"): ${errMsg}`);
-      await EmailLog.create({
-        to: normalizedTo,
-        subject: formattedSubject,
-        orderId: orderId || null,
-        userId: userId || null,
-        type,
-        status: 'failed',
-        error: errMsg,
-      }).catch(() => {});
-      return { success: false, error: errMsg };
+    // 4. Provider configuration check
+    const providerType = getEmailProviderType();
+    let activeTransporter = null;
+    if (providerType === 'smtp') {
+      activeTransporter = getTransporter();
+      if (!activeTransporter) {
+        const errMsg = 'Email transporter not configured: Check EMAIL_HOST, EMAIL_USER, EMAIL_PASS or configure RESEND_API_KEY';
+        logger.warn(`[EmailService] Skipping email to ${normalizedTo} ("${formattedSubject}"): ${errMsg}`);
+        await EmailLog.create({
+          to: normalizedTo,
+          subject: formattedSubject,
+          orderId: orderId || null,
+          userId: userId || null,
+          type,
+          status: 'failed',
+          error: errMsg,
+        }).catch(() => {});
+        return { success: false, error: errMsg };
+      }
+    } else {
+      const apiKey = providerType === 'resend'
+        ? (process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY)
+        : process.env.BREVO_API_KEY;
+      if (!apiKey && !customEmailSender) {
+        const errMsg = `${providerType.toUpperCase()} API key not configured (${providerType === 'resend' ? 'RESEND_API_KEY' : 'BREVO_API_KEY'}).`;
+        logger.warn(`[EmailService] Skipping email to ${normalizedTo} ("${formattedSubject}"): ${errMsg}`);
+        await EmailLog.create({
+          to: normalizedTo,
+          subject: formattedSubject,
+          orderId: orderId || null,
+          userId: userId || null,
+          type,
+          status: 'failed',
+          error: errMsg,
+        }).catch(() => {});
+        return { success: false, error: errMsg };
+      }
     }
 
-    // 5. Construct sender name & address: separate technical SMTP sender from customer-facing display name & reply-to
+    // 5. Construct sender name & address: separate technical SMTP/API sender from customer-facing display name & reply-to
     let fromName = process.env.FROM_NAME || 'NovaShop';
     let replyToEmail = '';
     try {
@@ -454,12 +695,15 @@ export async function sendEmail({
       // Continue with env defaults
     }
 
-    let fromEmail = process.env.EMAIL_USER;
-    if (process.env.EMAIL_FROM && !fromEmail) {
-      const match = process.env.EMAIL_FROM.match(/<([^>]+)>/);
-      fromEmail = match ? match[1] : process.env.EMAIL_FROM;
+    let fromEmail = process.env.EMAIL_FROM || process.env.FROM_EMAIL || process.env.EMAIL_USER;
+    if (fromEmail) {
+      const match = fromEmail.match(/<([^>]+)>/);
+      if (match) fromEmail = match[1];
     }
-    const sender = `"${fromName}" <${fromEmail || 'noreply@novashop.com'}>`;
+    if (!fromEmail) {
+      fromEmail = providerType === 'resend' ? 'onboarding@resend.dev' : 'noreply@novashop.com';
+    }
+    const sender = `"${fromName}" <${fromEmail}>`;
 
     // 6. Append unsubscribe link for promotional emails
     let finalHtml = html;
@@ -491,10 +735,16 @@ export async function sendEmail({
     };
 
     // Print headers debug log (never log email body)
-    logger.info(`[EmailService Debug Headers] To: "${normalizedTo}" | From: "${sender}" | Reply-To: "${mailOptions.replyTo || '(none)'}" | Subject: "${formattedSubject}"`);
+    logger.info(`[EmailService Debug Headers] Provider: ${providerType.toUpperCase()} | To: "${normalizedTo}" | From: "${sender}" | Reply-To: "${mailOptions.replyTo || '(none)'}" | Subject: "${formattedSubject}"`);
 
-    // In automated testing environment, do not attempt outbound network sockets to external SMTP unless custom transporter is provided
-    if (process.env.NODE_ENV === 'test' && !customTransporter) {
+    // In automated testing environment, do not attempt outbound network sockets to external SMTP unless custom transporter/provider is provided
+    if (
+      process.env.NODE_ENV === 'test' &&
+      !customTransporter &&
+      !customEmailSender &&
+      !process.env.RESEND_API_KEY &&
+      !process.env.BREVO_API_KEY
+    ) {
       logger.info(`[EmailService] Simulated delivery to ${normalizedTo} in test mode`);
       const mockLog = await EmailLog.create({
         to: normalizedTo,
@@ -523,23 +773,95 @@ export async function sendEmail({
       };
     }
 
-    // 7. Retry on transient network errors (up to 2 attempts)
+    // 7. Delivery execution with bounded retries (up to 2 attempts)
     let info = null;
     let lastError = null;
 
-    for (let attempt = 1; attempt <= 2; attempt++) {
+    if (customEmailSender) {
       try {
-        info = await activeTransporter.sendMail(mailOptions);
-        break;
-      } catch (err) {
-        lastError = err;
-        logger.warn(`[EmailService] Attempt ${attempt} failed to deliver email to ${normalizedTo}: ${err.message}`);
-        // Do not retry on permanent auth or quota errors
-        if (err.code === 535 || err.code === 534 || err.responseCode === 535) {
-          break;
+        const customRes = await customEmailSender({
+          from: sender,
+          fromName,
+          fromEmail,
+          to: normalizedTo,
+          subject: formattedSubject,
+          text: finalText,
+          html: finalHtml,
+          replyTo: replyTo || replyToEmail || undefined,
+          headers,
+        });
+        if (customRes && customRes.success !== false) {
+          info = {
+            messageId: customRes.messageId || `custom-${Date.now()}`,
+            accepted: customRes.accepted || [normalizedTo],
+            rejected: customRes.rejected || [],
+            response: customRes.response || '250 OK custom',
+          };
+        } else {
+          lastError = new Error(customRes?.error || 'Custom email delivery rejected');
         }
-        if (attempt < 2) {
-          await new Promise((r) => setTimeout(r, 800));
+      } catch (customErr) {
+        lastError = customErr;
+      }
+    } else if (providerType === 'resend' || providerType === 'brevo') {
+      const apiKey = providerType === 'resend'
+        ? (process.env.RESEND_API_KEY || process.env.EMAIL_API_KEY)
+        : process.env.BREVO_API_KEY;
+
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          if (providerType === 'resend') {
+            info = await sendViaResendApi({
+              apiKey,
+              from: sender,
+              to: normalizedTo,
+              subject: formattedSubject,
+              html: finalHtml,
+              text: finalText,
+              replyTo: replyTo || replyToEmail,
+              headers,
+            });
+          } else {
+            info = await sendViaBrevoApi({
+              apiKey,
+              fromName,
+              fromEmail,
+              to: normalizedTo,
+              subject: formattedSubject,
+              html: finalHtml,
+              text: finalText,
+              replyTo: replyTo || replyToEmail,
+              headers,
+            });
+          }
+          break;
+        } catch (err) {
+          lastError = err;
+          logger.warn(`[EmailService] Attempt ${attempt} via ${providerType.toUpperCase()} API failed to ${normalizedTo}: ${err.message}`);
+          if (err.status === 401 || err.status === 403 || err.status === 422) {
+            break;
+          }
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 800));
+          }
+        }
+      }
+    } else {
+      // SMTP delivery
+      for (let attempt = 1; attempt <= 2; attempt++) {
+        try {
+          info = await activeTransporter.sendMail(mailOptions);
+          break;
+        } catch (err) {
+          lastError = err;
+          logger.warn(`[EmailService] Attempt ${attempt} failed to deliver email to ${normalizedTo}: ${err.message}`);
+          // Do not retry on permanent auth or quota errors
+          if (err.code === 535 || err.code === 534 || err.responseCode === 535) {
+            break;
+          }
+          if (attempt < 2) {
+            await new Promise((r) => setTimeout(r, 800));
+          }
         }
       }
     }
@@ -560,7 +882,7 @@ export async function sendEmail({
         }
       }
 
-      logger.info(`[EmailService SMTP Response] Accepted: [${acceptedList.join(', ')}] | Rejected: [${rejectedList.join(', ')}] | Response: "${info.response || ''}" | MessageId: ${info.messageId}`);
+      logger.info(`[EmailService Response] Accepted: [${acceptedList.join(', ')}] | Rejected: [${rejectedList.join(', ')}] | Response: "${info.response || ''}" | MessageId: ${info.messageId}`);
 
       if (isAccepted && !isRejected) {
         logger.info(`[EmailService] ✓ Email sent successfully to ${normalizedTo} (MessageId: ${info.messageId}) [Subject: "${formattedSubject}"]`);
@@ -606,8 +928,8 @@ export async function sendEmail({
           logId: savedLog?._id,
         };
       } else {
-        // Recipient rejected by SMTP server at envelope stage
-        const rejectReason = `Recipient rejected by SMTP server: ${rejectedList.join(', ') || 'Address not accepted'}`;
+        // Recipient rejected by server at envelope stage
+        const rejectReason = `Recipient rejected by provider: ${rejectedList.join(', ') || 'Address not accepted'}`;
         logger.error(`[EmailService] ✕ Recipient rejected for ${normalizedTo}: ${rejectReason}`);
 
         let failedLog = null;
@@ -647,7 +969,8 @@ export async function sendEmail({
 
     // 9. Failure handling (never throws into caller)
     const diag = diagnoseSmtpError(lastError);
-    logger.error(`[EmailService] ✕ Failed to send email to ${normalizedTo} after retries: ${diag.message}`);
+    const failureMessage = (providerType !== 'smtp' && lastError?.message) ? lastError.message : diag.message;
+    logger.error(`[EmailService] ✕ Failed to send email to ${normalizedTo} after retries: ${failureMessage}`);
 
     let errLog = null;
     try {
@@ -658,7 +981,7 @@ export async function sendEmail({
         userId: userId || null,
         type,
         status: 'failed',
-        error: diag.message,
+        error: failureMessage,
         idempotencyKey: idempotencyKey || null,
         adminUserId: adminUserId || null,
         adminName: adminName || '',
@@ -667,14 +990,14 @@ export async function sendEmail({
       if (orderId) {
         await Order.findByIdAndUpdate(orderId, {
           emailDeliveryStatus: 'failed',
-          emailError: diag.message,
+          emailError: failureMessage,
         });
       }
     } catch (logErr) {
       logger.warn(`[EmailService] Non-fatal log recording error: ${logErr.message}`);
     }
 
-    return { success: false, error: diag.message, logId: errLog?._id };
+    return { success: false, error: failureMessage, logId: errLog?._id };
   } catch (unexpectedError) {
     logger.error(`[EmailService] Unexpected fatal mailer caught: ${unexpectedError.message}`);
     return { success: false, error: unexpectedError.message };
@@ -1503,6 +1826,12 @@ export default {
   verifyTransporter,
   getTransporter,
   resetTransporter,
+  setEmailSender,
+  resetEmailSender,
+  getEmailProviderType,
+  isHttpsEmailConfigured,
+  sendViaResendApi,
+  sendViaBrevoApi,
   diagnoseSmtpError,
   getOrderConfirmationEmail,
   getPaymentSuccessEmail,

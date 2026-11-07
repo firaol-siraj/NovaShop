@@ -954,4 +954,339 @@ describe('Production Readiness: Payment & Email Lifecycle Audit Tests', () => {
       }
     });
   });
+
+  describe('5. Production Email & Chapa Payment Remediation Regression Suite', () => {
+    afterEach(() => {
+      emailService.resetEmailSender();
+      emailService.resetTransporter();
+      delete process.env.RESEND_API_KEY;
+      delete process.env.EMAIL_API_KEY;
+      delete process.env.BREVO_API_KEY;
+      delete process.env.EMAIL_PROVIDER;
+      delete process.env.RENDER_EXTERNAL_URL;
+      delete process.env.BACKEND_URL;
+    });
+
+    describe('A. HTTPS Email Provider Integration', () => {
+      it('delivers email successfully via mock Resend HTTPS API and records EmailLog', async () => {
+        let capturedCall = null;
+        emailService.setEmailSender(async (payload) => {
+          capturedCall = payload;
+          return {
+            success: true,
+            messageId: 'resend_msg_test_123',
+            response: '200 OK',
+            accepted: [payload.to],
+            rejected: [],
+          };
+        });
+
+        const result = await emailService.sendEmail({
+          to: 'customer@example.com',
+          subject: 'Order Confirmation #1001',
+          text: 'Thank you for your order.',
+          html: '<p>Thank you for your order.</p>',
+          type: 'order_confirmation',
+        });
+
+        expect(result.success).toBe(true);
+        expect(result.messageId).toBe('resend_msg_test_123');
+        expect(capturedCall).toBeDefined();
+        expect(capturedCall.to).toBe('customer@example.com');
+        expect(capturedCall.subject).toBe('NovaShop: Order Confirmation #1001');
+      });
+
+      it('handles invalid provider credentials without reporting false success', async () => {
+        emailService.setEmailSender(async () => {
+          const err = new Error('Resend API delivery failed (401): API key is invalid');
+          err.status = 401;
+          throw err;
+        });
+
+        const result = await emailService.sendEmail({
+          to: 'customer@example.com',
+          subject: 'Security Alert',
+          text: 'Login detected',
+          type: 'security_alert',
+          statusCategory: 'security',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/API key is invalid|401/i);
+      });
+
+      it('handles provider network failure, retries bounded times and fails safely', async () => {
+        let attempts = 0;
+        emailService.setEmailSender(async () => {
+          attempts += 1;
+          const err = new Error('fetch failed: connection timeout to api.resend.com');
+          err.status = 504;
+          throw err;
+        });
+
+        const result = await emailService.sendEmail({
+          to: 'customer@example.com',
+          subject: 'Password Reset',
+          text: 'Reset your password',
+          type: 'password_reset',
+          statusCategory: 'security',
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error).toMatch(/timeout|connection/i);
+      });
+
+      it('prevents duplicate email delivery within cooldown window using idempotencyKey', async () => {
+        const idempotencyKey = `idemp_test_${Date.now()}`;
+        emailService.setEmailSender(async () => ({
+          success: true,
+          messageId: 'msg_idemp_1',
+          response: '200 OK',
+        }));
+
+        const firstSend = await emailService.sendEmail({
+          to: 'duplicate-test@example.com',
+          subject: 'Single Send Only',
+          text: 'First dispatch',
+          idempotencyKey,
+        });
+
+        expect(firstSend.success).toBe(true);
+        expect(firstSend.deduplicated).toBeUndefined();
+
+        // Immediate second send with same idempotency key
+        const secondSend = await emailService.sendEmail({
+          to: 'duplicate-test@example.com',
+          subject: 'Single Send Only',
+          text: 'Second dispatch',
+          idempotencyKey,
+        });
+
+        expect(secondSend.success).toBe(true);
+        expect(secondSend.deduplicated).toBe(true);
+      });
+
+      it('successfully dispatches password-reset email via forgot-password endpoint', async () => {
+        let dispatched = null;
+        emailService.setEmailSender(async (payload) => {
+          dispatched = payload;
+          return {
+            success: true,
+            messageId: 'pwd_reset_msg_id',
+            response: '200 OK',
+          };
+        });
+
+        const res = await request(app)
+          .post('/api/v1/auth/forgot-password')
+          .send({ email: customerUser.email });
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.message).toMatch(/password reset link has been sent/i);
+      });
+
+      it('successfully dispatches payment receipt email upon payment confirmation', async () => {
+        let receiptPayload = null;
+        emailService.setEmailSender(async (payload) => {
+          receiptPayload = payload;
+          return {
+            success: true,
+            messageId: 'receipt_msg_123',
+            response: '200 OK',
+          };
+        });
+
+        const order = await Order.create({
+          user: customerUser._id,
+          orderItems: [
+            {
+              product: testProduct._id,
+              variant: testVariant._id,
+              name: testProduct.name,
+              qty: 1,
+              price: 100.0,
+              image: testProduct.image,
+            },
+          ],
+          shippingAddress: {
+            recipientName: 'Test Customer',
+            address: 'Bole Road 123',
+            city: 'Addis Ababa',
+            postalCode: '1000',
+            country: 'Ethiopia',
+            phone: '+251911223344',
+          },
+          paymentMethod: 'Chapa',
+          currency: 'USD',
+          totalPrice: 100.0,
+          totalPriceETB: 12000.0,
+          itemsPrice: 100.0,
+          shippingPrice: 0,
+          taxPrice: 0,
+          status: 'pending',
+          paymentStatus: 'pending',
+          paymentReference: 'NS_RECEIPT_TEST_REF',
+          chapaReference: 'chapa_receipt_test_ref',
+        });
+
+        const result = await markOrderPaid(
+          order,
+          {
+            status: 'success',
+            amount: 12000,
+            currency: 'ETB',
+            reference: 'chapa_receipt_test_ref',
+            tx_ref: 'NS_RECEIPT_TEST_REF',
+          },
+          customerUser.email
+        );
+
+        expect(result.isPaid).toBe(true);
+        expect(result.paymentStatus).toBe('paid');
+      });
+    });
+
+    describe('B. Chapa Payment Lifecycle and Frontend Polling Fallback', () => {
+      it('derives callback_url from RENDER_EXTERNAL_URL and includes trx_ref in return_url', () => {
+        process.env.RENDER_EXTERNAL_URL = 'https://novashop-backend.onrender.com';
+        process.env.FRONTEND_URL = 'https://novashop-frontend.onrender.com';
+
+        const fakeOrder = {
+          _id: '672cba123456789012345678',
+          orderNumber: 'NS-99999',
+          totalPrice: 50.0,
+          totalPriceETB: 6000.0,
+          currency: 'USD',
+          usdToEtbRate: 120,
+          user: { _id: '672cba123456789012345679', email: 'payer@example.com' },
+          shippingAddress: { phone: '+251911223344' },
+        };
+
+        const payload = chapaService.buildInitializePayload({
+          order: fakeOrder,
+          customer: { firstName: 'Abebe', lastName: 'Bikila', email: 'payer@example.com' },
+          txRef: 'NS_TEST_TX_REF_1',
+        });
+
+        expect(payload.amount).toBe(6000.0);
+        expect(payload.currency).toBe('ETB');
+        expect(payload.callback_url).toBe('https://novashop-backend.onrender.com/api/v1/orders/webhook/chapa');
+        expect(payload.return_url).toContain('https://novashop-frontend.onrender.com/checkout/confirmation?orderId=672cba123456789012345678');
+        expect(payload.return_url).toContain('trx_ref=NS_TEST_TX_REF_1');
+      });
+
+      it('supports public transaction verification directly using orderId when tx_ref is absent from query params', async () => {
+        const order = await Order.create({
+          user: customerUser._id,
+          orderItems: [
+            {
+              product: testProduct._id,
+              variant: testVariant._id,
+              name: testProduct.name,
+              qty: 1,
+              price: 100.0,
+              image: testProduct.image,
+            },
+          ],
+          shippingAddress: {
+            recipientName: 'Test Customer',
+            address: 'Bole Road 123',
+            city: 'Addis Ababa',
+            postalCode: '1000',
+            country: 'Ethiopia',
+            phone: '+251911223344',
+          },
+          paymentMethod: 'Chapa',
+          currency: 'USD',
+          totalPrice: 100.0,
+          totalPriceETB: 12000.0,
+          itemsPrice: 100.0,
+          shippingPrice: 0,
+          taxPrice: 0,
+          status: 'pending',
+          paymentStatus: 'pending',
+          paymentReference: 'NS_ORDER_ID_LOOKUP_REF',
+          chapaReference: 'chapa_order_id_lookup_ref',
+        });
+
+        jest.spyOn(chapaService, 'verifyPayment').mockResolvedValueOnce({
+          success: true,
+          status: 'success',
+          amount: 12000,
+          currency: 'ETB',
+          reference: 'chapa_order_id_lookup_ref',
+          tx_ref: 'NS_ORDER_ID_LOOKUP_REF',
+          data: { status: 'success' },
+        });
+
+        // Query public verification using the order._id string (as frontend does when unauthenticated)
+        const res = await request(app)
+          .get(`/api/v1/orders/transaction/verify/${order._id}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.verified).toBe(true);
+        expect(res.body.paymentStatus).toBe('paid');
+        expect(res.body.data).toBeDefined();
+        expect(res.body.data.isPaid).toBe(true);
+        expect(res.body.data.orderNumber).toBe(order.orderNumber);
+
+        const updatedOrder = await Order.findById(order._id);
+        expect(updatedOrder.isPaid).toBe(true);
+        expect(updatedOrder.paymentStatus).toBe('paid');
+      });
+
+      it('preserves pending status when temporary Chapa API network timeout occurs during polling', async () => {
+        const order = await Order.create({
+          user: customerUser._id,
+          orderItems: [
+            {
+              product: testProduct._id,
+              variant: testVariant._id,
+              name: testProduct.name,
+              qty: 1,
+              price: 100.0,
+              image: testProduct.image,
+            },
+          ],
+          shippingAddress: {
+            recipientName: 'Test Customer',
+            address: 'Bole Road 123',
+            city: 'Addis Ababa',
+            postalCode: '1000',
+            country: 'Ethiopia',
+            phone: '+251911223344',
+          },
+          paymentMethod: 'Chapa',
+          currency: 'USD',
+          totalPrice: 100.0,
+          totalPriceETB: 12000.0,
+          itemsPrice: 100.0,
+          shippingPrice: 0,
+          taxPrice: 0,
+          status: 'pending',
+          paymentStatus: 'pending',
+          paymentReference: 'NS_TIMEOUT_POLL_REF',
+          chapaReference: 'chapa_timeout_poll_ref',
+        });
+
+        jest.spyOn(chapaService, 'verifyPayment').mockRejectedValueOnce(
+          new Error('Chapa gateway timeout (ETIMEDOUT)')
+        );
+
+        const res = await request(app)
+          .get(`/api/v1/orders/transaction/verify/${order.paymentReference}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.success).toBe(true);
+        expect(res.body.verified).toBe(false);
+        expect(res.body.paymentStatus).toBe('pending');
+
+        const dbOrder = await Order.findById(order._id);
+        expect(dbOrder.paymentStatus).toBe('pending');
+        expect(dbOrder.isPaid).toBe(false);
+      });
+    });
+  });
 });

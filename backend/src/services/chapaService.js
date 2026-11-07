@@ -157,22 +157,31 @@ class ChapaService {
     // In test mode, Chapa expects Ethiopian Birr (ETB). We convert USD to ETB if order is in USD.
     const isUsd = (order.currency || 'USD').toUpperCase() === 'USD';
     const chapaCurrency = 'ETB';
-    const chapaAmount = isUsd ? this.convertToEtb(order.totalPrice) : Number(order.totalPrice.toFixed(2));
+    const chapaAmount = isUsd
+      ? (order.totalPriceETB || this.convertToEtb(order.totalPrice))
+      : Number(order.totalPrice.toFixed(2));
 
     const frontendBase = process.env.FRONTEND_URL || process.env.CLIENT_URL || 'http://localhost:5173';
     const backendBase =
       process.env.CHAPA_CALLBACK_URL ||
+      process.env.BACKEND_URL ||
+      process.env.RENDER_EXTERNAL_URL ||
       process.env.BACKEND_PUBLIC_URL ||
       process.env.API_BASE_URL ||
       'http://localhost:5000/api/v1';
 
     // Construct public callback URL for webhook delivery
-    const callbackUrl = process.env.CHAPA_CALLBACK_URL
-      ? process.env.CHAPA_CALLBACK_URL
-      : `${backendBase.replace(/\/$/, '')}/orders/webhook/chapa`;
+    let callbackUrl;
+    if (process.env.CHAPA_CALLBACK_URL) {
+      callbackUrl = process.env.CHAPA_CALLBACK_URL;
+    } else {
+      const base = backendBase.replace(/\/$/, '');
+      const path = base.endsWith('/api/v1') ? '/orders/webhook/chapa' : '/api/v1/orders/webhook/chapa';
+      callbackUrl = `${base}${path}`;
+    }
 
     const resolvedReturnUrl =
-      returnUrl || `${frontendBase}/checkout/confirmation?orderId=${order._id}`;
+      returnUrl || `${frontendBase}/checkout/confirmation?orderId=${order._id}&trx_ref=${txRef}`;
 
     // Strictly sanitize customization fields: title, description, and order number
     const rawOrderNum = order.orderNumber || String(order._id || '');

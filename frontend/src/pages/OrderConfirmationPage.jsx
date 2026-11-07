@@ -56,6 +56,7 @@ export default function OrderConfirmationPage({ go }) {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
 
   const pollTimerRef = useRef(null);
+  const pollCountRef = useRef(0);
 
   const clearPollTimer = () => {
     if (pollTimerRef.current) {
@@ -69,7 +70,7 @@ export default function OrderConfirmationPage({ go }) {
   }, []);
 
   const loadOrderStatus = useCallback(async (isManualRefresh = false) => {
-    if (!resolvedOrderId) {
+    if (!resolvedOrderId && !urlTxRef) {
       setLoading(false);
       return;
     }
@@ -77,116 +78,145 @@ export default function OrderConfirmationPage({ go }) {
     if (isManualRefresh) {
       setRefreshing(true);
       setNotice('');
+      pollCountRef.current = 0;
     }
 
-    try {
-      // 1. Fetch full authoritative order data from server
-      const orderRes = await orderApi.getOrder(resolvedOrderId);
-      if (!orderRes.success || !orderRes.data) {
-        throw new Error('Failed to retrieve order details.');
-      }
+    const currentAttempt = pollCountRef.current + 1;
+    console.log('[OrderConfirmation] Verifying order/payment status', {
+      orderId: resolvedOrderId,
+      trxRef: urlTxRef,
+      attempt: currentAttempt,
+    });
 
-      const orderData = orderRes.data;
-      setOrder(orderData);
+    let orderData = null;
+    let orderFetchError = null;
 
-      // Check if order is already paid or Cash on Delivery
-      const isAlreadyPaid = Boolean(orderData.isPaid || orderData.paymentStatus === 'paid');
-      const isCash = orderData.paymentMethod === 'Cash' || orderData.paymentMethod === 'Cash on Delivery';
-
-      if (isAlreadyPaid) {
-        setVerificationStatus('paid');
-        clearPollTimer();
-        if (typeof refreshCart === 'function') {
-          await refreshCart();
+    // 1. Fetch full authoritative order data from server if authenticated
+    if (resolvedOrderId) {
+      try {
+        const orderRes = await orderApi.getOrder(resolvedOrderId);
+        if (orderRes?.success && orderRes?.data) {
+          orderData = orderRes.data;
+          setOrder(orderData);
         }
-        if (isManualRefresh) setNotice('Payment confirmed!');
-        setLoading(false);
-        setRefreshing(false);
-        return;
+      } catch (err) {
+        orderFetchError = err;
+        console.warn('[OrderConfirmation] Private order fetch bypassed or unauthenticated:', err?.message || err);
       }
+    }
 
-      if (isCash) {
-        setVerificationStatus('cash');
-        clearPollTimer();
-        setLoading(false);
-        setRefreshing(false);
-        return;
+    // Check if order is already paid or Cash on Delivery
+    const isAlreadyPaid = Boolean(orderData?.isPaid || orderData?.paymentStatus === 'paid');
+    const isCash = Boolean(orderData?.paymentMethod === 'Cash' || orderData?.paymentMethod === 'Cash on Delivery');
+
+    if (isAlreadyPaid) {
+      setVerificationStatus('paid');
+      clearPollTimer();
+      if (typeof refreshCart === 'function') {
+        await refreshCart();
       }
+      if (isManualRefresh) setNotice('Payment confirmed!');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
-      // Check if explicitly cancelled
-      if (orderData.status === 'cancelled' || orderData.paymentStatus === 'cancelled') {
-        setVerificationStatus('cancelled');
-        clearPollTimer();
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
+    if (isCash) {
+      setVerificationStatus('cash');
+      clearPollTimer();
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
-      // 2. Online Payment (Chapa): Perform server-side transaction verification
-      // Use reference from return URL redirect or stored on the order
-      const referenceToVerify = urlTxRef || orderData.paymentReference || orderData.chapaReference;
+    // Check if explicitly cancelled
+    if (orderData?.status === 'cancelled' || orderData?.paymentStatus === 'cancelled') {
+      setVerificationStatus('cancelled');
+      clearPollTimer();
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
 
-      if (referenceToVerify) {
-        setVerifying(true);
-        try {
-          const verifyRes = await orderApi.verifyTransaction(referenceToVerify);
+    // 2. Online Payment (Chapa): Perform server-side transaction verification
+    // Use reference from return URL redirect or stored on the order, falling back to resolvedOrderId
+    const referenceToVerify = urlTxRef || orderData?.paymentReference || orderData?.chapaReference || resolvedOrderId;
 
-          if (verifyRes.success && (verifyRes.verified || verifyRes.paymentStatus === 'paid' || verifyRes.data?.isPaid)) {
-            // Payment verified as successful
-            setOrder((prev) => ({
-              ...prev,
-              ...(verifyRes.data || {}),
-              isPaid: true,
-              paymentStatus: 'paid',
-              status: verifyRes.data?.status || 'processing',
-            }));
-            setVerificationStatus('paid');
-            clearPollTimer();
-            if (typeof refreshCart === 'function') {
-              await refreshCart();
-            }
-            if (isManualRefresh) setNotice('Payment verified successfully!');
-          } else if (verifyRes.paymentStatus === 'pending') {
-            // Gateway reports payment is still pending confirmation
-            setVerificationStatus('pending');
-            if (isManualRefresh) setNotice('Payment is currently pending confirmation from Chapa.');
+    if (referenceToVerify) {
+      setVerifying(true);
+      try {
+        const verifyRes = await orderApi.verifyTransaction(referenceToVerify);
+        console.log('[OrderConfirmation] Chapa verification result:', {
+          success: verifyRes?.success,
+          verified: verifyRes?.verified,
+          paymentStatus: verifyRes?.paymentStatus,
+        });
 
-            // Auto-poll up to 6 times (every 4 seconds)
-            if (pollCount < 6) {
-              clearPollTimer();
-              pollTimerRef.current = setTimeout(() => {
-                setPollCount((c) => c + 1);
-                loadOrderStatus(false);
-              }, 4000);
-            }
-          } else if (verifyRes.paymentStatus === 'failed') {
-            // Gateway reports definitive failure
-            setVerificationStatus('failed');
-            clearPollTimer();
-            if (isManualRefresh) setNotice(verifyRes.message || 'Payment transaction failed or declined.');
-          } else {
-            // Indeterminate status: treat as pending
-            setVerificationStatus('pending');
+        if (verifyRes?.success && (verifyRes.verified || verifyRes.paymentStatus === 'paid' || verifyRes.data?.isPaid)) {
+          // Payment verified as successful
+          setOrder((prev) => ({
+            ...(prev || {}),
+            ...(verifyRes.data || {}),
+            _id: resolvedOrderId || prev?._id,
+            isPaid: true,
+            paymentStatus: 'paid',
+            status: verifyRes.data?.status || 'processing',
+          }));
+          setVerificationStatus('paid');
+          setError('');
+          clearPollTimer();
+          if (typeof refreshCart === 'function') {
+            await refreshCart();
           }
-        } catch {
-          // Verification by tx_ref failed or timed out: fallback to order payment-status endpoint
+          if (isManualRefresh) setNotice('Payment verified successfully!');
+          setLoading(false);
+          setRefreshing(false);
+          setVerifying(false);
+          return;
+        } else if (verifyRes?.paymentStatus === 'pending') {
+          // Gateway reports payment is still pending confirmation
+          setVerificationStatus('pending');
+          if (isManualRefresh) setNotice('Payment is currently pending confirmation from Chapa.');
+
+          // Auto-poll up to 10 times (every 3 seconds)
+          if (pollCountRef.current < 10) {
+            clearPollTimer();
+            pollTimerRef.current = setTimeout(() => {
+              pollCountRef.current += 1;
+              setPollCount(pollCountRef.current);
+              loadOrderStatus(false);
+            }, 3000);
+          }
+        } else if (verifyRes?.paymentStatus === 'failed') {
+          // Gateway reports definitive failure
+          setVerificationStatus('failed');
+          clearPollTimer();
+          if (isManualRefresh) setNotice(verifyRes.message || 'Payment transaction failed or declined.');
+        } else {
+          // Indeterminate status: treat as pending
+          setVerificationStatus('pending');
+        }
+      } catch (verifyErr) {
+        console.warn('[OrderConfirmation] verifyTransaction failed or network timeout:', verifyErr?.message || verifyErr);
+        // Fallback to order payment-status endpoint if resolvedOrderId is available
+        if (resolvedOrderId) {
           try {
             const statusRes = await orderApi.getPaymentStatus(resolvedOrderId);
-            if (statusRes.success && statusRes.data) {
+            if (statusRes?.success && statusRes?.data) {
               const sData = statusRes.data;
               setOrder((prev) => ({
-                ...prev,
-                isPaid: sData.isPaid,
-                paymentStatus: sData.paymentStatus,
-                status: sData.status || prev?.status,
-                paidAt: sData.paidAt || prev?.paidAt,
-                confirmationEmailSent: sData.confirmationEmailSent ?? prev?.confirmationEmailSent,
+                ...(prev || {}),
+                ...sData,
               }));
 
               if (sData.isPaid || sData.paymentStatus === 'paid') {
                 setVerificationStatus('paid');
                 clearPollTimer();
                 if (typeof refreshCart === 'function') await refreshCart();
+                setLoading(false);
+                setRefreshing(false);
+                setVerifying(false);
+                return;
               } else if (sData.paymentStatus === 'failed') {
                 setVerificationStatus('failed');
                 clearPollTimer();
@@ -195,33 +225,31 @@ export default function OrderConfirmationPage({ go }) {
               }
             }
           } catch {
-            // Non-fatal if order was loaded
             setVerificationStatus('pending');
           }
-        } finally {
-          setVerifying(false);
-        }
-      } else {
-        // No transaction reference exists yet
-        setVerificationStatus('pending');
-      }
-    } catch (err) {
-      if (err.status === 403 || err.response?.status === 403) {
-        setError('You are not authorized to view the details for this order.');
-      } else if (err.status === 404 || err.response?.status === 404) {
-        setError('Order not found. Please check your order reference or sign in to your account.');
-      } else {
-        if (currentOrder && (currentOrder._id === resolvedOrderId || currentOrder.orderId === resolvedOrderId)) {
-          setOrder(currentOrder);
         } else {
-          setError(err.message || err.response?.data?.message || 'Unable to load order confirmation.');
+          setVerificationStatus('pending');
         }
+      } finally {
+        setVerifying(false);
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    } else {
+      setVerificationStatus('pending');
     }
-  }, [resolvedOrderId, urlTxRef, currentOrder, pollCount, refreshCart]);
+
+    if (!orderData && orderFetchError) {
+      if (currentOrder && (currentOrder._id === resolvedOrderId || currentOrder.orderId === resolvedOrderId)) {
+        setOrder(currentOrder);
+      } else if (orderFetchError.status === 403 || orderFetchError.response?.status === 403) {
+        setError('You are not authorized to view the details for this order.');
+      } else if (orderFetchError.status === 404 || orderFetchError.response?.status === 404) {
+        setError('Order not found. Please check your order reference or sign in to your account.');
+      }
+    }
+
+    setLoading(false);
+    setRefreshing(false);
+  }, [resolvedOrderId, urlTxRef, currentOrder, refreshCart]);
 
   useEffect(() => {
     loadOrderStatus(false);
