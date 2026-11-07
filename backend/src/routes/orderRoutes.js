@@ -14,7 +14,7 @@ import {
   verifyTransactionByRef,
   updateOrderStatus,
 } from '../controllers/orderController.js';
-import { protect, restrictTo } from '../middlewares/authMiddleware.js';
+import { protect, restrictTo, protectOptional } from '../middlewares/authMiddleware.js';
 import validate from '../middlewares/validateMiddleware.js';
 import { idParamSchema } from '../validators/commonValidator.js';
 import { createOrderSchema, initializePaymentSchema, updateOrderStatusSchema } from '../validators/orderValidator.js';
@@ -232,8 +232,8 @@ router.route('/:id/resend-confirmation').post(protect, validate(idParamSchema, '
 // Chapa Webhook endpoint (Public, validated by x-chapa-signature)
 router.route('/webhook/chapa').post(handleChapaWebhook);
 
-// Chapa Transaction Verification endpoint (Verifies by tx_ref)
-router.route('/transaction/verify/:tx_ref').get(verifyTransactionByRef);
+// Chapa Transaction Verification endpoint (Verifies by tx_ref, public safe verification)
+router.route('/transaction/verify/:tx_ref').get(protectOptional, verifyTransactionByRef);
 /**
  * @openapi
  * /orders/{id}:

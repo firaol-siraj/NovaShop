@@ -8,7 +8,7 @@ import Cart from '../models/cartModel.js';
 import AdminNotification from '../models/adminNotificationModel.js';
 import asyncHandler from '../utils/asyncHandler.js';
 import ApiError from '../utils/ApiError.js';
-import { emailQueue } from '../queues/emailQueue.js';
+import { emailQueue, queueOrSendEmail } from '../queues/emailQueue.js';
 import { getUnitPrice } from '../utils/pricing.js';
 import chapaService from '../services/chapaService.js';
 import paymentService from '../services/paymentService.js';
@@ -73,23 +73,25 @@ export const reconcileUserCart = async (userId, orderItems) => {
 /**
  * Decrement stock for order items when payment is confirmed or for COD.
  */
-export const decrementStockForOrder = async (order) => {
+export const decrementStockForOrder = async (order, session = null) => {
   if (order.isStockReserved) return;
+
+  const sessionOption = session ? { session } : {};
 
   for (const item of order.orderItems) {
     const itemQty = Number(item.qty || 1);
     if (item.variant) {
-      const variant = await ProductVariant.findById(item.variant);
+      const variant = await ProductVariant.findById(item.variant, null, sessionOption);
       if (variant) {
         variant.stock = Math.max(0, variant.stock - itemQty);
-        await variant.save();
+        await variant.save(sessionOption);
         await syncProductStock(variant.product);
       }
     } else if (item.product) {
-      const product = await Product.findById(item.product);
+      const product = await Product.findById(item.product, null, sessionOption);
       if (product) {
         product.countInStock = Math.max(0, product.countInStock - itemQty);
-        await product.save();
+        await product.save(sessionOption);
       }
     }
   }
@@ -166,22 +168,77 @@ export const cancelExpiredUnpaidOrders = async () => {
 };
 
 /**
+ * Verifies that the payment provider's verified transaction amount and currency
+ * accurately match the order's required total.
+ * Handles ETB/USD currency conversion rates safely and strictly prevents underpayments.
+ *
+ * @param {Object} order - Mongoose Order document
+ * @param {Object} verification - Normalized verified data from chapaService.verifyPayment
+ * @returns {{ valid: boolean, reason?: string }}
+ */
+export const verifyPaymentAgainstOrder = (order, verification) => {
+  if (!verification || !verification.success || verification.status !== 'success') {
+    return { valid: false, reason: verification?.message || 'Gateway reported non-success payment status' };
+  }
+
+  const verifiedAmount = Number(verification.amount);
+  const verifiedCurrency = (verification.currency || 'ETB').toUpperCase();
+  const orderCurrency = (order.currency || 'USD').toUpperCase();
+  const orderUSD = Number(order.totalPrice || 0);
+  const usdRate = order.usdToEtbRate || chapaService.usdToEtbRate || 120;
+  const orderETB = order.totalPriceETB ? Number(order.totalPriceETB) : Number((orderUSD * usdRate).toFixed(2));
+
+  if (!Number.isFinite(verifiedAmount) || verifiedAmount <= 0) {
+    return { valid: false, reason: `Invalid verified payment amount: ${verification.amount}` };
+  }
+
+  let amountMatches = false;
+  let currencyMatches = false;
+
+  if (verifiedCurrency === 'ETB') {
+    currencyMatches = true;
+    const diffETB = Math.abs(verifiedAmount - orderETB);
+    const convertedUSD = chapaService.convertToUsd(verifiedAmount);
+    const diffUSD = Math.abs(convertedUSD - orderUSD);
+    // Allow up to 2 ETB variance due to rounding or <= 0.05 USD equivalent
+    amountMatches = diffETB <= 2.0 || diffUSD <= 0.05 || (orderETB > 0 && diffETB / orderETB < 0.015);
+  } else if (verifiedCurrency === orderCurrency) {
+    currencyMatches = true;
+    amountMatches = Math.abs(verifiedAmount - orderUSD) <= 0.05;
+  }
+
+  if (!currencyMatches) {
+    return {
+      valid: false,
+      reason: `Currency mismatch: order expects ETB or ${orderCurrency}, gateway returned ${verifiedCurrency}`,
+    };
+  }
+
+  if (!amountMatches) {
+    return {
+      valid: false,
+      reason: `Amount mismatch: expected $${orderUSD.toFixed(2)} USD (~${orderETB.toFixed(2)} ETB), gateway verified ${verifiedAmount} ${verifiedCurrency}`,
+    };
+  }
+
+  return { valid: true };
+};
+
+/**
  * Confirms payment for an order idempotently, updates status, decrements stock,
  * reconciles cart, records payment and sends confirmation receipt email.
  */
 export const markOrderPaid = async (orderOrId, verificationData = {}, recipientEmail = '') => {
   const orderId = orderOrId?._id || orderOrId;
-  const order = typeof orderOrId?.save === 'function'
-    ? orderOrId
-    : await Order.findById(orderId).populate('user', 'name email');
+  const existingOrder = await Order.findById(orderId).populate('user', 'name email');
 
-  if (!order) {
+  if (!existingOrder) {
     throw new Error(`Order ${orderId} not found for payment confirmation`);
   }
 
-  if (order.isPaid && order.paymentStatus === 'paid') {
-    logger.info(`[markOrderPaid] Order ${order._id} is already marked as paid. Skipping.`);
-    return order;
+  if (existingOrder.isPaid && existingOrder.paymentStatus === 'paid') {
+    logger.info(`[markOrderPaid] Order ${existingOrder._id} is already marked as paid. Skipping.`);
+    return existingOrder;
   }
 
   const chapaRef =
@@ -191,26 +248,115 @@ export const markOrderPaid = async (orderOrId, verificationData = {}, recipientE
     verificationData.txRef ||
     verificationData.tx_ref ||
     verificationData.id ||
-    order.chapaReference ||
-    order.paymentReference;
+    existingOrder.chapaReference ||
+    existingOrder.paymentReference;
 
-  order.isPaid = true;
-  order.paidAt = new Date();
-  order.paymentStatus = 'paid';
-  order.status = 'processing';
-  order.chapaReference = chapaRef;
-  order.stockReservedUntil = null;
-  order.paymentResult = {
+  const paidAt = existingOrder.paidAt || new Date();
+  const paymentResult = {
     id: chapaRef,
     status: 'COMPLETED',
     update_time: new Date().toISOString(),
-    email_address: recipientEmail || order.customerEmail || order.user?.email,
+    email_address: recipientEmail || existingOrder.customerEmail || existingOrder.user?.email,
   };
 
-  // Decrement stock if online payment (COD was decremented at checkout)
-  await decrementStockForOrder(order);
+  const isReplicaSet = Boolean(
+    mongoose.connection?.client?.topology?.description?.type?.includes('ReplicaSet') ||
+    (mongoose.connection?.client?.topology?.description?.servers &&
+      mongoose.connection.client.topology.description.servers.size > 1)
+  );
 
-  await order.save();
+  let order;
+
+  if (isReplicaSet) {
+    const session = await mongoose.startSession();
+    try {
+      session.startTransaction();
+
+      // Atomic claim: only the first claimant can update isPaid from false/unset
+      const claimedOrder = await Order.findOneAndUpdate(
+        { _id: orderId, isPaid: { $ne: true } },
+        {
+          $set: {
+            isPaid: true,
+            paidAt,
+            paymentStatus: 'paid',
+            status: 'processing',
+            chapaReference: chapaRef,
+            stockReservedUntil: null,
+            paymentResult,
+            isStockReserved: true,
+          },
+        },
+        { session, new: true }
+      ).populate('user', 'name email');
+
+      if (!claimedOrder) {
+        await session.abortTransaction();
+        logger.info(`[markOrderPaid] Order ${orderId} was already claimed by concurrent request. Skipping.`);
+        return await Order.findById(orderId).populate('user', 'name email');
+      }
+
+      // Decrement stock inside transaction if not already reserved (e.g. not COD)
+      if (!existingOrder.isStockReserved) {
+        await decrementStockForOrder(existingOrder, session);
+      }
+
+      await session.commitTransaction();
+      order = claimedOrder;
+    } catch (txErr) {
+      try {
+        await session.abortTransaction();
+      } catch (_) {}
+      logger.error(`[markOrderPaid] Transaction failed for order ${orderId}: ${txErr.message}`);
+      throw txErr;
+    } finally {
+      try {
+        await session.endSession();
+      } catch (_) {}
+    }
+  } else {
+    // Standalone fallback with atomic compare-and-swap and stock rollback on error
+    const claimedOrder = await Order.findOneAndUpdate(
+      { _id: orderId, isPaid: { $ne: true } },
+      {
+        $set: {
+          isPaid: true,
+          paidAt,
+          paymentStatus: 'paid',
+          status: 'processing',
+          chapaReference: chapaRef,
+          stockReservedUntil: null,
+          paymentResult,
+          isStockReserved: true,
+        },
+      },
+      { new: true }
+    ).populate('user', 'name email');
+
+    if (!claimedOrder) {
+      logger.info(`[markOrderPaid] Order ${orderId} was already claimed by concurrent request. Skipping.`);
+      return await Order.findById(orderId).populate('user', 'name email');
+    }
+
+    try {
+      if (!existingOrder.isStockReserved) {
+        await decrementStockForOrder(existingOrder);
+      }
+    } catch (stockErr) {
+      await Order.findByIdAndUpdate(orderId, {
+        $set: {
+          isPaid: false,
+          paymentStatus: 'pending',
+          status: 'pending',
+          isStockReserved: false,
+        },
+      });
+      logger.error(`[markOrderPaid] Stock deduction failed for order ${orderId}. Reverted payment status: ${stockErr.message}`);
+      throw stockErr;
+    }
+
+    order = claimedOrder;
+  }
 
   // Record discount redemption idempotently if discount applied
   if (order.discountCode || order.discountId) {
@@ -255,25 +401,25 @@ export const markOrderPaid = async (orderOrId, verificationData = {}, recipientE
     // Non-fatal
   }
 
-  // Queue confirmation receipt email
+  // Dispatch confirmation receipt email
   const targetEmail = (recipientEmail || order.customerEmail || order.user?.email || '').trim();
   if (targetEmail) {
     try {
-      await emailQueue.add('sendPaymentReceiptEmail', {
+      const emailContent = getPaymentSuccessEmail({ order, paymentResult: order.paymentResult });
+      await queueOrSendEmail('sendPaymentReceiptEmail', {
+        to: targetEmail,
         email: targetEmail,
-        subject: `Payment Confirmed for Order #${order.orderNumber || order._id} (${order._id})`,
-        message: `Your payment of $${order.totalPrice} for Order #${order.orderNumber || order._id} was successfully processed.`,
-        html: `
-          <h2>Payment Received!</h2>
-          <p>Hi ${order.shippingAddress?.recipientName || order.user?.name || 'Valued Customer'},</p>
-          <p>We've successfully received your payment of <strong>$${order.totalPrice}</strong> for order <strong>#${order.orderNumber || order._id}</strong>.</p>
-          <p>Payment Reference: <code>${chapaRef || 'N/A'}</code></p>
-        `,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        message: emailContent.text,
+        html: emailContent.html,
+        orderId: order._id,
+        userId: userId?.toString(),
       });
       order.paymentEmailSent = true;
       await order.save();
     } catch (emailErr) {
-      logger.error(`[markOrderPaid] Error queuing payment receipt email: ${emailErr.message}`);
+      logger.error(`[markOrderPaid] Error dispatching payment receipt email: ${emailErr.message}`);
     }
   }
 
@@ -531,26 +677,24 @@ export const addOrderItems = asyncHandler(async (req, res, next) => {
   });
 
   let finalTaxPrice = req.body.taxPrice !== undefined ? Number(req.body.taxPrice) : taxResult.taxAmount;
-  let calculatedTotalPrice = Math.max(
+  const calculatedTotalPrice = Math.max(
     0,
     netItemsPrice + (taxResult.taxIncluded ? 0 : finalTaxPrice) + effectiveShippingPrice
   );
-
-  // If client provided matching explicit totalPrice
-  if (req.body.totalPrice !== undefined) {
-    const requestedTotal = Number(req.body.totalPrice);
-    if (!isNaN(requestedTotal) && requestedTotal > 0) {
-      calculatedTotalPrice = requestedTotal;
-    }
-  }
 
   const sanitizedShippingAddress = {
     ...shippingAddress,
     phone: sanitizePhoneNumber(shippingAddress.phone || ''),
   };
 
+  const normalizedCurrency = ['USD', 'ETB'].includes(String(currency || '').trim().toUpperCase())
+    ? String(currency).trim().toUpperCase()
+    : 'USD';
+
   const usdToEtbRate = chapaService.usdToEtbRate || 120;
-  const totalPriceETB = chapaService.convertToEtb(calculatedTotalPrice);
+  const totalPriceETB = normalizedCurrency === 'ETB'
+    ? calculatedTotalPrice
+    : chapaService.convertToEtb(calculatedTotalPrice);
 
   const settingsDoc = await Setting.getSingleton();
   const configuredPrefix = settingsDoc?.store?.orderPrefix || 'NS-';
@@ -564,7 +708,7 @@ export const addOrderItems = asyncHandler(async (req, res, next) => {
     customerEmail: (req.user?.email || req.body.customerEmail || req.body.email || req.body.shippingAddress?.email || '').trim(),
     shippingAddress: sanitizedShippingAddress,
     paymentMethod,
-    currency: (currency || 'USD').toUpperCase(),
+    currency: normalizedCurrency,
     totalPriceETB,
     usdToEtbRate,
     isStockReserved: isCash ? true : false,
@@ -685,19 +829,32 @@ export const resendOrderConfirmation = asyncHandler(async (req, res, next) => {
     return next(new ApiError(403, 'Not authorized to access this order'));
   }
 
-  const recipient = order.customerEmail || order.user?.email;
+  const recipient = (order.customerEmail || order.user?.email || '').trim();
   if (recipient) {
-    await emailQueue.add('sendOrderConfirmationEmail', {
+    const emailContent = order.isPaid
+      ? getPaymentSuccessEmail({ order, paymentResult: order.paymentResult })
+      : getOrderConfirmationEmail({ order, user: order.user });
+
+    await queueOrSendEmail('sendOrderConfirmationEmail', {
+      to: recipient,
       email: recipient,
-      subject: `Order Confirmation Resent: #${order.orderNumber || order._id}`,
-      message: `Order #${order.orderNumber || order._id} details. Total: $${order.totalPrice}`,
+      subject: emailContent.subject,
+      text: emailContent.text,
+      message: emailContent.text,
+      html: emailContent.html,
+      orderId: order._id,
+      userId: order.user?._id?.toString(),
     });
   }
 
-  res.status(200).json({ success: true, message: 'Order confirmation email queued successfully' });
+  res.status(200).json({
+    success: true,
+    message: 'Order confirmation email queued successfully',
+    targetEmail: recipient,
+  });
 });
 
-// @desc    Update order to paid (Direct)
+// @desc    Update order to paid (Direct / Admin override)
 // @route   PUT /api/v1/orders/:id/pay
 // @access  Private
 export const updateOrderToPaid = asyncHandler(async (req, res, next) => {
@@ -706,7 +863,11 @@ export const updateOrderToPaid = asyncHandler(async (req, res, next) => {
     return next(new ApiError(404, 'Order not found'));
   }
 
-  const updated = await markOrderPaid(order, req.body, req.body.payer?.email_address);
+  if (order.user._id.toString() !== req.user._id.toString() && req.user.role !== 'admin') {
+    return next(new ApiError(403, 'Not authorized to modify this order'));
+  }
+
+  const updated = await markOrderPaid(order, req.body, req.body.payer?.email_address || order.customerEmail || order.user?.email);
   res.status(200).json({ success: true, data: updated });
 });
 
@@ -781,7 +942,7 @@ export const initializeOrderPayment = asyncHandler(async (req, res, next) => {
   order.stockReservedUntil = new Date(Date.now() + 30 * 60 * 1000);
   await order.save();
 
-  const { returnUrl } = req.body;
+  const { returnUrl } = req.body || {};
   const fullName = req.user.name || order.shippingAddress?.recipientName || 'Valued Customer';
   const nameParts = fullName.trim().split(/\s+/);
   const firstName = nameParts[0] || 'Customer';
@@ -869,6 +1030,7 @@ export const getPaymentStatus = asyncHandler(async (req, res, next) => {
         orderId: order._id,
         orderNumber: order.orderNumber,
         paidAt: order.paidAt,
+        confirmationEmailSent: Boolean(order.paymentEmailSent),
       },
     });
   }
@@ -881,6 +1043,7 @@ export const getPaymentStatus = asyncHandler(async (req, res, next) => {
         isPaid: false,
         paymentStatus: order.paymentStatus,
         status: order.status,
+        orderId: order._id,
       },
     });
   }
@@ -896,20 +1059,14 @@ export const getPaymentStatus = asyncHandler(async (req, res, next) => {
         isPaid: false,
         paymentStatus: order.paymentStatus,
         status: order.status,
+        orderId: order._id,
       },
     });
   }
 
   if (verification && verification.success && verification.status === 'success') {
-    const expectedAmount = Number(order.totalPrice);
-    const verifiedAmount = Number(verification.amount);
-    const verifiedCurrency = (verification.currency || '').toUpperCase();
-    const expectedCurrency = (order.currency || 'USD').toUpperCase();
-
-    const amountMatches = Math.abs(verifiedAmount - expectedAmount) < 0.01;
-    const currencyMatches = verifiedCurrency === expectedCurrency;
-
-    if (amountMatches && currencyMatches) {
+    const check = verifyPaymentAgainstOrder(order, verification);
+    if (check.valid) {
       await markOrderPaid(order, verification, order.customerEmail || order.user?.email);
       return res.status(200).json({
         success: true,
@@ -920,9 +1077,39 @@ export const getPaymentStatus = asyncHandler(async (req, res, next) => {
           orderId: order._id,
           orderNumber: order.orderNumber,
           paidAt: order.paidAt,
+          confirmationEmailSent: Boolean(order.paymentEmailSent),
         },
       });
+    } else {
+      logger.warn(`[OrderController] Payment validation failed in getPaymentStatus for order ${order._id}: ${check.reason}`);
     }
+  } else if (verification && verification.status === 'pending') {
+    return res.status(200).json({
+      success: true,
+      data: {
+        isPaid: false,
+        paymentStatus: 'pending',
+        status: order.status,
+        orderId: order._id,
+      },
+    });
+  } else if (verification && verification.data && (verification.status === 'failed' || verification.status === 'cancelled')) {
+    order.paymentStatus = verification.status;
+    if (verification.status === 'cancelled') {
+      order.status = 'cancelled';
+      await releaseStockForOrder(order);
+    }
+    await order.save();
+    return res.status(200).json({
+      success: true,
+      data: {
+        isPaid: false,
+        paymentStatus: order.paymentStatus,
+        status: order.status,
+        orderId: order._id,
+        message: verification.message,
+      },
+    });
   }
 
   res.status(200).json({
@@ -931,6 +1118,7 @@ export const getPaymentStatus = asyncHandler(async (req, res, next) => {
       isPaid: false,
       paymentStatus: order.paymentStatus,
       status: order.status,
+      orderId: order._id,
     },
   });
 });
@@ -941,16 +1129,27 @@ export const getPaymentStatus = asyncHandler(async (req, res, next) => {
 export const handleChapaWebhook = asyncHandler(async (req, res, next) => {
   const signature = req.headers['x-chapa-signature'];
   const webhookSecret = process.env.CHAPA_WEBHOOK_SECRET;
+  const isProduction = process.env.NODE_ENV === 'production';
 
-  const rawBody = typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+  // In production, missing webhook secret must reject with 500 and never proceed silently
+  if (!webhookSecret) {
+    if (isProduction) {
+      logger.error('[handleChapaWebhook] CRITICAL: CHAPA_WEBHOOK_SECRET is missing in production environment');
+      return res.status(500).json({ message: 'Webhook signature verification is not configured on server' });
+    }
+    logger.warn('[handleChapaWebhook] CHAPA_WEBHOOK_SECRET is not configured. Webhooks require signature in production.');
+  }
 
-  if (webhookSecret) {
+  // Signature verification is mandatory whenever secret is set OR in production
+  if (webhookSecret || isProduction) {
     if (!signature) {
       return res.status(400).json({ message: 'Missing x-chapa-signature header' });
     }
-    const computedHmac = crypto.createHmac('sha256', webhookSecret).update(rawBody).digest('hex');
-    if (computedHmac !== signature) {
-      return res.status(400).json({ message: 'Invalid webhook signature' });
+    const rawBody = req.rawBody || (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
+    const sigCheck = chapaService.verifyWebhookSignature(rawBody, signature);
+    if (!sigCheck.valid) {
+      logger.warn(`[handleChapaWebhook] Signature verification failed: ${sigCheck.reason}`);
+      return res.status(400).json({ message: 'Invalid webhook signature', reason: sigCheck.reason });
     }
   }
 
@@ -963,12 +1162,23 @@ export const handleChapaWebhook = asyncHandler(async (req, res, next) => {
     }
   }
 
-  const txRef = payload.merchant_reference || payload.tx_ref;
+  const txRef = payload.merchant_reference || payload.tx_ref || payload.trx_ref;
   const chapaRef = payload.chapa_reference || payload.reference || txRef;
 
-  const order = await Order.findOne({
-    $or: [{ paymentReference: txRef }, { chapaReference: chapaRef }, { chapaReference: txRef }],
-  }).populate('user', 'name email');
+  const query = [
+    { paymentReference: txRef },
+    { chapaReference: chapaRef },
+    { chapaReference: txRef },
+    { paymentReference: chapaRef },
+  ];
+  if (payload.meta?.order_id && mongoose.Types.ObjectId.isValid(payload.meta.order_id)) {
+    query.push({ _id: payload.meta.order_id });
+  }
+  if (payload.meta?.order_number) {
+    query.push({ orderNumber: payload.meta.order_number });
+  }
+
+  const order = await Order.findOne({ $or: query }).populate('user', 'name email');
 
   if (!order) {
     logger.warn(`[handleChapaWebhook] No order found for reference: ${txRef} / ${chapaRef}`);
@@ -996,19 +1206,26 @@ export const handleChapaWebhook = asyncHandler(async (req, res, next) => {
     return res.status(200).json({ received: true, status: 'failed' });
   }
 
-  if (event === 'payment.success' || status === 'success') {
+  if (event === 'payment.success' || event === 'charge.complete' || status === 'success') {
     try {
-      const verifyRes = await chapaService.verifyPayment(chapaRef || txRef);
+      // Authoritative verification: NEVER mark paid without verifying directly with Chapa API
+      const verifyRes = await chapaService.verifyPayment(chapaRef || txRef || order.paymentReference);
       if (verifyRes && verifyRes.success && verifyRes.status === 'success') {
-        await markOrderPaid(order, verifyRes, order.customerEmail || order.user?.email);
-        return res.status(200).json({ received: true, status: 'paid' });
+        const check = verifyPaymentAgainstOrder(order, verifyRes);
+        if (check.valid) {
+          await markOrderPaid(order, verifyRes, order.customerEmail || order.user?.email);
+          return res.status(200).json({ received: true, status: 'paid' });
+        } else {
+          logger.warn(`[handleChapaWebhook] Secondary verification amount check failed: ${check.reason}`);
+          return res.status(400).json({ received: true, error: check.reason });
+        }
       }
     } catch (vErr) {
       logger.error(`[handleChapaWebhook] Secondary verification error: ${vErr.message}`);
     }
 
-    await markOrderPaid(order, payload, order.customerEmail || order.user?.email);
-    return res.status(200).json({ received: true, status: 'paid' });
+    // Do NOT mark order paid based solely on unverified webhook data!
+    return res.status(400).json({ received: true, error: 'Payment could not be verified with gateway' });
   }
 
   res.status(200).json({ received: true });
@@ -1016,28 +1233,117 @@ export const handleChapaWebhook = asyncHandler(async (req, res, next) => {
 
 // @desc    Verify transaction with Chapa by transaction reference (tx_ref)
 // @route   GET /api/v1/orders/transaction/verify/:tx_ref
-// @access  Public / Authenticated
+// @access  Public / Authenticated (PII is sanitized for public verification)
 export const verifyTransactionByRef = asyncHandler(async (req, res, next) => {
   const { tx_ref } = req.params;
   if (!tx_ref) {
     return next(new ApiError(400, 'Transaction reference is required'));
   }
 
-  const order = await Order.findOne({
-    $or: [{ paymentReference: tx_ref }, { chapaReference: tx_ref }],
-  }).populate('user', 'name email');
+  const query = [
+    { paymentReference: tx_ref },
+    { chapaReference: tx_ref },
+    { orderNumber: tx_ref },
+  ];
+  if (mongoose.Types.ObjectId.isValid(tx_ref)) {
+    query.push({ _id: tx_ref });
+  }
+
+  const order = await Order.findOne({ $or: query }).populate('user', 'name email');
 
   if (!order) {
     return next(new ApiError(404, `No order found for reference ${tx_ref}`));
   }
 
-  const verification = await chapaService.verifyPayment(tx_ref);
-  if (verification.success && verification.status === 'success') {
-    await markOrderPaid(order, verification, order.customerEmail || order.user?.email);
-    return res.status(200).json({ success: true, status: 'paid', data: order });
+  // Safe public response sanitizer — never expose customer name, email, phone, shipping address, or internal document details
+  const sanitizeOrderForPublic = (ord) => ({
+    orderNumber: ord.orderNumber,
+    isPaid: Boolean(ord.isPaid),
+    paymentStatus: ord.paymentStatus,
+    status: ord.status,
+    paidAt: ord.paidAt || null,
+  });
+
+  // Idempotent: return immediately if already paid
+  if (order.isPaid && order.paymentStatus === 'paid') {
+    return res.status(200).json({
+      success: true,
+      verified: true,
+      paymentStatus: 'paid',
+      status: 'paid',
+      data: sanitizeOrderForPublic(order),
+    });
   }
 
-  res.status(200).json({ success: false, status: 'failed', message: verification.message });
+  const referenceToVerify = order.paymentReference || order.chapaReference || tx_ref;
+  let verification;
+  try {
+    verification = await chapaService.verifyPayment(referenceToVerify);
+  } catch (err) {
+    logger.warn(`[verifyTransactionByRef] Chapa verify request error for ${referenceToVerify}: ${err.message}`);
+    // Provider network or temporary lookup error: keep current pending status without failing order
+    return res.status(200).json({
+      success: true,
+      verified: false,
+      paymentStatus: order.paymentStatus,
+      status: order.status,
+      data: sanitizeOrderForPublic(order),
+    });
+  }
+
+  if (verification && verification.success && verification.status === 'success') {
+    const check = verifyPaymentAgainstOrder(order, verification);
+    if (!check.valid) {
+      logger.warn(`[verifyTransactionByRef] Verification amount/currency check failed for ${tx_ref}: ${check.reason}`);
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        paymentStatus: 'failed',
+        status: 'failed',
+        message: check.reason,
+      });
+    }
+
+    const updatedOrder = await markOrderPaid(order, verification, order.customerEmail || order.user?.email);
+    return res.status(200).json({
+      success: true,
+      verified: true,
+      paymentStatus: 'paid',
+      status: 'paid',
+      data: sanitizeOrderForPublic(updatedOrder),
+    });
+  } else if (verification && verification.status === 'pending') {
+    return res.status(200).json({
+      success: true,
+      verified: false,
+      paymentStatus: 'pending',
+      status: 'pending',
+      data: sanitizeOrderForPublic(order),
+    });
+  }
+
+  // Only transition payment status to failed/cancelled when gateway provides authoritative verified data
+  if (verification && verification.data) {
+    if (verification.status === 'cancelled') {
+      order.status = 'cancelled';
+      order.paymentStatus = 'cancelled';
+      await releaseStockForOrder(order);
+      await order.save();
+    } else if (verification.status === 'failed') {
+      order.paymentStatus = 'failed';
+      await order.save();
+    }
+  }
+
+  // For temporary lookup errors, unindexed transactions, or non-verified states, order remains pending
+  res.status(200).json({
+    success: true,
+    verified: false,
+    paymentStatus: order.paymentStatus,
+    status: order.status,
+    message: verification?.message || 'Payment is awaiting confirmation',
+    data: sanitizeOrderForPublic(order),
+  });
 });
 
 // @desc    Update order status (Admin only)
@@ -1127,10 +1433,16 @@ export const updateOrderStatus = asyncHandler(async (req, res, next) => {
   const targetEmail = order.customerEmail || order.user?.email;
   if (targetEmail) {
     try {
-      await emailQueue.add('sendOrderStatusEmail', {
+      const emailContent = getOrderStatusEmail({ order: updatedOrder, newStatus: normalizedStatus });
+      await queueOrSendEmail('sendOrderStatusEmail', {
+        to: targetEmail,
         email: targetEmail,
-        subject: `Order #${order.orderNumber || order._id} Status Updated: ${normalizedStatus.toUpperCase()}`,
-        message: `Your order status has changed to ${normalizedStatus}.`,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        message: emailContent.text,
+        html: emailContent.html,
+        orderId: order._id,
+        userId: order.user?._id?.toString(),
       });
     } catch (err) {
       logger.error(`[OrderController] Status update email error: ${err.message}`);
@@ -1155,6 +1467,7 @@ export default {
   verifyTransactionByRef,
   updateOrderStatus,
   markOrderPaid,
+  verifyPaymentAgainstOrder,
   reconcileUserCart,
   decrementStockForOrder,
   releaseStockForOrder,

@@ -11,7 +11,7 @@ import {
   sendRefreshTokenCookie,
   clearRefreshTokenCookie,
 } from "../utils/generateToken.js";
-import { emailQueue } from "../queues/emailQueue.js"; // 1. Import emailQueue
+import { emailQueue, queueOrSendEmail } from "../queues/emailQueue.js"; // 1. Import emailQueue and resilient dispatcher
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import {
@@ -49,16 +49,18 @@ export const registerUser = asyncHandler(async (req, res, next) => {
 
   // 1. Dispatch Verification Email
   try {
-    await emailQueue.add('sendVerificationEmail', {
+    await queueOrSendEmail('sendVerificationEmail', {
       email: user.email,
+      to: user.email,
       subject: verificationEmail.subject,
       message: verificationEmail.text,
+      text: verificationEmail.text,
       html: verificationEmail.html,
       userId: user._id.toString(),
     });
   } catch (mailErr) {
     logger.error(
-      `Error queueing customer verification email: ${mailErr.message}`
+      `Error dispatching customer verification email: ${mailErr.message}`
     );
   }
 
@@ -449,8 +451,8 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
   /** @type {import('../models/userModel.js').default & mongoose.Document} */
   const user = await User.findOne({ email: cleanEmail });
 
-  if (user && user.role !== 'admin' && user.role !== 'owner' && user.role !== 'staff') {
-    // 60-minute token expiry for customer
+  if (user && user.status !== 'deactivated' && user.isActive !== false) {
+    // 60-minute token expiry for password reset
     const resetToken = user.createPasswordResetToken(60 * 60 * 1000);
     await user.save({ validateBeforeSave: false });
 
@@ -458,17 +460,20 @@ export const forgotPassword = asyncHandler(async (req, res, next) => {
     const resetUrl = `${clientBase}/reset-password?token=${encodeURIComponent(resetToken)}`;
     const resetEmail = getPasswordResetEmail({ user, resetUrl });
 
-        try {
-      await emailQueue.add('sendPasswordResetEmail', {
+    try {
+      await queueOrSendEmail('sendPasswordResetEmail', {
         email: user.email,
+        to: user.email,
         subject: resetEmail.subject,
         message: resetEmail.text,
+        text: resetEmail.text,
         html: resetEmail.html,
         userId: user._id.toString(),
       });
+      logger.info(`[ForgotPassword] Password reset email successfully dispatched for ${user.email}`);
     } catch (queueErr) {
       logger.error(
-        `Error queueing customer password reset email: ${queueErr.message}`
+        `[ForgotPassword] Error dispatching password reset email for ${user.email}: ${queueErr.message}`
       );
     }
   }

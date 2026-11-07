@@ -13,34 +13,45 @@ const emailWorker = new Worker(
 
     switch (job.name) {
       case "sendVerificationEmail":
-case "sendPasswordResetEmail": {
-  const isPasswordReset =
-    job.name === "sendPasswordResetEmail";
+      case "sendPasswordResetEmail": {
+        const isPasswordReset = job.name === "sendPasswordResetEmail";
 
-  const result = await sendEmail({
-    to: data.email,
-    subject: data.subject,
-    text: data.message,
-    html: data.html,
-    userId: data.userId,
-    type: isPasswordReset ? "password_reset" : "verification",
-    statusCategory: "security",
-  });
+        const result = await sendEmail({
+          to: data.to || data.email,
+          subject: data.subject,
+          text: data.text || data.message,
+          html: data.html,
+          userId: data.userId,
+          type: isPasswordReset ? "password_reset" : "verification",
+          statusCategory: "security",
+        });
 
-  if (!result.success) {
-    throw new Error(
-      result.error || "Email delivery failed"
-    );
-  }
+        if (!result.success && !result.skipped && !result.deduplicated) {
+          throw new Error(result.error || "Email delivery failed");
+        }
 
-  break;
-}
+        break;
+      }
 
       case "sendOrderConfirmationEmail":
       case "sendOrderStatusEmail":
-      case "sendPaymentReceiptEmail":
-        await sendEmail({ email: data.email, subject: data.subject, message: data.message, html: data.html });
+      case "sendPaymentReceiptEmail": {
+        const result = await sendEmail({
+          to: data.to || data.email,
+          subject: data.subject,
+          text: data.text || data.message,
+          html: data.html,
+          orderId: data.orderId,
+          userId: data.userId,
+          type: job.name === 'sendPaymentReceiptEmail' ? 'payment_receipt' : (job.name === 'sendOrderConfirmationEmail' ? 'order_confirmation' : 'status_update'),
+          statusCategory: 'order',
+        });
+
+        if (!result.success && !result.skipped && !result.deduplicated) {
+          throw new Error(result.error || "Email delivery failed");
+        }
         break;
+      }
 
       case "sendSupportEmail": {
         const { to, subject, html, text, inReplyTo, references, headers, messageDocId, conversationId } = data;

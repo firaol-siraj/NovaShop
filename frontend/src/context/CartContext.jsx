@@ -631,10 +631,10 @@ export function CartProvider({ children }) {
         return [...next, nextItem];
       });
       trackAddToCart({
-        productId,
-        name: resolvedProduct?.name,
-        price: chosenPrice,
-        qty: requestedQty,
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        qty: item.qty,
       });
 
       if (isAuth) {

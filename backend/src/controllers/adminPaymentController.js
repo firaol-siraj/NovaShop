@@ -5,7 +5,7 @@ import paymentService from '../services/paymentService.js';
 import Payment from '../models/paymentModel.js';
 import Order from '../models/orderModel.js';
 import Setting from '../models/settingModel.js';
-import { emailQueue } from '../queues/emailQueue.js';
+import { emailQueue, queueOrSendEmail } from '../queues/emailQueue.js';
 import logger from '../utils/logger.js';
 
 // @desc    Get Payments Dashboard Stats & KPI Cards
@@ -152,9 +152,11 @@ export const resendPaymentReceipt = asyncHandler(async (req, res, next) => {
     return next(new ApiError(400, 'No customer email found for this transaction'));
   }
 
-  await emailQueue.add('sendPaymentReceiptEmail', {
+  await queueOrSendEmail('sendPaymentReceiptEmail', {
+    to: recipient,
     email: recipient,
     subject: `Payment Receipt: ${payment.txRef}`,
+    text: `Payment confirmation of $${payment.amountUSD} (${payment.amountETB} ETB) for Order ${payment.order?.orderNumber || payment.order?._id}.`,
     message: `Payment confirmation of $${payment.amountUSD} (${payment.amountETB} ETB) for Order ${payment.order?.orderNumber || payment.order?._id}.`,
     html: `
       <h2>Payment Receipt</h2>
@@ -163,6 +165,8 @@ export const resendPaymentReceipt = asyncHandler(async (req, res, next) => {
       <p>Method: ${payment.label || payment.method}</p>
       <p>Status: ${payment.status}</p>
     `,
+    orderId: payment.order?._id,
+    userId: payment.user,
   });
 
   res.status(200).json({ success: true, message: `Receipt successfully queued for ${recipient}` });

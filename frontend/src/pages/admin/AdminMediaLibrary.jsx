@@ -863,17 +863,17 @@ export default function AdminMediaLibraryPage() {
                           {
                             label: 'View details',
                             icon: 'eye',
-                            onClick: () => onMenuAction('details', file),
+                            onClick: () => handleTileMenuAction('details', file),
                           },
                           {
                             label: 'Copy URL',
                             icon: 'copy',
-                            onClick: () => onMenuAction('copy', file),
+                            onClick: () => handleTileMenuAction('copy', file),
                           },
                           {
                             label: 'Download',
                             icon: 'download',
-                            onClick: () => onMenuAction('download', file),
+                            onClick: () => handleTileMenuAction('download', file),
                           },
                           {
                             divider: true,
@@ -882,7 +882,7 @@ export default function AdminMediaLibraryPage() {
                             label: 'Delete',
                             icon: 'trash',
                             danger: true,
-                            onClick: () => onMenuAction('delete', file),
+                            onClick: () => handleTileMenuAction('delete', file),
                           },
                         ]}
                       />

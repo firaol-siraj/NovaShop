@@ -308,27 +308,36 @@ class ChapaService {
 
     const result = await response.json().catch(() => ({}));
 
-    if (!response.ok || result.status !== 'success' || !result.data) {
+    const data = result?.data || {};
+    const rawStatus = (data.status || result?.status || '').toLowerCase();
+
+    let resolvedStatus = 'failed';
+    if (rawStatus === 'success' || rawStatus === 'paid' || rawStatus === 'completed') {
+      resolvedStatus = 'success';
+    } else if (rawStatus === 'pending' || rawStatus === 'pending_payment' || rawStatus === 'initiated') {
+      resolvedStatus = 'pending';
+    } else if (rawStatus === 'cancelled') {
+      resolvedStatus = 'cancelled';
+    }
+
+    if ((!response.ok && resolvedStatus !== 'pending') || (resolvedStatus === 'failed' && !data.amount)) {
       const errorMsg = this.formatGatewayError(result, response.status);
       logger.warn(`[ChapaService] Verification unsuccessful for ${txRef}: ${errorMsg}`);
       return {
         success: false,
-        status: 'failed',
+        status: resolvedStatus === 'cancelled' ? 'cancelled' : 'failed',
         message: errorMsg,
         data: null,
       };
     }
 
-    const data = result.data;
-    const rawStatus = (data.status || 'success').toLowerCase();
-
     return {
-      success: rawStatus === 'success',
-      status: rawStatus, // 'success' | 'pending' | 'failed'
+      success: resolvedStatus === 'success',
+      status: resolvedStatus, // 'success' | 'pending' | 'failed' | 'cancelled'
       txRef: data.tx_ref || txRef,
       chapaReference: data.reference || data.tx_ref || txRef,
       merchantReference: data.tx_ref || txRef,
-      amount: Number(data.amount),
+      amount: Number(data.amount) || 0,
       currency: data.currency ? String(data.currency).toUpperCase() : 'ETB',
       paymentMethod: data.method || 'chapa',
       customer: {
@@ -364,12 +373,14 @@ class ChapaService {
     }
 
     try {
+      const bodyBuffer = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(String(rawBody), 'utf8');
       const expectedDigest = crypto
         .createHmac('sha256', this.webhookSecret)
-        .update(rawBody)
+        .update(bodyBuffer)
         .digest('hex');
 
-      const sigBuffer = Buffer.from(signature.trim().toLowerCase(), 'hex');
+      const cleanSig = String(signature).trim().toLowerCase();
+      const sigBuffer = Buffer.from(cleanSig, 'hex');
       const expectedBuffer = Buffer.from(expectedDigest.toLowerCase(), 'hex');
 
       if (sigBuffer.length !== expectedBuffer.length) {

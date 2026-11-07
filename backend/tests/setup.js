@@ -5,7 +5,11 @@ import redis from '../src/config/redis.js';
 let mongoServer;
 
 beforeAll(async () => {
-  mongoServer = await MongoMemoryServer.create();
+  mongoServer = await MongoMemoryServer.create({
+    instance: {
+      launchTimeout: 30000,
+    },
+  });
   const mongoUri = mongoServer.getUri();
   await mongoose.connect(mongoUri);
 });

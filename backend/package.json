@@ -17,6 +17,7 @@
     "support:poll-now": "node scripts/pollInboundNow.js",
     "support:test-inbound": "node scripts/testInboundSupportEmail.js",
     "email:test": "node scripts/testEmail.js",
+    "worker:email": "node src/workers/emailWorker.js",
     "settings:seed": "node scripts/seedSettings.js",
     "settings:migrate": "node src/migrations/migrateAdminSettingsAndOwners.js",
     "settings:cleanup": "node scripts/cleanupFakeSettingsData.js",

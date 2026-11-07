@@ -6,6 +6,7 @@ import User from '../models/userModel.js';
 import Setting from '../models/settingModel.js';
 
 let transporter = null;
+let customTransporter = null;
 
 // Standard RFC 5322 compliant email regex validator
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
@@ -110,7 +111,22 @@ export function diagnoseSmtpError(err) {
  * Mailtrap sandbox is ONLY enabled if explicitly requested via EMAIL_MODE=sandbox.
  */
 export function getTransporter() {
+  if (customTransporter) return customTransporter;
   if (transporter) return transporter;
+
+  // In test mode, if no custom test transporter was injected, return simulated transporter
+  if (process.env.NODE_ENV === 'test') {
+    transporter = {
+      sendMail: async (options) => ({
+        messageId: `mock-test-${Date.now()}`,
+        response: '250 2.0.0 OK mock',
+        accepted: [options.to],
+        rejected: [],
+      }),
+      verify: async () => true,
+    };
+    return transporter;
+  }
 
   const isSandbox = process.env.EMAIL_MODE === 'sandbox';
 
@@ -173,6 +189,7 @@ export function getTransporter() {
  */
 export function resetTransporter() {
   transporter = null;
+  customTransporter = null;
 }
 
 /**
@@ -180,6 +197,7 @@ export function resetTransporter() {
  */
 export function setTransporter(mockTransporter) {
   transporter = mockTransporter;
+  customTransporter = mockTransporter;
 }
 
 /**
@@ -245,9 +263,12 @@ export async function verifyTransporter() {
  */
 export async function sendEmail({
   to,
+  email,
+  recipient,
   subject,
   html,
   text,
+  message,
   orderId,
   userId,
   type = 'payment_receipt',
@@ -262,6 +283,7 @@ export async function sendEmail({
   adminName,
 }) {
   try {
+    const rawTo = to || email || recipient;
     // 0. Deduplicate request if idempotencyKey provided and recently processed
     if (idempotencyKey) {
       const existingLog = await EmailLog.findOne({
@@ -279,9 +301,9 @@ export async function sendEmail({
       }
     }
     // 1. Validate recipient email format
-    const normalizedTo = typeof to === 'string' ? to.trim().toLowerCase() : '';
+    const normalizedTo = typeof rawTo === 'string' ? rawTo.trim().toLowerCase() : '';
     if (!normalizedTo || !EMAIL_REGEX.test(normalizedTo)) {
-      const errMsg = `Invalid or missing recipient email address: "${to || ''}"`;
+      const errMsg = `Invalid or missing recipient email address: "${rawTo || ''}"`;
       logger.error(`[EmailService] ${errMsg}`);
       await EmailLog.create({
         to: normalizedTo || 'missing_recipient',
@@ -441,7 +463,7 @@ export async function sendEmail({
 
     // 6. Append unsubscribe link for promotional emails
     let finalHtml = html;
-    let finalText = text || (html ? html.replace(/<[^>]*>?/gm, '') : '');
+    let finalText = text || message || (html ? html.replace(/<[^>]*>?/gm, '') : '');
 
     if (type === 'promotional') {
       const backendUrl = process.env.BACKEND_URL || 'http://localhost:5000';
@@ -472,7 +494,7 @@ export async function sendEmail({
     logger.info(`[EmailService Debug Headers] To: "${normalizedTo}" | From: "${sender}" | Reply-To: "${mailOptions.replyTo || '(none)'}" | Subject: "${formattedSubject}"`);
 
     // In automated testing environment, do not attempt outbound network sockets to external SMTP unless custom transporter is provided
-    if (process.env.NODE_ENV === 'test' && !transporter) {
+    if (process.env.NODE_ENV === 'test' && !customTransporter) {
       logger.info(`[EmailService] Simulated delivery to ${normalizedTo} in test mode`);
       const mockLog = await EmailLog.create({
         to: normalizedTo,

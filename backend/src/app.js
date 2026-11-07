@@ -54,37 +54,49 @@ app.use(morganMiddleware);
 app.use(helmet({ crossOriginResourcePolicy: false }));
 
 // Configure CORS
-const configuredOrigins = [
-  process.env.CLIENT_URL,
-  process.env.FRONTEND_URL,
-]
-  .filter(Boolean)
-  .flatMap((url) => url.split(',').map((u) => u.trim()))
-  .filter(Boolean);
-
-const allowedOrigins = Array.from(
-  new Set([
-    "http://localhost:5173", // Vite local development server
-    "http://localhost:5174", // Vite local development server (alternative port)
-    "http://localhost:5175", // Vite local development server (alternative port)
-    "http://localhost:5000", // Swagger UI
-    ...configuredOrigins,
-  ])
-);
-
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (like Postman or mobile apps), matching frontend origins, or local development origins
-      if (
-        !origin ||
-        allowedOrigins.includes(origin) ||
-        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
-      ) {
-        callback(null, true);
-      } else {
-        callback(new Error("CORS policy violation: Access denied"));
+      // Allow requests with no origin (like Postman, mobile apps, or server-to-server)
+      if (!origin) {
+        return callback(null, true);
       }
+
+      const isProduction = process.env.NODE_ENV === 'production';
+      const configuredOrigins = [
+        process.env.CLIENT_URL,
+        process.env.FRONTEND_URL,
+      ]
+        .filter(Boolean)
+        .flatMap((url) => url.split(',').map((u) => u.trim()))
+        .filter(Boolean)
+        .filter((url) => !isProduction || !/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(url));
+
+      if (configuredOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      // In non-production environments, permit local development origins
+      if (!isProduction) {
+        const devOrigins = [
+          "http://localhost:5173",
+          "http://localhost:5174",
+          "http://localhost:5175",
+          "http://localhost:5000",
+        ];
+        if (
+          devOrigins.includes(origin) ||
+          /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)
+        ) {
+          return callback(null, true);
+        }
+      }
+
+      const corsError = new Error("CORS policy violation: Access denied");
+      corsError.statusCode = 403;
+      corsError.status = "fail";
+      corsError.isOperational = true;
+      return callback(corsError);
     },
     credentials: true,
   }),

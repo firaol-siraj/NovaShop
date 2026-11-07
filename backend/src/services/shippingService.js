@@ -261,6 +261,25 @@ class ShippingService {
   }
 
   // Zone CRUD
+  async getZoneByCountry(country, region = '') {
+    const normCountry = (country || 'Ethiopia').trim().toLowerCase();
+    const normRegion = (region || '').trim().toLowerCase();
+
+    if (normRegion) {
+      const zone = await ShippingZone.findOne({
+        status: SHIPPING_STATUSES.ACTIVE,
+        countries: { $regex: new RegExp(`^${normCountry}$`, 'i') },
+        regions: { $regex: new RegExp(`^${normRegion}$`, 'i') },
+      });
+      if (zone) return zone;
+    }
+
+    return await ShippingZone.findOne({
+      status: SHIPPING_STATUSES.ACTIVE,
+      countries: { $regex: new RegExp(`^${normCountry}$`, 'i') },
+    }).sort({ sortOrder: 1 });
+  }
+
   async getZoneById(id) {
     return await ShippingZone.findById(id);
   }
