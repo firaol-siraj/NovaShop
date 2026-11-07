@@ -36,7 +36,7 @@ class PaymentService {
           method: 'chapa',
           methodType: 'Digital payment',
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     } catch (err) {
       logger.error(`[PaymentService] Failed to record payment initialization for order ${order._id}: ${err.message}`);
@@ -112,7 +112,7 @@ class PaymentService {
           paidAt,
           rawProviderStatus: rawData || null,
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     } catch (err) {
       logger.error(`[PaymentService] Failed to record payment success for order ${order._id}: ${err.message}`);
@@ -133,7 +133,7 @@ class PaymentService {
           failureReason: failureReason || 'Payment could not be completed',
           rawProviderStatus: rawData || null,
         },
-        { new: true }
+        { returnDocument: 'after' }
       );
 
       // Create admin notification
@@ -192,7 +192,7 @@ class PaymentService {
           method: 'cod',
           methodType: 'Cash on Delivery',
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     } catch (err) {
       logger.error(`[PaymentService] Failed to record COD payment for order ${order._id}: ${err.message}`);

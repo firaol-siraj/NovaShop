@@ -32,6 +32,7 @@ import {
 } from '../services/discountService.js';
 import Setting from '../models/settingModel.js';
 import { calculateTaxForOrder } from '../services/settingsService.js';
+import shippingService from '../services/shippingService.js';
 
 const ALLOWED_TRANSITIONS = {
   pending: ['pending_payment', 'paid', 'processing', 'cancelled'],
@@ -287,7 +288,7 @@ export const markOrderPaid = async (orderOrId, verificationData = {}, recipientE
             isStockReserved: true,
           },
         },
-        { session, new: true }
+        { session, returnDocument: 'after' }
       ).populate('user', 'name email');
 
       if (!claimedOrder) {
@@ -330,7 +331,7 @@ export const markOrderPaid = async (orderOrId, verificationData = {}, recipientE
           isStockReserved: true,
         },
       },
-      { new: true }
+      { returnDocument: 'after' }
     ).populate('user', 'name email');
 
     if (!claimedOrder) {
@@ -584,17 +585,17 @@ export const addOrderItems = asyncHandler(async (req, res, next) => {
 
   if (shippingAddress?.country) {
     try {
-      const { shippingService } = await import('../services/shippingService.js');
-      const activeZone = await shippingService.getZoneByCountry(shippingAddress.country);
+      const svc = shippingService?.getZoneByCountry ? shippingService : (shippingService?.default || shippingService);
+      const activeZone = await svc.getZoneByCountry(shippingAddress.country);
       if (activeZone) {
         resolvedShippingZoneId = activeZone._id;
-        const quotes = await shippingService.getShippingQuote({
+        const quotes = await svc.getShippingQuote({
           country: shippingAddress.country,
           region: shippingAddress.region || shippingAddress.city || '',
           cartTotalUSD: calculatedItemsPrice,
         });
 
-        if (quotes.length > 0) {
+        if (quotes && quotes.length > 0) {
           const requestedMethod = req.body.shippingMethodId || req.body.shippingMethod;
           const matched = quotes.find(
             (q) =>
@@ -751,20 +752,26 @@ export const addOrderItems = asyncHandler(async (req, res, next) => {
   }
 
   // Queue initial order confirmation email
-  try {
-    await emailQueue.add('sendOrderConfirmationEmail', {
-      email: req.user.email,
-      subject: `Order Placed Successfully #${createdOrder.orderNumber || createdOrder._id} (${createdOrder._id})`,
-      message: `Thank you for your order! Order Number: ${createdOrder.orderNumber || createdOrder._id}. Total: $${createdOrder.totalPrice}`,
-      html: `
-        <h2>Thank you for your order, ${req.user.name || 'Customer'}!</h2>
-        <p>We've received your order <strong>#${createdOrder.orderNumber || createdOrder._id}</strong>.</p>
-        <p>Total: $${createdOrder.totalPrice}</p>
-        <p>Payment Method: ${paymentMethod}</p>
-      `,
-    });
-  } catch (err) {
-    logger.error(`[OrderController] Email queue error: ${err.message}`);
+  const orderEmailRecipient = (createdOrder.customerEmail || req.user?.email || req.body?.customerEmail || req.body?.email || req.body?.shippingAddress?.email || '').trim();
+  if (orderEmailRecipient) {
+    try {
+      await queueOrSendEmail('sendOrderConfirmationEmail', {
+        to: orderEmailRecipient,
+        email: orderEmailRecipient,
+        subject: `Order Placed Successfully #${createdOrder.orderNumber || createdOrder._id} (${createdOrder._id})`,
+        message: `Thank you for your order! Order Number: ${createdOrder.orderNumber || createdOrder._id}. Total: $${createdOrder.totalPrice}`,
+        html: `
+          <h2>Thank you for your order, ${req.user?.name || 'Customer'}!</h2>
+          <p>We've received your order <strong>#${createdOrder.orderNumber || createdOrder._id}</strong>.</p>
+          <p>Total: $${createdOrder.totalPrice}</p>
+          <p>Payment Method: ${paymentMethod}</p>
+        `,
+        orderId: createdOrder._id.toString(),
+        userId: req.user?._id?.toString(),
+      });
+    } catch (err) {
+      logger.error(`[OrderController] Email queue error: ${err.message}`);
+    }
   }
 
   res.status(201).json({ success: true, data: createdOrder });
@@ -894,10 +901,12 @@ export const updateOrderToDelivered = asyncHandler(async (req, res, next) => {
 
   const updatedOrder = await order.save();
 
-  if (order.user?.email || order.customerEmail) {
+  const deliverRecipient = (order.customerEmail || order.user?.email || '').trim();
+  if (deliverRecipient) {
     try {
-      await emailQueue.add('sendOrderStatusEmail', {
-        email: order.customerEmail || order.user?.email,
+      await queueOrSendEmail('sendOrderStatusEmail', {
+        to: deliverRecipient,
+        email: deliverRecipient,
         subject: `Your Order #${order.orderNumber || order._id} Has Been Delivered! 📦`,
         message: `Great news! Your order #${order.orderNumber || order._id} has been delivered.`,
         html: `
@@ -905,6 +914,8 @@ export const updateOrderToDelivered = asyncHandler(async (req, res, next) => {
           <p>Hi ${order.shippingAddress?.recipientName || order.user?.name || 'Valued Customer'},</p>
           <p>Your order <strong>#${order.orderNumber || order._id}</strong> has been marked as <strong>Delivered</strong>.</p>
         `,
+        orderId: order._id.toString(),
+        userId: order.user?._id?.toString(),
       });
     } catch (err) {
       logger.error(`[OrderController] Deliver email error: ${err.message}`);

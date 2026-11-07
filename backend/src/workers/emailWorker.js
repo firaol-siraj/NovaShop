@@ -15,9 +15,15 @@ const emailWorker = new Worker(
       case "sendVerificationEmail":
       case "sendPasswordResetEmail": {
         const isPasswordReset = job.name === "sendPasswordResetEmail";
+        const recipient = (data.to || data.email || data.customerEmail || data.recipient || '').trim();
+
+        if (!recipient) {
+          console.warn(`[BullMQ] Skipping ${job.name} (ID: ${job.id}): missing or empty recipient email address`);
+          return;
+        }
 
         const result = await sendEmail({
-          to: data.to || data.email,
+          to: recipient,
           subject: data.subject,
           text: data.text || data.message,
           html: data.html,
@@ -36,8 +42,15 @@ const emailWorker = new Worker(
       case "sendOrderConfirmationEmail":
       case "sendOrderStatusEmail":
       case "sendPaymentReceiptEmail": {
+        const recipient = (data.to || data.email || data.customerEmail || data.recipient || '').trim();
+
+        if (!recipient) {
+          console.warn(`[BullMQ] Skipping ${job.name} (ID: ${job.id}): missing or empty recipient email address`);
+          return;
+        }
+
         const result = await sendEmail({
-          to: data.to || data.email,
+          to: recipient,
           subject: data.subject,
           text: data.text || data.message,
           html: data.html,

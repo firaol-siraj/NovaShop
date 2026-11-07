@@ -1814,7 +1814,7 @@ export const sendCustomerAdminEmail = asyncHandler(async (req, res, next) => {
     emailLog = await EmailLog.findByIdAndUpdate(
       sendResult.logId,
       { preview: message.slice(0, 160) },
-      { new: true }
+      { returnDocument: 'after' }
     );
   } else {
     emailLog = await EmailLog.findOne({

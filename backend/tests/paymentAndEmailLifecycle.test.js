@@ -10,7 +10,7 @@ import Variant from '../src/models/productVariantModel.js';
 import Payment from '../src/models/paymentModel.js';
 import chapaService from '../src/services/chapaService.js';
 import emailService from '../src/services/emailService.js';
-import { queueOrSendEmail } from '../src/queues/emailQueue.js';
+import { emailQueue, queueOrSendEmail } from '../src/queues/emailQueue.js';
 import { markOrderPaid } from '../src/controllers/orderController.js';
 
 describe('Production Readiness: Payment & Email Lifecycle Audit Tests', () => {
@@ -1287,6 +1287,167 @@ describe('Production Readiness: Payment & Email Lifecycle Audit Tests', () => {
         expect(dbOrder.paymentStatus).toBe('pending');
         expect(dbOrder.isPaid).toBe(false);
       });
+    });
+  });
+
+  describe('6. Production Incident Remediation: Render Production Failure Regression Suite', () => {
+    it('allows public access to POST /api/v1/payments/chapa/webhook without JWT Bearer token (no 401)', async () => {
+      // Prior bug: paymentRoutes had router.use(protect), so Chapa webhooks to /api/v1/payments/chapa/webhook returned 401.
+      const res = await request(app)
+        .post('/api/v1/payments/chapa/webhook')
+        .send({ event: 'charge.complete', tx_ref: 'non_existent_ref' });
+
+      // Must NOT be 401 Unauthorized (should be 400 due to missing x-chapa-signature)
+      expect(res.status).not.toBe(401);
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/x-chapa-signature/i);
+    });
+
+    it('verifies valid HMAC signature on POST /api/v1/payments/chapa/webhook without JWT auth', async () => {
+      const origSecret = process.env.CHAPA_WEBHOOK_SECRET;
+      process.env.CHAPA_WEBHOOK_SECRET = 'render_test_webhook_secret_12345';
+
+      try {
+        const payload = JSON.stringify({
+          event: 'charge.complete',
+          tx_ref: 'unknown_reference_tx',
+          status: 'success',
+        });
+
+        const signature = crypto
+          .createHmac('sha256', process.env.CHAPA_WEBHOOK_SECRET)
+          .update(payload)
+          .digest('hex');
+
+        const res = await request(app)
+          .post('/api/v1/payments/chapa/webhook')
+          .set('Content-Type', 'application/json')
+          .set('x-chapa-signature', signature)
+          .send(payload);
+
+        // Order not found returns 200 with ignored: true
+        expect(res.status).toBe(200);
+        expect(res.body.received).toBe(true);
+        expect(res.body.ignored).toBe(true);
+      } finally {
+        process.env.CHAPA_WEBHOOK_SECRET = origSecret;
+      }
+    });
+
+    it('executes server-side shipping zone lookup and quote calculation without throwing getZoneByCountry errors', async () => {
+      const orderPayload = {
+        orderItems: [
+          {
+            product: testProduct._id.toString(),
+            name: testProduct.name,
+            qty: 1,
+            price: testProduct.price,
+            image: testProduct.image,
+          },
+        ],
+        shippingAddress: {
+          recipientName: 'Abebe Bikila',
+          address: 'Meskel Square',
+          city: 'Addis Ababa',
+          postalCode: '1000',
+          country: 'Ethiopia',
+          phone: '+251911223344',
+        },
+        paymentMethod: 'Chapa',
+        currency: 'USD',
+        shippingPrice: 15.0, // Client tries to supply 15
+      };
+
+      const res = await request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send(orderPayload);
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toBeDefined();
+      expect(res.body.data.shippingAddress.country).toBe('Ethiopia');
+      // Server-side quote verified
+      expect(res.body.data.shippingPrice).toBeDefined();
+      expect(typeof res.body.data.shippingPrice).toBe('number');
+    });
+
+    it('queues initial order confirmation email with verified customer recipient address', async () => {
+      const addSpy = jest.spyOn(emailQueue, 'add');
+
+      const orderPayload = {
+        orderItems: [
+          {
+            product: testProduct._id.toString(),
+            name: testProduct.name,
+            qty: 1,
+            price: testProduct.price,
+            image: testProduct.image,
+          },
+        ],
+        shippingAddress: {
+          recipientName: 'Test Recipient',
+          address: 'Bole Medhanealem',
+          city: 'Addis Ababa',
+          postalCode: '1000',
+          country: 'Ethiopia',
+          phone: '+251911000000',
+        },
+        paymentMethod: 'Chapa',
+        currency: 'USD',
+      };
+
+      const res = await request(app)
+        .post('/api/v1/orders')
+        .set('Authorization', `Bearer ${customerToken}`)
+        .send(orderPayload);
+
+      expect(res.status).toBe(201);
+      expect(addSpy).toHaveBeenCalled();
+      const lastCall = addSpy.mock.calls.find((call) => call[0] === 'sendOrderConfirmationEmail');
+      expect(lastCall).toBeDefined();
+      // Ensure recipient email is non-empty customer email
+      expect(lastCall[1].to).toBe('customer@example.com');
+      expect(lastCall[1].email).toBe('customer@example.com');
+      addSpy.mockRestore();
+    });
+
+    it('ensures getCookieOptions defaults to SameSite=Lax (or None for cross-site) allowing gateway return redirects', async () => {
+      const { getCookieOptions } = await import('../src/utils/generateToken.js');
+
+      const origEnv = process.env.NODE_ENV;
+      const origSameSite = process.env.COOKIE_SAME_SITE;
+      const origClientUrl = process.env.CLIENT_URL;
+      const origFrontendUrl = process.env.FRONTEND_URL;
+
+      try {
+        process.env.NODE_ENV = 'production';
+        delete process.env.COOKIE_SAME_SITE;
+        delete process.env.CLIENT_URL;
+        delete process.env.FRONTEND_URL;
+
+        // Same-origin production defaults to 'strict'
+        const optionsSameSite = getCookieOptions(7 * 24 * 60 * 60 * 1000);
+        expect(optionsSameSite.sameSite).toBe('strict');
+        expect(optionsSameSite.httpOnly).toBe(true);
+        expect(optionsSameSite.secure).toBe(true);
+
+        // Cross-site frontend/backend defaults to 'none' with secure: true
+        process.env.CLIENT_URL = 'https://novashop-frontend.vercel.app';
+        const optionsCrossSite = getCookieOptions(7 * 24 * 60 * 60 * 1000);
+        expect(optionsCrossSite.sameSite).toBe('none');
+        expect(optionsCrossSite.secure).toBe(true);
+
+        // Explicit COOKIE_SAME_SITE=lax overrides appropriately
+        process.env.COOKIE_SAME_SITE = 'lax';
+        const optionsLax = getCookieOptions();
+        expect(optionsLax.sameSite).toBe('lax');
+      } finally {
+        process.env.NODE_ENV = origEnv;
+        if (origSameSite) process.env.COOKIE_SAME_SITE = origSameSite;
+        if (origClientUrl) process.env.CLIENT_URL = origClientUrl;
+        if (origFrontendUrl) process.env.FRONTEND_URL = origFrontendUrl;
+      }
     });
   });
 });

@@ -135,7 +135,7 @@ router.post(
           folder: productFolder._id,
           uploadedBy: req.user?._id || null,
         },
-        { upsert: true, new: true, setDefaultsOnInsert: true }
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
       );
     } catch (mediaErr) {
       // Do not block upload response if background media indexing fails

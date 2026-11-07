@@ -1050,7 +1050,7 @@ export const markNotificationRead = asyncHandler(async (req, res, next) => {
   const notification = await AdminNotification.findByIdAndUpdate(
     req.params.id,
     { isRead: true, readAt: new Date() },
-    { new: true }
+    { returnDocument: 'after' }
   );
 
   if (!notification) {

@@ -38,8 +38,8 @@ export default function OrderConfirmationPage({ go }) {
 
   // Extract orderId & transaction reference from URL query params or fallback to currentOrder
   const queryParams = useMemo(() => new URLSearchParams(window.location.search), []);
-  const resolvedOrderId = queryParams.get('orderId') || currentOrder?._id || currentOrder?.orderId || null;
-  const urlTxRef = queryParams.get('trx_ref') || queryParams.get('tx_ref') || queryParams.get('reference') || null;
+  const resolvedOrderId = (queryParams.get('orderId') || currentOrder?._id || currentOrder?.orderId || '').trim() || null;
+  const urlTxRef = (queryParams.get('trx_ref') || queryParams.get('tx_ref') || queryParams.get('reference') || '').trim() || null;
 
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(() => Boolean(resolvedOrderId));

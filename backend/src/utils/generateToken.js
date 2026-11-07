@@ -18,8 +18,11 @@ export const generateRefreshToken = (userId, expiresIn = '7d', role = 'customer'
 // Helper to compute unified, production-ready cookie security attributes
 export const getCookieOptions = (maxAge = null) => {
   const isProd = process.env.NODE_ENV === 'production';
-  const rawSameSite = (process.env.COOKIE_SAME_SITE || 'strict').toLowerCase();
-  const sameSite = ['strict', 'lax', 'none'].includes(rawSameSite) ? rawSameSite : 'strict';
+  const clientUrl = process.env.CLIENT_URL || process.env.FRONTEND_URL || '';
+  const isCrossSite = clientUrl && isProd && !clientUrl.includes('localhost');
+  const defaultSameSite = isCrossSite ? 'none' : 'strict';
+  const rawSameSite = (process.env.COOKIE_SAME_SITE || defaultSameSite).toLowerCase();
+  const sameSite = ['strict', 'lax', 'none'].includes(rawSameSite) ? rawSameSite : defaultSameSite;
   const secure = isProd || sameSite === 'none';
 
   const options = {

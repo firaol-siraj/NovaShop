@@ -289,7 +289,7 @@ class ShippingService {
   }
 
   async updateZone(id, data) {
-    return await ShippingZone.findByIdAndUpdate(id, data, { new: true });
+    return await ShippingZone.findByIdAndUpdate(id, data, { returnDocument: 'after' });
   }
 
   async deleteZone(id) {
@@ -318,7 +318,7 @@ class ShippingService {
   }
 
   async updateMethod(id, data) {
-    return await ShippingMethod.findByIdAndUpdate(id, data, { new: true });
+    return await ShippingMethod.findByIdAndUpdate(id, data, { returnDocument: 'after' });
   }
 
   async deleteMethod(id) {
@@ -332,7 +332,7 @@ class ShippingService {
   }
 
   async updateRate(id, data) {
-    return await ShippingRate.findByIdAndUpdate(id, data, { new: true });
+    return await ShippingRate.findByIdAndUpdate(id, data, { returnDocument: 'after' });
   }
 
   async deleteRate(id) {

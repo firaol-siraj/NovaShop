@@ -269,7 +269,7 @@ export const updateAdminShippingSettings = asyncHandler(async (req, res, next) =
     await Setting.findOneAndUpdate(
       { key: 'free_shipping_threshold' },
       { value: String(freeShippingThreshold), group: 'shipping' },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   }
 
@@ -277,7 +277,7 @@ export const updateAdminShippingSettings = asyncHandler(async (req, res, next) =
     await Setting.findOneAndUpdate(
       { key: 'shipping_origin_address' },
       { value: String(originAddress), group: 'shipping' },
-      { upsert: true, new: true }
+      { upsert: true, returnDocument: 'after' }
     );
   }
 

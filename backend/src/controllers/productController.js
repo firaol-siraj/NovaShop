@@ -808,7 +808,7 @@ export const updateProduct = asyncHandler(async (req, res, next) => {
           stock: variantStock,
           image: v.image || product.image,
         },
-        { upsert: true, new: true },
+        { upsert: true, returnDocument: 'after' },
       );
     }
     product.countInStock = totalStock;

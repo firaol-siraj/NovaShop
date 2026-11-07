@@ -239,7 +239,7 @@ export const trackHeroSlideEvent = asyncHandler(async (req, res) => {
   await HeroSlideStat.findOneAndUpdate(
     { slide: slideId, date: todayStr },
     { $inc: { [incField]: 1 } },
-    { upsert: true, new: true, setDefaultsOnInsert: true }
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true }
   );
 
   res.status(200).json({ success: true });
